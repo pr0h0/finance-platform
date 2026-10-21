@@ -1,8 +1,5 @@
 # Known issues and limitations
 
-- **Phase 0 only**: all API modules are registered but have no routes yet (they return the JSON 404
-  `route_not_found`). `auth.Middleware` does not populate a principal yet, so authenticated endpoints will
-  return 401 until the auth module lands.
 - Raiffeisen Bank BiH importer: BLOCKED_EXTERNAL (no statement sample).
 - Mobile (Phase 3) and desktop/Tauri (Phase 4) not started: DEFERRED_TO_PHASE.
 - `docs/api/openapi.yaml` is hand-maintained; TS types in `packages/domain` are not generated from it, so
@@ -59,3 +56,27 @@
 - List endpoints of simple entities (tags, templates, categories, merchants, accounts) page with an offset cursor.
 - Undo applies the previous audit snapshot of a transaction; it cannot undo changes to imported evidence
   (refused, as any edit would be) and only covers the transaction itself, not linked fee/refund transactions.
+
+## Auth, sync, backups, admin (apps/api/internal/{auth,sync,backups,admin,...})
+- Rate limits are in-process fixed windows (per IP and per email on auth, per user on sync); with several API
+  replicas each enforces its own window.
+- `invite_only` registration means an admin creates the account (`POST /admin/users`); household invitations
+  require the invitee to already have an account. No email delivery: invite tokens / recovery codes are
+  passed on by the user (no SMTP needed).
+- `/api/v1/meta.registrationPolicy` shows the environment value; a runtime change via `PUT /admin/settings`
+  is effective for registration and shown by `/admin/settings` and `/admin/diagnostics`, but not by `/meta`
+  (server.go is foundation-owned).
+- Only the registration policy is changeable at runtime; MCP/FX/backup schedule stay environment settings.
+- Sync push only works for entity types whose owning module called `sync.RegisterEntity`; others are
+  rejected with `unsupported_entity` (honest, not silently dropped). Each module must register its tables.
+- Sync push bodies are bounded by `MAX_BODY_BYTES` (default 1 MiB); clients must split large batches.
+- E2EE: server side only (ciphertext storage, key envelopes, revocation). Client crypto, PDK rotation and
+  re-encryption, and converting an existing profile between privacy modes are not implemented; PATCH of
+  `privacyMode` is refused once the profile has data.
+- `PATCH /profiles/{id}` cannot detach a profile from its household (null `householdId` is ignored); deleting
+  the household detaches its profiles.
+- Server backups: without `BACKUP_ENCRYPTION_KEY` they are stored unencrypted (metadata says `alg: none`,
+  diagnostics flags it). Attachment file contents are not part of exports/backups. Restore of an exported
+  e2ee profile is refused server-side. Restore of foreign-key cycles between different tables is not
+  supported (none exist in the current schema).
+- Audit `from`/`to` filters are UTC calendar days.

@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { isoDate, moneySchema, transactionCreate } from './index.ts';
+import { isoDate, moneySchema, profileInput, registerRequest, transactionCreate } from './index.ts';
 
 const base = {
   kind: 'expense',
@@ -44,4 +44,24 @@ test('transfers need a different destination account', () => {
   expect(
     transactionCreate.safeParse({ ...base, kind: 'transfer', toAccountId: base.accountId }).success,
   ).toBe(false);
+});
+
+test('registration mirrors the server password and email rules', () => {
+  expect(
+    registerRequest.safeParse({ email: 'a@example.com', password: 'twelve chars' }).success,
+  ).toBe(true);
+  expect(registerRequest.safeParse({ email: 'a@example.com', password: 'short' }).success).toBe(
+    false,
+  );
+  expect(registerRequest.safeParse({ email: 'nope', password: 'twelve chars' }).success).toBe(
+    false,
+  );
+});
+
+test('profile input validates currency and week start', () => {
+  expect(
+    profileInput.safeParse({ name: 'Personal', baseCurrency: 'BAM', weekStart: 1 }).success,
+  ).toBe(true);
+  expect(profileInput.safeParse({ name: '', baseCurrency: 'BAM' }).success).toBe(false);
+  expect(profileInput.safeParse({ name: 'X', weekStart: 7 }).success).toBe(false);
 });

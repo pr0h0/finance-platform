@@ -58,6 +58,7 @@ export interface Household {
   name: string;
   createdBy: Uuid;
   createdAt: IsoInstant;
+  members: HouseholdMember[]; // invited + active
 }
 
 export interface HouseholdMember {
@@ -481,9 +482,40 @@ export interface EncryptedBackup {
   schemaVersion: number;
   sizeBytes: number;
   sha256: string;
-  encryption: { alg: string; kdf: string; keyId: string };
+  /** Never key material. alg "aes-256-gcm" (server key, keyId = its fingerprint) or "none". */
+  encryption: {
+    alg: 'aes-256-gcm' | 'none';
+    keyId?: string;
+    compression: 'gzip';
+    format: 'finplat-export';
+  };
   status: 'in_progress' | 'complete' | 'failed' | 'expired';
   createdAt: IsoInstant;
+}
+
+/** E2EE wrapped profile data key (ADR 0005); wrappedKey is base64. */
+export interface KeyEnvelope {
+  id: Uuid;
+  keyId: string;
+  kind: 'password' | 'recovery' | 'device' | 'member';
+  deviceId: Uuid | null;
+  wrappedKey: string;
+  kdfParams: Record<string, unknown>;
+  createdAt: IsoInstant;
+}
+
+/** POST /auth/login and GET /auth/session. csrfToken for cookie sessions, token for bearer devices. */
+export interface LoginResponse {
+  user: User;
+  csrfToken?: string;
+  token?: string;
+  deviceId?: Uuid;
+}
+
+export interface ProfileMember {
+  userId: Uuid;
+  email: string;
+  role: E.ProfileRole;
 }
 
 /** GET /api/v1/meta */

@@ -9,4 +9,5 @@ apps/web/dist/
 test-results/
 playwright-report/
 backups/
+!apps/api/internal/backups/
 .DS_Store

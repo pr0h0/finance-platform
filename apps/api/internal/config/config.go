@@ -49,6 +49,7 @@ type Config struct {
 	BackupDir           string
 	BackupSchedule      string
 	BackupRetentionDays int
+	BackupKey           string // BACKUP_ENCRYPTION_KEY: base64 32-byte AES-256-GCM key for server backups (empty = unencrypted)
 
 	MCPEnabled    bool
 	MCPMaxResults int
@@ -152,6 +153,7 @@ func Load() (*Config, error) {
 		BackupDir:           str("BACKUP_DIR", "/data/backups"),
 		BackupSchedule:      str("BACKUP_SCHEDULE", "24h"),
 		BackupRetentionDays: num[int]("BACKUP_RETENTION_DAYS", 30, &errs),
+		BackupKey:           os.Getenv("BACKUP_ENCRYPTION_KEY"),
 		MCPEnabled:          boolean("MCP_ENABLED", false, &errs),
 		MCPMaxResults:       num[int]("MCP_MAX_RESULTS", 500, &errs),
 		LogLevel:            str("LOG_LEVEL", "info"),

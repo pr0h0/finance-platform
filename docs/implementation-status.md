@@ -17,6 +17,7 @@ Current target: backend + web (Phases 1–2). Mobile (3) and desktop (4) are def
 | PostgreSQL schema (all PLAN §6 entities), goose migrations | TESTED | migrations apply on startup; trigger tests in internal/changes |
 | Sync change log + audit helper (`internal/changes`) | TESTED | internal/changes tests (DB) |
 | Profile authorization helper (`internal/authz`) | TESTED | internal/authz tests (DB) |
+| Auth: Argon2id, cookie sessions + CSRF, bearer device tokens, sessions, recovery codes, rate limits, registration policies | TESTED | `internal/auth/auth_test.go` (CSRF, IDOR, revocation, recovery, rate limit) |
 | Idempotency-Key middleware | TESTED | internal/httpx tests (DB) |
 | Money engine TS + Go, conformance fixtures | TESTED | both runners pass packages/test-fixtures/conformance |
 | OpenAPI 3.1 contract | IMPLEMENTED | redocly lint: valid |
@@ -128,22 +129,22 @@ Engine-level only; each feature row below stays owned by its API/web module.
 | 82 | Global shortcuts | API, Web | 1-2 | NOT_STARTED | automation, transactions | — | Web: in-app keyboard shortcuts. OS-global shortcuts are desktop (Phase 4). |
 | 83 | Bulk editing | API, Web | 1-2 | NOT_STARTED | automation, transactions | — |  |
 | 84 | Undo and history | API, Web | 1-2 | NOT_STARTED | automation, transactions | — |  |
-| 85 | Local-first storage | API, Web | 1-2 | NOT_STARTED | web storage, sync, backups, auth, households | — | Phase 0: storage abstraction interface (packages/storage). |
-| 86 | Offline mode | API, Web | 1-2 | NOT_STARTED | web storage, sync, backups, auth, households | — |  |
-| 87 | Optional cloud synchronization | API, Web | 1-2 | NOT_STARTED | web storage, sync, backups, auth, households | — |  |
-| 88 | End-to-end encryption | API, Web | 1-2 | NOT_STARTED | web storage, sync, backups, auth, households | — | Phase 0: design in ADR 0005; key_envelopes table. |
-| 89 | Automatic backups | API, Web | 1-2 | NOT_STARTED | web storage, sync, backups, auth, households | — |  |
-| 90 | Backup restoration | API, Web | 1-2 | NOT_STARTED | web storage, sync, backups, auth, households | — |  |
+| 85 | Local-first storage | API, Web | 1-2 | IN_PROGRESS (API done) | web storage, sync, backups, auth, households | `internal/auth/*_test.go` TestSyncInterruptedRecovery | API: server side of local-first is the sync log (push/pull/snapshot) so clients can work offline and reconcile later. Client local storage is the web agent's part. |
+| 86 | Offline mode | API, Web | 1-2 | IN_PROGRESS (API done) | web storage, sync | `internal/auth/*_test.go` TestSyncInterruptedRecovery, TestSyncConcurrentEditsMergeOrConflict | API: offline ops pushed later with client ids + opIds (idempotent), stale-base edits merged or turned into conflicts. Client offline queue: web agent. |
+| 87 | Optional cloud synchronization | API, Web | 1-2 | TESTED (API) | sync, auth, devices | `internal/auth/*_test.go` TestSync* | API: `/sync/push` (≤500 ops, idempotent by opId, savepoint per op), `/sync/pull` (cursor, durable per-device checkpoint), `/sync/snapshot` (paged current state), `/sync/status`, `/sync/conflicts` + resolve (server/client/merged). Entities become pushable via `sync.RegisterEntity` (owning modules must register; unregistered types → `unsupported_entity`). |
+| 88 | End-to-end encryption | API, Web | 1-2 | IN_PROGRESS (API done) | sync (encrypted_records, key envelopes) | `internal/auth/*_test.go` TestSyncE2EEAcrossDevices (XChaCha20-Poly1305 + sealed-box key wrap across two devices) | API: e2ee profiles store only validated ciphertext envelopes (`encrypted_records`), stale updates always conflict, wrapped keys via `/sync/keys`, device revocation revokes envelopes. Client-side libsodium crypto + key rotation: not built yet. Switching an existing profile's privacy mode is refused once it has data. |
+| 89 | Automatic backups | API, Web | 1-2 | IN_PROGRESS (API done) | backups | `internal/auth/*_test.go` TestScheduledBackups, TestBackupExportRestore | API: manual + scheduled server backups (BACKUP_SCHEDULE, retention, advisory lock), AES-256-GCM at rest with BACKUP_ENCRYPTION_KEY (alg "none" recorded when unset). Local (client) backups: web agent. |
+| 90 | Backup restoration | API, Web | 1-2 | TESTED (API) | backups | `internal/auth/*_test.go` TestBackupExportRestore | API: restore from uploaded backup/export into a new profile or an empty owned profile (pre-restore backup), all ids remapped, sync log rebuilt. E2EE exports are restored client-side (409 server-side). |
 | 91 | Application lock | API, Web | 1-2 | NOT_STARTED | web storage, sync, backups, auth, households | — | Web: PIN/passphrase lock. Biometric lock is mobile/desktop (Phase 3/4). |
-| 92 | Financial profiles | API, Web | 1-2 | NOT_STARTED | web storage, sync, backups, auth, households | — |  |
-| 93 | Household sharing | API, Web | 1-2 | NOT_STARTED | web storage, sync, backups, auth, households | — |  |
-| 94 | Data portability | API, Web | 1-2 | NOT_STARTED | web storage, sync, backups, auth, households | — |  |
+| 92 | Financial profiles | API, Web | 1-2 | TESTED (API) | profiles | `internal/auth/*_test.go` TestProfilesCRUDAndValidation, TestObjectLevelAuthorization | API: CRUD (client-chosen id allowed), roles owner/editor/viewer, members, profile settings, soft delete; default "Personal" profile at registration. |
+| 93 | Household sharing | API, Web | 1-2 | TESTED (API) | households, profiles | `internal/auth/*_test.go` TestHouseholdSharing | API: households, roles owner/admin/member/viewer, email-bound single-use invite tokens (7 days, no SMTP), profiles shareable only with household members, leaving/removal ends shared-profile access, last-owner protection. |
+| 94 | Data portability | API, Web | 1-2 | TESTED (API) | backups | `internal/auth/*_test.go` TestBackupExportRestore | API: `GET /export` open JSON format documented in docs/api/export-format.md (all profile tables + snapshots). Attachment file contents not included. |
 | 95 | macOS | macOS desktop (Tauri) | 4 | DEFERRED_TO_PHASE | platform | — | Desktop is developed later on macOS hardware. |
 | 96 | Windows | Windows desktop (Tauri) | 4 | DEFERRED_TO_PHASE | platform | — | Desktop is developed later on Windows hardware. |
 | 97 | Linux | Linux desktop (Tauri) | 4 | DEFERRED_TO_PHASE | platform | — | Desktop deferred; architecture (storage abstraction, mcp-contracts) kept compatible. |
 | 98 | Web | API, Web | 1-2 | NOT_STARTED | platform | — | Phase 0 shell only (server status page). |
 | 99 | Mobile | Android, iOS | 3 | DEFERRED_TO_PHASE | platform | — | Mobile is Phase 3. |
-| 100 | Cross-platform synchronization | API, Web | 1-2 | NOT_STARTED | platform | — | Web<->server sync in Phase 1-2; mobile/desktop clients later. |
+| 100 | Cross-platform synchronization | API, Web | 1-2 | IN_PROGRESS (API done) | sync | `internal/auth/*_test.go` TestSync* | API: deterministic op-log sync with per-profile server_version, device identity, tombstones, conflict records; mobile/desktop clients deferred. |
 | 101 | Bank statement import | API, Web | 1-2 | IN_PROGRESS | platform | `scripts/bun.sh test packages/importer-sdk packages/bank-importers` (client) | Client side parsers TESTED (CSV/TSV/XLSX/XLS/OFX/QFX/QIF/CAMT.053/054/MT940/JSON/text PDF; OCR optional, untested). See docs/importing/formats.md. |
 | 102 | Optional bank integrations | API, Web | 1-2 | NOT_STARTED | platform | — |  |
 | 103 | Themes | Web | 2 | NOT_STARTED | platform | — |  |
@@ -151,8 +152,8 @@ Engine-level only; each feature row below stays owned by its API/web module.
 | 105 | Accessibility | Web | 2 | NOT_STARTED | platform | — |  |
 | 106 | First-launch mode selection | Web (+API) | 2 | NOT_STARTED | web, sync, api-client | — |  |
 | 107 | Custom backend URL | API, Web | 1-2 | NOT_STARTED | web, sync, api-client | — |  |
-| 108 | Synchronization dashboard | Web (+API) | 2 | NOT_STARTED | web, sync, api-client | — |  |
-| 109 | Server migration | API, Web | 1-2 | NOT_STARTED | web, sync, api-client | — |  |
+| 108 | Synchronization dashboard | Web (+API) | 2 | IN_PROGRESS (API done) | sync | `internal/auth/*_test.go` TestSyncInterruptedRecovery | API: `/sync/status` (head, own devices' checkpoints/last push, open conflicts, storage bytes), `/devices`. Dashboard UI: web agent. |
+| 109 | Server migration | API, Web | 1-2 | IN_PROGRESS (API done) | backups | `internal/auth/*_test.go` TestBackupExportRestore | API: export on old server + restore on new server with id remapping; flow in docs/api/export-format.md. Client "change server" UI: web agent. |
 | 110 | Bank importer registry | API, Web | 1-2 | IN_PROGRESS | imports, importer-sdk, bank-importers | `scripts/bun.sh test packages/importer-sdk packages/bank-importers` (client) | TS `ImporterRegistry` + `createRegistry()` (detect ranking, sdkVersion/semver checks, blocked importers refused) TESTED. API /importers by imports module. |
 | 111 | Custom bank templates | API, Web | 1-2 | IN_PROGRESS | imports, importer-sdk, bank-importers | `scripts/bun.sh test packages/importer-sdk packages/bank-importers` (client) | Declarative template schema v1 (zod, data only, no code/regex) + engine TESTED; docs/importing/templates.md. |
 | 112 | Code-based bank adapters | API, Web | 1-2 | IN_PROGRESS | imports, importer-sdk, bank-importers | `scripts/bun.sh test packages/importer-sdk packages/bank-importers` (client) | `BankImporter` contract, `ResultBuilder`, banks/<id>/ adapter slot; bundled-only (no runtime code loading). Contributor guide docs/importing/README.md. |
@@ -162,8 +163,8 @@ Engine-level only; each feature row below stays owned by its API/web module.
 | 116 | Account reconciliation | API, Web | 1-2 | IN_PROGRESS | imports, importer-sdk, bank-importers | `scripts/bun.sh test packages/importer-sdk packages/bank-importers` (client) | checkStatementBalance(), checkRunningBalances() exact minor-unit arithmetic TESTED (client side). |
 | 117 | Mapping editor | API, Web | 1-2 | IN_PROGRESS | imports, importer-sdk, bank-importers | `scripts/bun.sh test packages/importer-sdk packages/bank-importers` (client) | Client helpers readTablePreview() + suggestTemplate() + validateTemplate() TESTED; editor UI by web agent. |
 | 118 | Community templates | API, Web | 1-2 | IN_PROGRESS | imports, importer-sdk, bank-importers | `scripts/bun.sh test packages/importer-sdk packages/bank-importers` (client) | Contribution/testing procedure documented (docs/importing/README.md); example synthetic templates in packages/test-fixtures/imports/templates/. |
-| 119 | Device management | API, Web | 1-2 | NOT_STARTED | imports, importer-sdk, bank-importers | — |  |
-| 120 | Self-hosted administration | API, Web | 1-2 | NOT_STARTED | imports, importer-sdk, bank-importers | — |  |
+| 119 | Device management | API, Web | 1-2 | TESTED (API) | sync (devices), auth | `internal/auth/*_test.go` TestDeviceRevocationEndsSessions, TestSyncE2EEAcrossDevices | API: enroll (login with device or POST /devices, optional X25519 public key), rename, revoke (ends its sessions, revokes its key envelopes); push/pull require an active device of the caller. |
+| 120 | Self-hosted administration | API, Web | 1-2 | TESTED (API) | admin, audit, auth | `internal/auth/*_test.go` TestAuditAndAdmin, TestRegistrationPolicies | API: `/admin/settings` (runtime registration policy; env-only settings rejected), `/admin/users` (list/create/disable/promote; disabling revokes sessions; no self-lockout), `/admin/stats` (counts, DB/backup/attachment bytes), `/admin/diagnostics`, `/admin/audit`, profile `/audit`. |
 | 121 | Raiffeisen Bank BiH integration | API, Web | 1 | BLOCKED_EXTERNAL | imports, importer-sdk, bank-importers | — | Needs a real (sanitized) Raiffeisen BiH statement. Only the plug-in slot exists: packages/bank-importers/src/banks/raiffeisen-bih (README + manifest, detect=0, parse throws importer_blocked; tested). |
 | 122 | Historical import | API, Web | 1-2 | IN_PROGRESS | imports, importer-sdk, bank-importers | `scripts/bun.sh test packages/importer-sdk packages/bank-importers` (client) | Parsers stream line formats (CSV/TSV/QIF/MT940) via Web Streams; whole-file formats capped by maxBytes. No date restriction. |
 | 123 | Editable imported records | API, Web | 1-2 | NOT_STARTED | imports, importer-sdk, bank-importers | — |  |

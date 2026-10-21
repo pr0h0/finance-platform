@@ -49,6 +49,7 @@ export interface PullResponse {
   changes: SyncChange[]; // ascending serverVersion, all > `since`
   nextSince: number; // pass back as ?since=
   hasMore: boolean;
+  nextCursor?: string; // GET /sync/snapshot only
   serverVersion: number; // profile head
 }
 
@@ -57,6 +58,7 @@ export interface SyncConflict {
   entityType: string;
   entityId: Uuid;
   opId: Uuid;
+  op: SyncOp; // "client" resolution replays this op
   baseVersion: number;
   fields: string[];
   serverData: Record<string, unknown>;

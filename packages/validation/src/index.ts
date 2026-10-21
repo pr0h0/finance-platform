@@ -245,7 +245,7 @@ export const syncOperation = z.object({
   entityType: z.string().regex(/^[a-z_]+$/),
   entityId: uuid,
   op: z.enum(D.SYNC_OPS),
-  baseVersion: z.number().int().nonnegative().nullable(),
+  baseVersion: z.number().int().positive().nullable(),
   data: z.record(z.string(), z.unknown()).nullable(),
   changedFields: z.array(z.string()).optional(),
   clientTime: isoInstant,
@@ -259,3 +259,51 @@ export const pushRequest = z.object({
 });
 
 export { z };
+
+// ---- auth / profiles / households (server rules: apps/api/internal/{auth,profiles,households}) ----
+export const password = z.string().min(12, 'at least 12 characters').max(1024);
+
+export const registerRequest = z.object({
+  email: z.string().trim().email().max(254),
+  password,
+  displayName: z.string().trim().max(200).optional(),
+});
+
+export const loginRequest = z.object({
+  email: z.string().trim().min(1),
+  password: z.string().min(1).max(1024),
+  device: z
+    .object({
+      name: z.string().trim().min(1).max(100),
+      platform: z.enum(['web', 'android', 'ios', 'macos', 'windows', 'linux', 'cli', 'other']),
+      clientVersion: z.string().max(50).optional(),
+      publicKey: z.string().optional(),
+    })
+    .optional(),
+});
+
+export const passwordChange = z.object({
+  currentPassword: z.string().min(1),
+  newPassword: password,
+});
+export const recoverRequest = z.object({
+  email: z.string().trim().email(),
+  code: z.string().min(1),
+  newPassword: password,
+});
+
+export const profileInput = z.object({
+  id: uuid.optional(),
+  name: z.string().trim().min(1).max(100),
+  householdId: uuid.optional(),
+  baseCurrency: currencyCode.optional(),
+  timezone: z.string().min(1).optional(),
+  locale: z.string().min(2).max(35).optional(),
+  weekStart: z.number().int().min(0).max(6).optional(),
+  privacyMode: z.enum(['server_readable', 'e2ee']).optional(),
+});
+
+export const householdInvite = z.object({
+  email: z.string().trim().email(),
+  role: z.enum(['owner', 'admin', 'member', 'viewer']).default('member'),
+});
