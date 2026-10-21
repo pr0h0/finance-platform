@@ -1,0 +1,302 @@
+// Virtualized transaction table (TanStack Table + TanStack Virtual). Only the visible rows are in
+// the DOM, so 50k+ rows stay fast; sorting runs on the in-memory list.
+import type * as D from '@finplat/domain';
+import { compareDecimal } from '@finplat/finance-engine';
+import {
+  type ColumnDef,
+  flexRender,
+  getCoreRowModel,
+  getSortedRowModel,
+  type RowSelectionState,
+  type SortingState,
+  useReactTable,
+} from '@tanstack/react-table';
+import { useVirtualizer } from '@tanstack/react-virtual';
+import { ArrowDown, ArrowUp, FileInput, Paperclip, Repeat } from 'lucide-react';
+import { useMemo, useRef, useState } from 'react';
+import type { Refs } from './data.ts';
+import { primaryAmount } from './model.ts';
+import { Badge, MoneyText } from './ui.tsx';
+
+const ROW_H = 44;
+
+export function TransactionTable({
+  rows,
+  refs,
+  locale,
+  selection,
+  onSelectionChange,
+  onOpen,
+}: {
+  rows: D.Transaction[];
+  refs: Refs;
+  locale: string;
+  selection: RowSelectionState;
+  onSelectionChange: (s: RowSelectionState) => void;
+  onOpen: (t: D.Transaction) => void;
+}) {
+  const [sorting, setSorting] = useState<SortingState>([{ id: 'date', desc: true }]);
+
+  const columns = useMemo<ColumnDef<D.Transaction>[]>(
+    () => [
+      {
+        id: 'select',
+        size: 36,
+        enableSorting: false,
+        header: ({ table }) => (
+          <input
+            type="checkbox"
+            aria-label="Select all shown transactions"
+            checked={table.getIsAllRowsSelected()}
+            ref={(el) => {
+              if (el) el.indeterminate = table.getIsSomeRowsSelected();
+            }}
+            onChange={table.getToggleAllRowsSelectedHandler()}
+          />
+        ),
+        cell: ({ row }) => (
+          <input
+            type="checkbox"
+            aria-label={`Select ${row.original.description || 'transaction'}`}
+            checked={row.getIsSelected()}
+            onChange={row.getToggleSelectedHandler()}
+            onClick={(e) => e.stopPropagation()}
+          />
+        ),
+      },
+      {
+        id: 'date',
+        header: 'Date',
+        size: 110,
+        accessorFn: (t) => `${t.bookingDate}|${t.createdAt}`,
+        cell: ({ row }) => <span className="tabular-nums">{row.original.bookingDate}</span>,
+      },
+      {
+        id: 'description',
+        header: 'Description',
+        size: 360,
+        accessorFn: (t) =>
+          (t.description || t.payee || refs.merchantName(t.merchantId)).toLowerCase(),
+        cell: ({ row }) => {
+          const t = row.original;
+          const merchant = refs.merchantName(t.merchantId);
+          return (
+            <div className="flex min-w-0 items-center gap-1.5">
+              {t.source === 'import' && (
+                <FileInput size={14} aria-label="Imported" className="shrink-0 text-muted" />
+              )}
+              {(t.kind === 'transfer' || t.kind === 'fx') && (
+                <Repeat size={14} aria-label="Transfer" className="shrink-0 text-muted" />
+              )}
+              {t.attachmentIds.length > 0 && (
+                <Paperclip size={14} aria-label="Has attachments" className="shrink-0 text-muted" />
+              )}
+              <span className="truncate">
+                {t.description || t.payee || merchant || (
+                  <em className="text-muted">No description</em>
+                )}
+              </span>
+              {merchant && t.description && (
+                <span className="hidden truncate text-xs text-muted lg:inline">· {merchant}</span>
+              )}
+              {t.status === 'pending' && <Badge tone="amber">pending</Badge>}
+              {t.status === 'void' && <Badge tone="red">void</Badge>}
+              {t.excludeFromReports && <Badge>excluded</Badge>}
+            </div>
+          );
+        },
+      },
+      {
+        id: 'account',
+        header: 'Account',
+        size: 160,
+        accessorFn: (t) => t.postings.map((p) => refs.accountName(p.accountId)).join(' → '),
+        cell: ({ getValue }) => <span className="truncate">{getValue() as string}</span>,
+      },
+      {
+        id: 'category',
+        header: 'Category',
+        size: 180,
+        accessorFn: (t) =>
+          t.kind === 'transfer' || t.kind === 'fx'
+            ? 'Transfer'
+            : t.kind === 'opening_balance'
+              ? 'Opening balance'
+              : t.kind === 'adjustment'
+                ? 'Adjustment'
+                : t.splits.length > 1
+                  ? `Split (${t.splits.length})`
+                  : refs.categoryLabel(t.splits[0]?.categoryId ?? null),
+        cell: ({ getValue, row }) => {
+          const v = getValue() as string;
+          const unc = v === 'Uncategorized' && row.original.kind !== 'adjustment';
+          return <span className={`truncate ${unc ? 'text-warn' : ''}`}>{v}</span>;
+        },
+      },
+      {
+        id: 'amount',
+        header: () => <span className="block text-right">Amount</span>,
+        size: 140,
+        accessorFn: (t) => primaryAmount(t)?.amount ?? '0',
+        sortingFn: (a, b) =>
+          compareDecimal(
+            primaryAmount(a.original)?.amount ?? '0',
+            primaryAmount(b.original)?.amount ?? '0',
+          ),
+        cell: ({ row }) => {
+          const t = row.original;
+          const a = primaryAmount(t);
+          const signed = t.kind !== 'transfer' && t.kind !== 'fx';
+          return (
+            <div className="text-right">
+              <MoneyText value={a} locale={locale} signed={signed} />
+              {t.postings[1] && t.postings[1].amount.currency !== a?.currency && (
+                <div className="text-xs text-muted">
+                  <MoneyText value={t.postings[1].amount} locale={locale} />
+                </div>
+              )}
+            </div>
+          );
+        },
+      },
+    ],
+    [refs, locale],
+  );
+
+  const table = useReactTable({
+    data: rows,
+    columns,
+    state: { sorting, rowSelection: selection },
+    getRowId: (t) => t.id,
+    onSortingChange: setSorting,
+    onRowSelectionChange: (u) => onSelectionChange(typeof u === 'function' ? u(selection) : u),
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    enableRowSelection: true,
+  });
+
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const model = table.getRowModel().rows;
+  const virt = useVirtualizer({
+    count: model.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => ROW_H,
+    overscan: 12,
+  });
+  const items = virt.getVirtualItems();
+  const padTop = items[0]?.start ?? 0;
+  const padBottom = virt.getTotalSize() - (items[items.length - 1]?.end ?? 0);
+
+  const focusRow = (i: number) => {
+    virt.scrollToIndex(i);
+    requestAnimationFrame(() =>
+      scrollRef.current?.querySelector<HTMLElement>(`tr[data-index="${i}"]`)?.focus(),
+    );
+  };
+
+  return (
+    <div
+      ref={scrollRef}
+      className="relative h-[calc(100dvh-16rem)] min-h-80 overflow-auto rounded-lg border border-line"
+    >
+      <table
+        className="w-full table-fixed border-collapse text-sm"
+        aria-rowcount={model.length + 1}
+      >
+        <colgroup>
+          {table.getVisibleLeafColumns().map((c) => (
+            <col
+              key={c.id}
+              style={{ width: c.getSize() }}
+              className={c.id === 'account' || c.id === 'category' ? 'max-md:hidden' : ''}
+            />
+          ))}
+        </colgroup>
+        <thead className="sticky top-0 z-10 bg-surface-2 text-left text-xs text-muted">
+          {table.getHeaderGroups().map((hg) => (
+            <tr key={hg.id}>
+              {hg.headers.map((h) => {
+                const sorted = h.column.getIsSorted();
+                return (
+                  <th
+                    key={h.id}
+                    scope="col"
+                    aria-sort={
+                      sorted === 'asc' ? 'ascending' : sorted === 'desc' ? 'descending' : undefined
+                    }
+                    className={`border-b border-line px-2 py-2 font-medium ${h.column.id === 'account' || h.column.id === 'category' ? 'max-md:hidden' : ''}`}
+                  >
+                    {h.column.getCanSort() ? (
+                      <button
+                        type="button"
+                        onClick={h.column.getToggleSortingHandler()}
+                        className="inline-flex w-full items-center gap-1 rounded outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                      >
+                        {flexRender(h.column.columnDef.header, h.getContext())}
+                        {sorted === 'asc' && <ArrowUp size={12} aria-hidden />}
+                        {sorted === 'desc' && <ArrowDown size={12} aria-hidden />}
+                      </button>
+                    ) : (
+                      flexRender(h.column.columnDef.header, h.getContext())
+                    )}
+                  </th>
+                );
+              })}
+            </tr>
+          ))}
+        </thead>
+        <tbody>
+          {padTop > 0 && (
+            <tr aria-hidden>
+              <td style={{ height: padTop }} colSpan={columns.length} />
+            </tr>
+          )}
+          {items.map((vi) => {
+            const row = model[vi.index];
+            if (!row) return null;
+            return (
+              <tr
+                key={row.id}
+                data-index={vi.index}
+                aria-rowindex={vi.index + 2}
+                aria-selected={row.getIsSelected()}
+                tabIndex={0}
+                style={{ height: ROW_H }}
+                onClick={() => onOpen(row.original)}
+                onKeyDown={(e) => {
+                  if (e.target !== e.currentTarget) return;
+                  if (e.key === 'Enter') onOpen(row.original);
+                  else if (e.key === ' ') {
+                    e.preventDefault();
+                    row.toggleSelected();
+                  } else if (e.key === 'ArrowDown' || e.key === 'j') {
+                    e.preventDefault();
+                    focusRow(Math.min(vi.index + 1, model.length - 1));
+                  } else if (e.key === 'ArrowUp' || e.key === 'k') {
+                    e.preventDefault();
+                    focusRow(Math.max(vi.index - 1, 0));
+                  }
+                }}
+                className={`cursor-pointer border-b border-line outline-none hover:bg-surface-2 focus-visible:bg-accent/10 ${row.getIsSelected() ? 'bg-accent/10' : ''} ${row.original.status === 'void' ? 'opacity-60' : ''}`}
+              >
+                {row.getVisibleCells().map((c) => (
+                  <td
+                    key={c.id}
+                    className={`overflow-hidden px-2 whitespace-nowrap ${c.column.id === 'account' || c.column.id === 'category' ? 'max-md:hidden' : ''}`}
+                  >
+                    {flexRender(c.column.columnDef.cell, c.getContext())}
+                  </td>
+                ))}
+              </tr>
+            );
+          })}
+          {padBottom > 0 && (
+            <tr aria-hidden>
+              <td style={{ height: padBottom }} colSpan={columns.length} />
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+}

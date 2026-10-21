@@ -158,3 +158,22 @@
 - PDF export is the browser's print-to-PDF with a print stylesheet; there is no generated PDF file. PNG export rasterizes the chart SVG.
 - Drill-down links pass `from,to,kind,categoryId,merchantId,q,accountIds,currency` to `/transactions`; a top-level category filter may not include its subcategories depending on the transactions page filter.
 - No dedicated component tests for the React pages; compute modules have unit tests and every page was smoke-rendered in Chromium (Playwright) with seeded local data.
+
+## Web ledger pages (transactions, accounts, import, rules, converter)
+
+- The transactions table loads the whole profile ledger into memory (`ops.ledger()`) and filters/sorts there;
+  rendering is virtualized, but very large profiles (100k+) pay the IndexedDB read on every page load.
+- Undo/history needs connected mode (server audit log); local mode has no change history.
+- Reconciliation books the difference as an `adjustment` correcting the latest transaction on that account up
+  to the statement date (local service API); a negative difference on an account without transactions is refused.
+  Reconciliations are not stored as records (no `reconciled` status is set).
+- Import reprocess asks the user to pick the original file again (only parsed records are stored locally) and
+  rolls the old batch back first; the new batch is not linked via `reprocessedFromBatchId` in local mode.
+- Import templates and statement-balance results are kept in profile settings (`import.templates`,
+  `import.checks`), not in the server `import_templates` table.
+- Applying a rule from the editor runs all enabled rules on the matched transactions (local `applyRules`).
+- PDF attachments open in a new tab (gateway CSP `object-src 'none'` blocks inline embedding). OCR imports need
+  tesseract language data from a CDN, which the strict CSP blocks unless self-hosted.
+- Template names and the per-row "save as template" use `window.prompt`.
+- Not yet translated: the ledger pages' strings are English only.
+

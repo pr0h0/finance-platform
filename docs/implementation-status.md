@@ -190,3 +190,29 @@ Engine-level only; each feature row below stays owned by its API/web module.
 | 143 | Client management | API, Web | 1-2 | TESTED (API) | mcp, mcp-contracts | `scripts/go.sh test ./internal/mcp/` TestScopeRestrictionsAndRevocation | /mcp/clients list/create (token once)/rename/disable/revoke (immediate). UI by web agent. |
 | 144 | Data scope restrictions | API, Web | 1-2 | TESTED (API) | mcp, mcp-contracts | `scripts/go.sh test ./internal/mcp/` TestScopeRestrictionsAndRevocation | Profile, account (postings of other accounts redacted), period (clamped with warning), capability; non-restrictable tools refuse. |
 | 145 | MCP documentation | API, Web | 1-2 | IMPLEMENTED | mcp, mcp-contracts | — | docs/mcp/README.md (setup, Claude Code/Desktop config, tools, approval, scopes, errors). |
+
+## Web ledger pages (apps/web: transactions, accounts, import, rules, converter)
+
+Web UI status for the ledger features; the API status stays in the feature rows above. Every page uses the
+profile's `FinanceOps` (LocalDataSource or RemoteDataSource), so local and connected mode run the same code.
+Tests: `scripts/bun.sh test apps/web/src/features/transactions apps/web/src/features/import` (model + real
+LocalFinanceService/importer flows); Playwright smoke in Chromium against vite (local mode, 1.5k rows): every
+page renders without errors, FX transfer with fee, reconcile, mapping template → import → commit, rule test.
+
+| Features | Web status | Notes |
+|---|---|---|
+| 1, 2, 4, 11, 12, 21, 22 Expense/income/transfer entry, quick entry, templates, multi-currency, fees | TESTED | Entry dialog (also `?new=expense|income|transfer`); cross-currency transfer: stored rate, bank-received amount or manual rate; fee as linked expense; templates one-click + "save as template"; last account/category remembered. |
+| 3, 16, 17, 49, 52, 129 Accounts, balances, groups, opening balance | TESTED | Assets/liabilities groups with totals in the profile currency (missing rates listed), per-currency balances, CRUD, archive/unarchive, delete (refused while in use), balance-history chart (3M/1Y/5Y), opening balance on create and from an imported statement. |
+| 5–10, 13 Categories on entries, tags, splits, attachments, search/filter, refunds | TESTED | Virtualized table (TanStack Table + Virtual), sort by any column, filters date/account/category/uncategorized/merchant/currency/tag/type/status/source/import batch/amount/text; detail drawer with interpretation edits, split editor (reorder, live remainder, exact total required), attachments (upload/drop, image viewer, PDF opens in new tab), partial refunds with remaining amount. |
+| 15 Export | TESTED | CSV (formula-injection safe, one row per posting), JSON (full API shape), XLSX (SheetJS, amounts as text) of the filtered or selected rows. |
+| 23, 19, 20, 25 Converter, historical/manual rates | TESTED | Exact conversion by date from the local rate book (EUR/BAM fixed), manual rate override, server `/convert` fallback in connected mode (+ save rate), add rates, "create planned expense" from the result. |
+| 33 Planned transaction matching | IMPLEMENTED | Drawer lists open plan occurrences ±31 days with engine match scores; Match marks the occurrence matched. |
+| 76, 77 Rules, suggestions | TESTED | Rule CRUD (all condition/action types), live test against existing transactions, save-and-apply (only uncategorized or overwrite), run on uncategorized; inbox suggestions from category history / merchant default. |
+| 78, 115 Duplicates on import | TESTED | Staging flags fp1 duplicates (deselected by default). |
+| 83 Bulk editing | TESTED | Category/clear, merchant/clear, add/remove tag, status, report exclusion; totals shown and unchanged. |
+| 84 Undo and history | IMPLEMENTED | Connected mode: server history list + undo (pushes local edits first, then syncs). Local mode shows created/updated/version only (no local audit log). |
+| 101, 110, 113, 114, 116, 122, 128, 130 Import center | TESTED | Registry (Raiffeisen BiH shown as "awaiting format"), multi-file pick + drag & drop, detection, parsing in a Web Worker with progress, totals, statement-balance and running-balance checks, errors/warnings, staging preview (select rows, edit descriptions, categories with suggestions, duplicate filter), OCR rows start unselected, commit, history with rollback and reprocess (asks for the original file again). |
+| 111, 117, 118 Mapping editor | TESTED | CSV/TSV/XLSX templates from a sample file with live table preview, mapping suggestion, validation, test parse, save (profile setting `import.templates`), import/export template JSON. |
+| 126 Uncategorized inbox | TESTED | Keyboard: j/k, Enter accepts suggestion, 1–9 pick, / search, s skip, o open. |
+| 127 Coverage calendar | TESTED | Month grid per account from committed batches; complete only when the statement balance verified (stored as `import.checks`). |
+
