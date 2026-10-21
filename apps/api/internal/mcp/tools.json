@@ -1,0 +1,1443 @@
+[
+ {
+  "name": "get_financial_overview",
+  "description": "Balances, net worth, month-to-date income/expenses and upcoming bills.",
+  "annotations": {
+   "readOnlyHint": true
+  },
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "profileId": {
+     "description": "Defaults to the only profile granted to the client",
+     "type": "string",
+     "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "accountIds": {
+     "maxItems": 100,
+     "type": "array",
+     "items": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+     }
+    },
+    "currency": {
+     "description": "Reporting currency; defaults to profile base currency",
+     "type": "string",
+     "minLength": 3,
+     "maxLength": 3
+    },
+    "asOf": {
+     "type": "string",
+     "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    }
+   }
+  },
+  "scopes": [
+   "read_aggregates"
+  ]
+ },
+ {
+  "name": "list_accounts",
+  "description": "Accounts with current balances.",
+  "annotations": {
+   "readOnlyHint": true
+  },
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "profileId": {
+     "description": "Defaults to the only profile granted to the client",
+     "type": "string",
+     "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "accountIds": {
+     "maxItems": 100,
+     "type": "array",
+     "items": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+     }
+    },
+    "includeArchived": {
+     "default": false,
+     "type": "boolean"
+    }
+   }
+  },
+  "scopes": [
+   "read_aggregates"
+  ]
+ },
+ {
+  "name": "get_account_balance",
+  "description": "Balance of one account at a date (from the ledger).",
+  "annotations": {
+   "readOnlyHint": true
+  },
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "accountId": {
+     "type": "string",
+     "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "asOf": {
+     "type": "string",
+     "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    }
+   },
+   "required": [
+    "accountId"
+   ]
+  },
+  "scopes": [
+   "read_aggregates"
+  ]
+ },
+ {
+  "name": "list_transactions",
+  "description": "Paginated transactions with filters.",
+  "annotations": {
+   "readOnlyHint": true
+  },
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "profileId": {
+     "description": "Defaults to the only profile granted to the client",
+     "type": "string",
+     "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "accountIds": {
+     "maxItems": 100,
+     "type": "array",
+     "items": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+     }
+    },
+    "dateFrom": {
+     "type": "string",
+     "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    },
+    "dateTo": {
+     "type": "string",
+     "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    },
+    "limit": {
+     "default": 100,
+     "type": "integer",
+     "minimum": 1,
+     "maximum": 500
+    },
+    "cursor": {
+     "type": "string"
+    },
+    "categoryIds": {
+     "type": "array",
+     "items": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+     }
+    },
+    "search": {
+     "type": "string",
+     "maxLength": 200
+    },
+    "minAmount": {
+     "type": "string",
+     "pattern": "^-?\\d+(\\.\\d+)?$"
+    },
+    "maxAmount": {
+     "type": "string",
+     "pattern": "^-?\\d+(\\.\\d+)?$"
+    },
+    "uncategorizedOnly": {
+     "default": false,
+     "type": "boolean"
+    }
+   }
+  },
+  "scopes": [
+   "read_transactions"
+  ]
+ },
+ {
+  "name": "get_transaction",
+  "description": "One transaction with postings, splits and source record.",
+  "annotations": {
+   "readOnlyHint": true
+  },
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "transactionId": {
+     "type": "string",
+     "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    }
+   },
+   "required": [
+    "transactionId"
+   ]
+  },
+  "scopes": [
+   "read_transactions"
+  ]
+ },
+ {
+  "name": "get_spending_by_category",
+  "description": "Expense totals per category (splits counted, transfers excluded).",
+  "annotations": {
+   "readOnlyHint": true
+  },
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "profileId": {
+     "description": "Defaults to the only profile granted to the client",
+     "type": "string",
+     "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "accountIds": {
+     "maxItems": 100,
+     "type": "array",
+     "items": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+     }
+    },
+    "dateFrom": {
+     "type": "string",
+     "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    },
+    "dateTo": {
+     "type": "string",
+     "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    },
+    "currency": {
+     "description": "Reporting currency; defaults to profile base currency",
+     "type": "string",
+     "minLength": 3,
+     "maxLength": 3
+    },
+    "includeSubcategories": {
+     "default": true,
+     "type": "boolean"
+    }
+   }
+  },
+  "scopes": [
+   "read_aggregates"
+  ]
+ },
+ {
+  "name": "get_spending_by_merchant",
+  "description": "Expense totals per merchant.",
+  "annotations": {
+   "readOnlyHint": true
+  },
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "profileId": {
+     "description": "Defaults to the only profile granted to the client",
+     "type": "string",
+     "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "accountIds": {
+     "maxItems": 100,
+     "type": "array",
+     "items": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+     }
+    },
+    "dateFrom": {
+     "type": "string",
+     "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    },
+    "dateTo": {
+     "type": "string",
+     "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    },
+    "currency": {
+     "description": "Reporting currency; defaults to profile base currency",
+     "type": "string",
+     "minLength": 3,
+     "maxLength": 3
+    },
+    "limit": {
+     "default": 25,
+     "type": "integer",
+     "minimum": 1,
+     "maximum": 200
+    }
+   }
+  },
+  "scopes": [
+   "read_aggregates",
+   "read_merchants"
+  ]
+ },
+ {
+  "name": "compare_periods",
+  "description": "Compare income/expenses/categories between two periods.",
+  "annotations": {
+   "readOnlyHint": true
+  },
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "profileId": {
+     "description": "Defaults to the only profile granted to the client",
+     "type": "string",
+     "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "accountIds": {
+     "maxItems": 100,
+     "type": "array",
+     "items": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+     }
+    },
+    "currency": {
+     "description": "Reporting currency; defaults to profile base currency",
+     "type": "string",
+     "minLength": 3,
+     "maxLength": 3
+    },
+    "a": {
+     "type": "object",
+     "properties": {
+      "dateFrom": {
+       "type": "string",
+       "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+      },
+      "dateTo": {
+       "type": "string",
+       "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+      }
+     },
+     "required": [
+      "dateFrom",
+      "dateTo"
+     ]
+    },
+    "b": {
+     "type": "object",
+     "properties": {
+      "dateFrom": {
+       "type": "string",
+       "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+      },
+      "dateTo": {
+       "type": "string",
+       "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+      }
+     },
+     "required": [
+      "dateFrom",
+      "dateTo"
+     ]
+    },
+    "groupBy": {
+     "default": "category",
+     "type": "string",
+     "enum": [
+      "category",
+      "merchant",
+      "account"
+     ]
+    }
+   },
+   "required": [
+    "a",
+    "b"
+   ]
+  },
+  "scopes": [
+   "read_aggregates"
+  ]
+ },
+ {
+  "name": "get_income_summary",
+  "description": "Income totals by source/category and month.",
+  "annotations": {
+   "readOnlyHint": true
+  },
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "profileId": {
+     "description": "Defaults to the only profile granted to the client",
+     "type": "string",
+     "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "accountIds": {
+     "maxItems": 100,
+     "type": "array",
+     "items": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+     }
+    },
+    "dateFrom": {
+     "type": "string",
+     "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    },
+    "dateTo": {
+     "type": "string",
+     "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    },
+    "currency": {
+     "description": "Reporting currency; defaults to profile base currency",
+     "type": "string",
+     "minLength": 3,
+     "maxLength": 3
+    }
+   }
+  },
+  "scopes": [
+   "read_aggregates"
+  ]
+ },
+ {
+  "name": "get_budget_status",
+  "description": "Budget vs actual and planned for a period.",
+  "annotations": {
+   "readOnlyHint": true
+  },
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "profileId": {
+     "type": "string",
+     "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "budgetId": {
+     "type": "string",
+     "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "date": {
+     "type": "string",
+     "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    }
+   }
+  },
+  "scopes": [
+   "read_aggregates"
+  ]
+ },
+ {
+  "name": "list_recurring_expenses",
+  "description": "Recurring expenses/subscriptions with annualized cost.",
+  "annotations": {
+   "readOnlyHint": true
+  },
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "profileId": {
+     "type": "string",
+     "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "currency": {
+     "description": "Reporting currency; defaults to profile base currency",
+     "type": "string",
+     "minLength": 3,
+     "maxLength": 3
+    }
+   }
+  },
+  "scopes": [
+   "read_aggregates"
+  ]
+ },
+ {
+  "name": "list_planned_expenses",
+  "description": "Upcoming planned expense occurrences.",
+  "annotations": {
+   "readOnlyHint": true
+  },
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "profileId": {
+     "type": "string",
+     "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "dateFrom": {
+     "type": "string",
+     "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    },
+    "dateTo": {
+     "type": "string",
+     "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    },
+    "limit": {
+     "default": 100,
+     "type": "integer",
+     "minimum": 1,
+     "maximum": 500
+    },
+    "cursor": {
+     "type": "string"
+    }
+   }
+  },
+  "scopes": [
+   "read_aggregates"
+  ]
+ },
+ {
+  "name": "get_cash_flow_forecast",
+  "description": "Daily projected balances with expected/conservative/optimistic scenarios.",
+  "annotations": {
+   "readOnlyHint": true
+  },
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "profileId": {
+     "description": "Defaults to the only profile granted to the client",
+     "type": "string",
+     "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "accountIds": {
+     "maxItems": 100,
+     "type": "array",
+     "items": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+     }
+    },
+    "currency": {
+     "description": "Reporting currency; defaults to profile base currency",
+     "type": "string",
+     "minLength": 3,
+     "maxLength": 3
+    },
+    "days": {
+     "default": 60,
+     "type": "integer",
+     "minimum": 1,
+     "maximum": 730
+    }
+   }
+  },
+  "scopes": [
+   "read_aggregates"
+  ]
+ },
+ {
+  "name": "get_savings_goals",
+  "description": "Savings goals with progress and completion estimates.",
+  "annotations": {
+   "readOnlyHint": true
+  },
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "profileId": {
+     "type": "string",
+     "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    }
+   }
+  },
+  "scopes": [
+   "read_aggregates"
+  ]
+ },
+ {
+  "name": "get_currency_exposure",
+  "description": "Holdings per currency and their value in the reporting currency.",
+  "annotations": {
+   "readOnlyHint": true
+  },
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "profileId": {
+     "description": "Defaults to the only profile granted to the client",
+     "type": "string",
+     "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "accountIds": {
+     "maxItems": 100,
+     "type": "array",
+     "items": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+     }
+    },
+    "currency": {
+     "description": "Reporting currency; defaults to profile base currency",
+     "type": "string",
+     "minLength": 3,
+     "maxLength": 3
+    },
+    "asOf": {
+     "type": "string",
+     "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    }
+   }
+  },
+  "scopes": [
+   "read_aggregates"
+  ]
+ },
+ {
+  "name": "get_import_coverage",
+  "description": "Which date ranges per account are covered by imported statements; gaps.",
+  "annotations": {
+   "readOnlyHint": true
+  },
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "profileId": {
+     "description": "Defaults to the only profile granted to the client",
+     "type": "string",
+     "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "accountIds": {
+     "maxItems": 100,
+     "type": "array",
+     "items": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+     }
+    }
+   }
+  },
+  "scopes": [
+   "read_aggregates"
+  ]
+ },
+ {
+  "name": "get_uncategorized_transactions",
+  "description": "Transactions lacking a category (the inbox).",
+  "annotations": {
+   "readOnlyHint": true
+  },
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "profileId": {
+     "description": "Defaults to the only profile granted to the client",
+     "type": "string",
+     "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "accountIds": {
+     "maxItems": 100,
+     "type": "array",
+     "items": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+     }
+    },
+    "dateFrom": {
+     "type": "string",
+     "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    },
+    "dateTo": {
+     "type": "string",
+     "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    },
+    "limit": {
+     "default": 100,
+     "type": "integer",
+     "minimum": 1,
+     "maximum": 500
+    },
+    "cursor": {
+     "type": "string"
+    }
+   }
+  },
+  "scopes": [
+   "read_transactions"
+  ]
+ },
+ {
+  "name": "simulate_expense",
+  "description": "What-if: effect of a hypothetical expense on the forecast. Never writes.",
+  "annotations": {
+   "readOnlyHint": true
+  },
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "profileId": {
+     "type": "string",
+     "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "accountId": {
+     "type": "string",
+     "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "amount": {
+     "type": "object",
+     "properties": {
+      "amount": {
+       "type": "string",
+       "pattern": "^-?\\d+(\\.\\d+)?$"
+      },
+      "currency": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "amount",
+      "currency"
+     ]
+    },
+    "date": {
+     "type": "string",
+     "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    },
+    "recurrence": {
+     "type": "string",
+     "maxLength": 500
+    },
+    "days": {
+     "default": 90,
+     "type": "integer",
+     "minimum": 1,
+     "maximum": 730
+    }
+   },
+   "required": [
+    "amount",
+    "date"
+   ]
+  },
+  "scopes": [
+   "read_aggregates"
+  ]
+ },
+ {
+  "name": "update_transaction_category",
+  "description": "Set the category of a single-split transaction.",
+  "annotations": {
+   "readOnlyHint": false
+  },
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "transactionId": {
+     "type": "string",
+     "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "categoryId": {
+     "anyOf": [
+      {
+       "type": "string",
+       "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "idempotencyKey": {
+     "type": "string",
+     "maxLength": 200
+    }
+   },
+   "required": [
+    "transactionId",
+    "categoryId"
+   ]
+  },
+  "scopes": [
+   "edit_categories"
+  ]
+ },
+ {
+  "name": "split_transaction",
+  "description": "Replace splits; amounts must sum exactly to the transaction amount.",
+  "annotations": {
+   "readOnlyHint": false
+  },
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "transactionId": {
+     "type": "string",
+     "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "splits": {
+     "minItems": 1,
+     "maxItems": 100,
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "categoryId": {
+        "anyOf": [
+         {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "amount": {
+        "type": "object",
+        "properties": {
+         "amount": {
+          "type": "string",
+          "pattern": "^-?\\d+(\\.\\d+)?$"
+         },
+         "currency": {
+          "type": "string"
+         }
+        },
+        "required": [
+         "amount",
+         "currency"
+        ]
+       },
+       "description": {
+        "default": "",
+        "type": "string",
+        "maxLength": 500
+       }
+      },
+      "required": [
+       "categoryId",
+       "amount"
+      ]
+     }
+    },
+    "idempotencyKey": {
+     "type": "string",
+     "maxLength": 200
+    }
+   },
+   "required": [
+    "transactionId",
+    "splits"
+   ]
+  },
+  "scopes": [
+   "edit_splits"
+  ]
+ },
+ {
+  "name": "bulk_categorize_transactions",
+  "description": "Set one category on many single-split transactions.",
+  "annotations": {
+   "readOnlyHint": false
+  },
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "transactionIds": {
+     "minItems": 1,
+     "maxItems": 500,
+     "type": "array",
+     "items": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+     }
+    },
+    "categoryId": {
+     "type": "string",
+     "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "idempotencyKey": {
+     "type": "string",
+     "maxLength": 200
+    }
+   },
+   "required": [
+    "transactionIds",
+    "categoryId"
+   ]
+  },
+  "scopes": [
+   "edit_categories"
+  ]
+ },
+ {
+  "name": "update_transaction_metadata",
+  "description": "Edit description, notes, tags, merchant. Never amounts or dates.",
+  "annotations": {
+   "readOnlyHint": false
+  },
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "transactionId": {
+     "type": "string",
+     "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "description": {
+     "type": "string",
+     "maxLength": 500
+    },
+    "notes": {
+     "type": "string",
+     "maxLength": 5000
+    },
+    "tagIds": {
+     "maxItems": 50,
+     "type": "array",
+     "items": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+     }
+    },
+    "merchantId": {
+     "anyOf": [
+      {
+       "type": "string",
+       "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "idempotencyKey": {
+     "type": "string",
+     "maxLength": 200
+    }
+   },
+   "required": [
+    "transactionId"
+   ]
+  },
+  "scopes": [
+   "edit_metadata"
+  ]
+ },
+ {
+  "name": "create_planned_expense",
+  "description": "Create a planned (optionally recurring) expense.",
+  "annotations": {
+   "readOnlyHint": false
+  },
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "profileId": {
+     "type": "string",
+     "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "description": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 500
+    },
+    "amount": {
+     "type": "object",
+     "properties": {
+      "amount": {
+       "type": "string",
+       "pattern": "^-?\\d+(\\.\\d+)?$"
+      },
+      "currency": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "amount",
+      "currency"
+     ]
+    },
+    "dueDate": {
+     "type": "string",
+     "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    },
+    "rrule": {
+     "type": "string",
+     "maxLength": 500
+    },
+    "accountId": {
+     "type": "string",
+     "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "categoryId": {
+     "type": "string",
+     "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "priority": {
+     "default": "normal",
+     "type": "string",
+     "enum": [
+      "essential",
+      "high",
+      "normal",
+      "low",
+      "optional"
+     ]
+    },
+    "confidence": {
+     "default": "expected",
+     "type": "string",
+     "enum": [
+      "certain",
+      "expected",
+      "possible",
+      "speculative"
+     ]
+    },
+    "idempotencyKey": {
+     "type": "string",
+     "maxLength": 200
+    }
+   },
+   "required": [
+    "description",
+    "amount",
+    "dueDate"
+   ]
+  },
+  "scopes": [
+   "create_planned"
+  ]
+ },
+ {
+  "name": "update_planned_expense",
+  "description": "Update a planned expense.",
+  "annotations": {
+   "readOnlyHint": false
+  },
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "plannedTransactionId": {
+     "type": "string",
+     "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "description": {
+     "type": "string",
+     "maxLength": 500
+    },
+    "amount": {
+     "type": "object",
+     "properties": {
+      "amount": {
+       "type": "string",
+       "pattern": "^-?\\d+(\\.\\d+)?$"
+      },
+      "currency": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "amount",
+      "currency"
+     ]
+    },
+    "dueDate": {
+     "type": "string",
+     "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    },
+    "status": {
+     "type": "string",
+     "enum": [
+      "active",
+      "paused",
+      "cancelled"
+     ]
+    },
+    "idempotencyKey": {
+     "type": "string",
+     "maxLength": 200
+    }
+   },
+   "required": [
+    "plannedTransactionId"
+   ]
+  },
+  "scopes": [
+   "create_planned"
+  ]
+ },
+ {
+  "name": "create_budget",
+  "description": "Create a budget with category allocations.",
+  "annotations": {
+   "readOnlyHint": false
+  },
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "profileId": {
+     "type": "string",
+     "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "name": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200
+    },
+    "periodType": {
+     "type": "string",
+     "enum": [
+      "weekly",
+      "monthly",
+      "quarterly",
+      "yearly"
+     ]
+    },
+    "startDate": {
+     "type": "string",
+     "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    },
+    "currency": {
+     "type": "string",
+     "minLength": 3,
+     "maxLength": 3
+    },
+    "allocations": {
+     "maxItems": 200,
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "categoryId": {
+        "anyOf": [
+         {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "amount": {
+        "type": "object",
+        "properties": {
+         "amount": {
+          "type": "string",
+          "pattern": "^-?\\d+(\\.\\d+)?$"
+         },
+         "currency": {
+          "type": "string"
+         }
+        },
+        "required": [
+         "amount",
+         "currency"
+        ]
+       }
+      },
+      "required": [
+       "categoryId",
+       "amount"
+      ]
+     }
+    },
+    "idempotencyKey": {
+     "type": "string",
+     "maxLength": 200
+    }
+   },
+   "required": [
+    "name",
+    "periodType",
+    "startDate",
+    "currency",
+    "allocations"
+   ]
+  },
+  "scopes": [
+   "edit_budgets"
+  ]
+ },
+ {
+  "name": "update_budget",
+  "description": "Change budget name or allocations.",
+  "annotations": {
+   "readOnlyHint": false
+  },
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "budgetId": {
+     "type": "string",
+     "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "name": {
+     "type": "string",
+     "maxLength": 200
+    },
+    "allocations": {
+     "maxItems": 200,
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "categoryId": {
+        "anyOf": [
+         {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "amount": {
+        "type": "object",
+        "properties": {
+         "amount": {
+          "type": "string",
+          "pattern": "^-?\\d+(\\.\\d+)?$"
+         },
+         "currency": {
+          "type": "string"
+         }
+        },
+        "required": [
+         "amount",
+         "currency"
+        ]
+       }
+      },
+      "required": [
+       "categoryId",
+       "amount"
+      ]
+     }
+    },
+    "idempotencyKey": {
+     "type": "string",
+     "maxLength": 200
+    }
+   },
+   "required": [
+    "budgetId"
+   ]
+  },
+  "scopes": [
+   "edit_budgets"
+  ]
+ },
+ {
+  "name": "create_savings_goal",
+  "description": "Create a savings goal.",
+  "annotations": {
+   "readOnlyHint": false
+  },
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "profileId": {
+     "type": "string",
+     "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "name": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200
+    },
+    "targetAmount": {
+     "type": "object",
+     "properties": {
+      "amount": {
+       "type": "string",
+       "pattern": "^-?\\d+(\\.\\d+)?$"
+      },
+      "currency": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "amount",
+      "currency"
+     ]
+    },
+    "targetDate": {
+     "type": "string",
+     "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    },
+    "idempotencyKey": {
+     "type": "string",
+     "maxLength": 200
+    }
+   },
+   "required": [
+    "name",
+    "targetAmount"
+   ]
+  },
+  "scopes": [
+   "edit_goals"
+  ]
+ },
+ {
+  "name": "create_categorization_rule",
+  "description": "Create a declarative categorization rule.",
+  "annotations": {
+   "readOnlyHint": false
+  },
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "profileId": {
+     "type": "string",
+     "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "name": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200
+    },
+    "match": {
+     "type": "object",
+     "properties": {
+      "field": {
+       "type": "string",
+       "enum": [
+        "description",
+        "payee",
+        "counterparty"
+       ]
+      },
+      "op": {
+       "type": "string",
+       "enum": [
+        "contains",
+        "equals",
+        "starts_with"
+       ]
+      },
+      "value": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 200
+      }
+     },
+     "required": [
+      "field",
+      "op",
+      "value"
+     ]
+    },
+    "categoryId": {
+     "type": "string",
+     "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "idempotencyKey": {
+     "type": "string",
+     "maxLength": 200
+    }
+   },
+   "required": [
+    "name",
+    "match",
+    "categoryId"
+   ]
+  },
+  "scopes": [
+   "edit_rules"
+  ]
+ },
+ {
+  "name": "preview_changes",
+  "description": "Validate a batch of write-tool calls and return the preview without applying.",
+  "annotations": {
+   "readOnlyHint": true
+  },
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "calls": {
+     "minItems": 1,
+     "maxItems": 100,
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "tool": {
+        "type": "string"
+       },
+       "arguments": {
+        "type": "object",
+        "propertyNames": {
+         "type": "string"
+        },
+        "additionalProperties": {}
+       }
+      },
+      "required": [
+       "tool",
+       "arguments"
+      ]
+     }
+    }
+   },
+   "required": [
+    "calls"
+   ]
+  },
+  "scopes": []
+ },
+ {
+  "name": "apply_approved_changes",
+  "description": "Apply proposals a human already approved in the app. Cannot approve by itself.",
+  "annotations": {
+   "readOnlyHint": false
+  },
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "proposalIds": {
+     "minItems": 1,
+     "maxItems": 100,
+     "type": "array",
+     "items": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+     }
+    }
+   },
+   "required": [
+    "proposalIds"
+   ]
+  },
+  "scopes": []
+ }
+]

@@ -184,8 +184,8 @@ func TestImportLifecycle(t *testing.T) {
 	if n := count(t, e.pool, `SELECT count(*) FROM transactions WHERE id=$1 AND deleted_at IS NULL`, unrelated); n != 1 {
 		t.Fatal("unrelated transaction was touched")
 	}
-	if n := count(t, e.pool, `SELECT count(*) FROM postings p JOIN transactions t ON t.id=p.transaction_id WHERE t.deleted_at IS NOT NULL AND p.deleted_at IS NULL`); n != 0 {
-		t.Fatal("postings of rolled back transactions must be tombstoned")
+	if n := count(t, e.pool, `SELECT count(*) FROM sync_changes WHERE profile_id=$1 AND op='delete' AND entity_type='transactions'`, e.profile); n != 3 {
+		t.Fatalf("rollback must publish %d tombstones", n)
 	}
 	if _, err := Rollback(e.ctx, e.pool, e.profile, b.ID); err == nil {
 		t.Fatal("double rollback must fail")

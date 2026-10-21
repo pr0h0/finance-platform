@@ -15,6 +15,7 @@ import (
 
 	"github.com/pr0h0/finance-platform/apps/api/internal/changes"
 	"github.com/pr0h0/finance-platform/apps/api/internal/httpx"
+	"github.com/pr0h0/finance-platform/apps/api/internal/ledger"
 	"github.com/pr0h0/finance-platform/apps/api/internal/money"
 )
 
@@ -216,11 +217,7 @@ func Commit(ctx context.Context, db *pgxpool.Pool, profileID, userID, batchID uu
 
 	now := time.Now().UTC()
 	var txRows, postRows, splitRows [][]any
-	type created struct {
-		id   uuid.UUID
-		snap map[string]any
-	}
-	var newTx []created
+	var newIDs []uuid.UUID
 	st := b.Stats
 	st.Committed, st.Linked, st.Skipped = 0, 0, 0
 	for _, r := range recs {
@@ -258,33 +255,22 @@ func Commit(ctx context.Context, db *pgxpool.Pool, profileID, userID, batchID uu
 		}
 		pid, sid := uuid.New(), uuid.New()
 		var vd any
-		var vds *string
 		if r.valueDate != nil {
-			vd, vds = *r.valueDate, dateStr(r.valueDate)
+			vd = *r.valueDate
 		}
 		var origAmt, origCur any
-		var origMoney *money.Money
 		if r.origAmount != nil && r.origCur != nil {
 			if m, err := Money(*r.origAmount, *r.origCur); err == nil {
 				if r.signed.Sign() < 0 {
 					m = m.Neg()
 				}
-				origAmt, origCur, origMoney = m.Numeric(), *r.origCur, &m
+				origAmt, origCur = m.Numeric(), *r.origCur
 			}
 		}
 		txRows = append(txRows, []any{id, profileID, kind, "cleared", r.posting, vd, desc, r.counterparty, r.ref, "import", r.id, catSrc, userID, now, now})
 		postRows = append(postRows, []any{pid, profileID, id, acc.ID, r.signed.Numeric(), r.currency, origAmt, origCur, 0, now})
 		splitRows = append(splitRows, []any{sid, profileID, id, r.category, r.signed.Abs().Numeric(), r.currency, 0, now, now})
-		newTx = append(newTx, created{id, map[string]any{
-			"id": id, "profileId": profileID, "version": 1, "serverVersion": 0, "createdAt": now, "updatedAt": now, "deletedAt": nil,
-			"kind": kind, "status": "cleared", "bookingDate": r.posting.Format(time.DateOnly), "valueDate": vds, "occurredAt": nil,
-			"description": desc, "notes": "", "merchantId": nil, "payee": r.counterparty, "reference": r.ref, "excludeFromReports": false,
-			"source": "import", "importRecordId": r.id, "relatedTransactionId": nil, "correctsTransactionId": nil, "categorizationSource": catSrc,
-			"postings":      []map[string]any{{"id": pid, "accountId": acc.ID, "amount": r.signed, "originalAmount": origMoney, "exchangeRateId": nil, "lineNo": 0, "memo": ""}},
-			"splits":        []map[string]any{{"id": sid, "categoryId": r.category, "amount": r.signed.Abs(), "description": "", "notes": "", "sortOrder": 0}},
-			"tagIds":        []uuid.UUID{},
-			"attachmentIds": []uuid.UUID{},
-		}})
+		newIDs = append(newIDs, id)
 	}
 	if len(txRows) > 0 {
 		if _, err := tx.CopyFrom(ctx, pgx.Identifier{"transactions"}, []string{"id", "profile_id", "kind", "status", "booking_date", "value_date",
@@ -301,13 +287,16 @@ func Commit(ctx context.Context, db *pgxpool.Pool, profileID, userID, batchID uu
 			return b, fmt.Errorf("insert splits: %w", err)
 		}
 	}
-	for _, c := range newTx {
-		v, err := changes.Record(ctx, tx, changes.Change{ProfileID: profileID, EntityType: "transactions", EntityID: c.id, Op: changes.OpUpsert,
-			Data: c.snap, Action: "transaction.import", Metadata: map[string]any{"import_batch_id": batchID.String()}})
-		if err != nil {
+	created, err := ledger.Query(ctx, tx, `SELECT `+ledger.TxCols+` FROM transactions t WHERE t.profile_id = $1 AND t.id = ANY($2) ORDER BY t.id`,
+		profileID, newIDs)
+	if err != nil {
+		return b, err
+	}
+	for _, t := range created {
+		if _, err := changes.Record(ctx, tx, changes.Change{ProfileID: profileID, EntityType: "transactions", EntityID: t.ID, Op: changes.OpUpsert,
+			Data: t, Action: "transaction.import", Metadata: map[string]any{"import_batch_id": batchID.String()}}); err != nil {
 			return b, err
 		}
-		c.snap["serverVersion"] = v
 		st.Committed++
 	}
 	// Persist final outcomes on the reconciliation rows.
@@ -361,7 +350,7 @@ func linkExisting(ctx context.Context, tx pgx.Tx, profileID uuid.UUID, r *staged
 			prev = &id
 		}
 	}
-	before, err := TransactionSnapshot(ctx, tx, profileID, *r.matchTx)
+	before, err := ledger.Get(ctx, tx, profileID, *r.matchTx, false)
 	if err != nil {
 		return err
 	}
@@ -379,7 +368,7 @@ func linkExisting(ctx context.Context, tx pgx.Tx, profileID uuid.UUID, r *staged
 	if tag.RowsAffected() != 1 {
 		return httpx.Conflict(fmt.Sprintf("transaction %s changed since the preview; reprocess or restage the batch", r.matchTx))
 	}
-	snap, err := TransactionSnapshot(ctx, tx, profileID, *r.matchTx)
+	snap, err := ledger.Get(ctx, tx, profileID, *r.matchTx, false)
 	if err != nil {
 		return err
 	}
@@ -412,11 +401,11 @@ func openingBalance(ctx context.Context, tx pgx.Tx, profileID, userID uuid.UUID,
 	if st.Recon.OpeningBalance == nil || b.CoverageStart == nil {
 		return httpx.Unprocessable("the statement has no opening balance; enter the opening balance manually")
 	}
-	ledger, hasHistory, err := ledgerBalance(ctx, tx, acc, "<", *b.CoverageStart)
+	led, hasHistory, err := ledgerBalance(ctx, tx, acc, "<", *b.CoverageStart)
 	if err != nil {
 		return err
 	}
-	diff, err := st.Recon.OpeningBalance.Sub(ledger)
+	diff, err := st.Recon.OpeningBalance.Sub(led)
 	if err != nil || diff.IsZero() {
 		return err
 	}
@@ -436,7 +425,7 @@ func openingBalance(ctx context.Context, tx pgx.Tx, profileID, userID uuid.UUID,
 		pid, profileID, id, acc.ID, diff.Numeric(), acc.Currency); err != nil {
 		return fmt.Errorf("opening balance posting: %w", err)
 	}
-	snap, err := TransactionSnapshot(ctx, tx, profileID, id)
+	snap, err := ledger.Get(ctx, tx, profileID, id, false)
 	if err != nil {
 		return err
 	}
@@ -454,11 +443,11 @@ func ledgerCheck(ctx context.Context, tx pgx.Tx, acc account, b *Batch, st *Stat
 	if st.Recon.ClosingBalance == nil || b.CoverageEnd == nil {
 		return nil
 	}
-	ledger, _, err := ledgerBalance(ctx, tx, acc, "<=", *b.CoverageEnd)
+	led, _, err := ledgerBalance(ctx, tx, acc, "<=", *b.CoverageEnd)
 	if err != nil {
 		return err
 	}
-	diff, err := ledger.Sub(*st.Recon.ClosingBalance)
+	diff, err := led.Sub(*st.Recon.ClosingBalance)
 	if err != nil {
 		return err
 	}
@@ -511,7 +500,7 @@ func Rollback(ctx context.Context, db *pgxpool.Pool, profileID, batchID uuid.UUI
 	st := b.Stats
 	st.RolledBack, st.Unlinked = 0, 0
 	for _, l := range links {
-		before, err := TransactionSnapshot(ctx, tx, profileID, l.tx)
+		before, err := ledger.Get(ctx, tx, profileID, l.tx, false)
 		if err != nil {
 			return b, err
 		}
@@ -520,7 +509,7 @@ func Rollback(ctx context.Context, db *pgxpool.Pool, profileID, batchID uuid.UUI
 				l.tx, profileID, l.prev); err != nil {
 				return b, fmt.Errorf("unlink: %w", err)
 			}
-			snap, err := TransactionSnapshot(ctx, tx, profileID, l.tx)
+			snap, err := ledger.Get(ctx, tx, profileID, l.tx, false)
 			if err != nil {
 				return b, err
 			}
@@ -531,15 +520,15 @@ func Rollback(ctx context.Context, db *pgxpool.Pool, profileID, batchID uuid.UUI
 			st.Unlinked++
 			continue
 		}
-		if err := softDeleteTx(ctx, tx, profileID, l.tx, before); err != nil {
+		if err := ledger.Delete(ctx, tx, before, "transaction.import_rollback"); err != nil {
 			return b, err
 		}
 		st.RolledBack++
 	}
 	if st.OpeningTxID != nil {
-		before, err := TransactionSnapshot(ctx, tx, profileID, *st.OpeningTxID)
-		if err == nil && before["deletedAt"] == (*time.Time)(nil) {
-			if err := softDeleteTx(ctx, tx, profileID, *st.OpeningTxID, before); err != nil {
+		before, err := ledger.Get(ctx, tx, profileID, *st.OpeningTxID, true)
+		if err == nil && before.DeletedAt == nil {
+			if err := ledger.Delete(ctx, tx, before, "transaction.import_rollback"); err != nil {
 				return b, err
 			}
 			st.RolledBack++
@@ -551,21 +540,6 @@ func Rollback(ctx context.Context, db *pgxpool.Pool, profileID, batchID uuid.UUI
 		return b, err
 	}
 	return b, tx.Commit(ctx)
-}
-
-func softDeleteTx(ctx context.Context, tx pgx.Tx, profileID, id uuid.UUID, before map[string]any) error {
-	if _, err := tx.Exec(ctx, `UPDATE transactions SET deleted_at = now(), version = version + 1 WHERE id = $1 AND profile_id = $2`, id, profileID); err != nil {
-		return fmt.Errorf("delete transaction: %w", err)
-	}
-	if _, err := tx.Exec(ctx, `UPDATE postings SET deleted_at = now() WHERE transaction_id = $1 AND profile_id = $2 AND deleted_at IS NULL`, id, profileID); err != nil {
-		return err
-	}
-	if _, err := tx.Exec(ctx, `UPDATE transaction_splits SET deleted_at = now(), version = version + 1 WHERE transaction_id = $1 AND profile_id = $2 AND deleted_at IS NULL`, id, profileID); err != nil {
-		return err
-	}
-	_, err := changes.Record(ctx, tx, changes.Change{ProfileID: profileID, EntityType: "transactions", EntityID: id, Op: changes.OpDelete,
-		Before: before, Action: "transaction.import_rollback"})
-	return err
 }
 
 // ---------- preview ----------
