@@ -1,0 +1,10 @@
+[
+  { "currency": "BAM", "scale": 2 },
+  { "currency": "EUR", "scale": 2 },
+  { "currency": "USD", "scale": 2 },
+  { "currency": "JPY", "scale": 0 },
+  { "currency": "KWD", "scale": 3 },
+  { "currency": "CLF", "scale": 4 },
+  { "currency": "RSD", "scale": 2 },
+  { "currency": "XXX", "scale": null }
+]

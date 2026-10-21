@@ -1,0 +1,29 @@
+[
+  {
+    "name": "mixed accounts and currencies",
+    "postings": [
+      { "accountId": "checking", "amount": "-150.00", "currency": "BAM" },
+      { "accountId": "checking", "amount": "2000.00", "currency": "BAM" },
+      { "accountId": "savings", "amount": "500.00", "currency": "BAM" },
+      { "accountId": "checking", "amount": "-500.00", "currency": "BAM" },
+      { "accountId": "wallet", "amount": "100.00", "currency": "EUR" },
+      { "accountId": "wallet", "amount": "-0.01", "currency": "EUR" },
+      { "accountId": "wallet", "amount": "50.00", "currency": "BAM" }
+    ],
+    "expected": [
+      { "accountId": "checking", "amount": "1350.00", "currency": "BAM" },
+      { "accountId": "savings", "amount": "500.00", "currency": "BAM" },
+      { "accountId": "wallet", "amount": "50.00", "currency": "BAM" },
+      { "accountId": "wallet", "amount": "99.99", "currency": "EUR" }
+    ]
+  },
+  { "name": "empty ledger", "postings": [], "expected": [] },
+  {
+    "name": "zero balance is kept",
+    "postings": [
+      { "accountId": "a", "amount": "1.00", "currency": "USD" },
+      { "accountId": "a", "amount": "-1.00", "currency": "USD" }
+    ],
+    "expected": [{ "accountId": "a", "amount": "0.00", "currency": "USD" }]
+  }
+]

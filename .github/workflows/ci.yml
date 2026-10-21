@@ -1,0 +1,45 @@
+name: ci
+on:
+  push: { branches: [main] }
+  pull_request:
+
+jobs:
+  go:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env: { POSTGRES_USER: finplat, POSTGRES_PASSWORD: finplat, POSTGRES_DB: finplat }
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U finplat" --health-interval 5s --health-timeout 3s --health-retries 20
+    defaults: { run: { working-directory: apps/api } }
+    env:
+      TEST_DATABASE_URL: postgres://finplat:finplat@localhost:5432/finplat?sslmode=disable
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: { go-version-file: apps/api/go.mod, cache-dependency-path: apps/api/go.sum }
+      - run: test -z "$(gofmt -l .)" || (gofmt -l . && exit 1)
+      - run: go vet ./...
+      - run: go test -race -count=1 ./...
+
+  ts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with: { bun-version: 1.4.2 }
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
+      - run: bun run lint
+      - run: bun run test
+      - run: cd apps/web && bun run build
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -f infrastructure/docker/api.Dockerfile .
+      - run: docker build -f infrastructure/docker/web.Dockerfile .
+      - run: docker build -f infrastructure/docker/gateway.Dockerfile .

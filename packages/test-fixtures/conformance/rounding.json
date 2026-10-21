@@ -1,0 +1,29 @@
+[
+  { "value": "2.345", "scale": 2, "mode": "half_up", "expected": "2.35" },
+  { "value": "2.345", "scale": 2, "mode": "half_even", "expected": "2.34" },
+  { "value": "2.345", "scale": 2, "mode": "down", "expected": "2.34" },
+  { "value": "2.345", "scale": 2, "mode": "up", "expected": "2.35" },
+  { "value": "2.345", "scale": 2, "mode": "floor", "expected": "2.34" },
+  { "value": "2.345", "scale": 2, "mode": "ceiling", "expected": "2.35" },
+  { "value": "-2.345", "scale": 2, "mode": "half_up", "expected": "-2.35" },
+  { "value": "-2.345", "scale": 2, "mode": "half_even", "expected": "-2.34" },
+  { "value": "-2.345", "scale": 2, "mode": "down", "expected": "-2.34" },
+  { "value": "-2.345", "scale": 2, "mode": "up", "expected": "-2.35" },
+  { "value": "-2.345", "scale": 2, "mode": "floor", "expected": "-2.35" },
+  { "value": "-2.345", "scale": 2, "mode": "ceiling", "expected": "-2.34" },
+  { "value": "2.355", "scale": 2, "mode": "half_even", "expected": "2.36" },
+  { "value": "2.3451", "scale": 2, "mode": "half_even", "expected": "2.35" },
+  { "value": "0.005", "scale": 2, "mode": "half_up", "expected": "0.01" },
+  { "value": "0.005", "scale": 2, "mode": "half_even", "expected": "0.00" },
+  { "value": "-0.004", "scale": 2, "mode": "half_up", "expected": "0.00" },
+  { "value": "1.5", "scale": 0, "mode": "half_even", "expected": "2" },
+  { "value": "2.5", "scale": 0, "mode": "half_even", "expected": "2" },
+  { "value": "-2.5", "scale": 0, "mode": "half_up", "expected": "-3" },
+  { "value": "1.2", "scale": 3, "mode": "half_up", "expected": "1.200" },
+  {
+    "value": "123456789012345678.999",
+    "scale": 2,
+    "mode": "half_up",
+    "expected": "123456789012345679.00"
+  }
+]

@@ -1,0 +1,110 @@
+[
+  {
+    "amount": "100.00",
+    "from": "EUR",
+    "to": "BAM",
+    "rate": "1.95583",
+    "inverse": false,
+    "mode": "half_up",
+    "expected": "195.58"
+  },
+  {
+    "amount": "1.00",
+    "from": "EUR",
+    "to": "BAM",
+    "rate": "1.95583",
+    "inverse": false,
+    "mode": "half_up",
+    "expected": "1.96"
+  },
+  {
+    "amount": "0.01",
+    "from": "EUR",
+    "to": "BAM",
+    "rate": "1.95583",
+    "inverse": false,
+    "mode": "half_up",
+    "expected": "0.02"
+  },
+  {
+    "amount": "-100.00",
+    "from": "EUR",
+    "to": "BAM",
+    "rate": "1.95583",
+    "inverse": false,
+    "mode": "half_up",
+    "expected": "-195.58"
+  },
+  {
+    "amount": "50.00",
+    "from": "EUR",
+    "to": "BAM",
+    "rate": "1.95583",
+    "inverse": false,
+    "mode": "down",
+    "expected": "97.79"
+  },
+  {
+    "amount": "50.00",
+    "from": "EUR",
+    "to": "BAM",
+    "rate": "1.95583",
+    "inverse": false,
+    "mode": "up",
+    "expected": "97.80"
+  },
+  {
+    "amount": "100.00",
+    "from": "BAM",
+    "to": "EUR",
+    "rate": "1.95583",
+    "inverse": true,
+    "mode": "half_up",
+    "expected": "51.13"
+  },
+  {
+    "amount": "195.58",
+    "from": "BAM",
+    "to": "EUR",
+    "rate": "1.95583",
+    "inverse": true,
+    "mode": "half_up",
+    "expected": "100.00"
+  },
+  {
+    "amount": "1000",
+    "from": "JPY",
+    "to": "EUR",
+    "rate": "0.0061234",
+    "inverse": false,
+    "mode": "half_up",
+    "expected": "6.12"
+  },
+  {
+    "amount": "10.00",
+    "from": "USD",
+    "to": "JPY",
+    "rate": "151.235",
+    "inverse": false,
+    "mode": "half_up",
+    "expected": "1512"
+  },
+  {
+    "amount": "10.00",
+    "from": "USD",
+    "to": "KWD",
+    "rate": "0.30745",
+    "inverse": false,
+    "mode": "half_even",
+    "expected": "3.074"
+  },
+  {
+    "amount": "10.00",
+    "from": "USD",
+    "to": "KWD",
+    "rate": "0.30745",
+    "inverse": false,
+    "mode": "half_up",
+    "expected": "3.075"
+  }
+]

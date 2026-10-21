@@ -1,0 +1,59 @@
+# Production-like self-hosted stack. Only the gateway is published (127.0.0.1:3810).
+# Expose publicly via a TLS-terminating reverse proxy/tunnel (see docs/deployment/README.md).
+#   cp .env.example .env   # set POSTGRES_PASSWORD, PUBLIC_URL
+#   docker compose -p finplat up -d --build
+name: finplat
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-finplat}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-finplat}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    deploy:
+      resources:
+        limits: { memory: 1g }
+
+  api:
+    build: { context: ., dockerfile: infrastructure/docker/api.Dockerfile }
+    image: finplat-api:latest
+    restart: unless-stopped
+    env_file: [.env]
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-finplat}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-finplat}?sslmode=disable
+      API_ADDR: ":8080"
+    volumes:
+      - apidata:/data
+    depends_on:
+      postgres: { condition: service_healthy }
+    deploy:
+      resources:
+        limits: { memory: 512m }
+
+  web:
+    build: { context: ., dockerfile: infrastructure/docker/web.Dockerfile }
+    image: finplat-web:latest
+    restart: unless-stopped
+
+  gateway:
+    build: { context: ., dockerfile: infrastructure/docker/gateway.Dockerfile }
+    image: finplat-gateway:latest
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3810:8080"
+    depends_on:
+      api: { condition: service_healthy }
+      web: { condition: service_healthy }
+
+volumes:
+  pgdata:
+  apidata:

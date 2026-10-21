@@ -1,0 +1,47 @@
+[
+  {
+    "total": { "amount": "150.00", "currency": "BAM" },
+    "splits": [
+      { "amount": "95.40", "currency": "BAM" },
+      { "amount": "32.50", "currency": "BAM" },
+      { "amount": "22.10", "currency": "BAM" }
+    ],
+    "valid": true
+  },
+  {
+    "total": { "amount": "-150.00", "currency": "BAM" },
+    "splits": [
+      { "amount": "95.40", "currency": "BAM" },
+      { "amount": "32.50", "currency": "BAM" },
+      { "amount": "22.10", "currency": "BAM" }
+    ],
+    "valid": true
+  },
+  {
+    "total": { "amount": "150.00", "currency": "BAM" },
+    "splits": [
+      { "amount": "95.40", "currency": "BAM" },
+      { "amount": "32.50", "currency": "BAM" },
+      { "amount": "22.09", "currency": "BAM" }
+    ],
+    "valid": false
+  },
+  {
+    "total": { "amount": "150.00", "currency": "BAM" },
+    "splits": [{ "amount": "150.00", "currency": "BAM" }, { "amount": "0.00", "currency": "BAM" }],
+    "valid": false
+  },
+  {
+    "total": { "amount": "150.00", "currency": "BAM" },
+    "splits": [
+      { "amount": "160.00", "currency": "BAM" },
+      { "amount": "-10.00", "currency": "BAM" }
+    ],
+    "valid": false
+  },
+  {
+    "total": { "amount": "150.00", "currency": "BAM" },
+    "splits": [{ "amount": "150.00", "currency": "EUR" }],
+    "valid": false
+  }
+]

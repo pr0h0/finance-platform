@@ -1,0 +1,93 @@
+# Development stack (project "finplat-dev", separate from the prod-like "finplat" stack).
+#   docker compose -f docker-compose.dev.yml up -d          # postgres + api + vite
+#   docker compose -f docker-compose.dev.yml restart api     # reload Go changes
+# Ports (localhost only): postgres 5440, api 3811, vite 3812.
+name: finplat-dev
+
+x-go-env: &go-env
+  GOCACHE: /cache/gobuild
+  GOPATH: /cache/go
+  HOME: /tmp
+  GOFLAGS: -buildvcs=false
+
+services:
+  cache-perms:
+    image: alpine:3
+    command: chown 1000:1000 /cache/go /cache/gobuild /cache/bun
+    volumes:
+      - gomod:/cache/go
+      - gobuild:/cache/gobuild
+      - bun:/cache/bun
+
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: finplat
+      POSTGRES_PASSWORD: finplat
+      POSTGRES_DB: finplat
+    ports:
+      - "127.0.0.1:5440:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U finplat -d finplat"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+
+  api:
+    image: golang:1.27-alpine
+    user: "1000:1000"
+    working_dir: /repo/apps/api
+    command: go run ./cmd/api serve
+    environment:
+      <<: *go-env
+      FINPLAT_ENV: development
+      DATABASE_URL: postgres://finplat:finplat@postgres:5432/finplat?sslmode=disable
+      API_ADDR: ":8080"
+      PUBLIC_URL: http://localhost:3812
+      ALLOWED_ORIGINS: http://localhost:3812,http://127.0.0.1:3812,http://localhost:3811
+      LOG_FORMAT: text
+      LOG_LEVEL: debug
+      ATTACHMENTS_DIR: /tmp/finplat/attachments
+      BACKUP_DIR: /tmp/finplat/backups
+      REGISTRATION_POLICY: open
+    ports:
+      - "127.0.0.1:3811:8080"
+    volumes:
+      - .:/repo
+      - gomod:/cache/go
+      - gobuild:/cache/gobuild
+    depends_on:
+      postgres: { condition: service_healthy }
+      cache-perms: { condition: service_completed_successfully }
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/api/health || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 60
+      start_period: 60s
+
+  web:
+    image: oven/bun:1.4
+    user: "1000:1000"
+    working_dir: /repo
+    command: sh -c "bun install && cd apps/web && bun run dev"
+    environment:
+      HOME: /tmp
+      BUN_INSTALL_CACHE_DIR: /cache/bun
+      VITE_API_PROXY: http://api:8080
+    ports:
+      - "127.0.0.1:3812:3812"
+    volumes:
+      - .:/repo
+      - bun:/cache/bun
+    depends_on:
+      cache-perms: { condition: service_completed_successfully }
+    profiles: [web]
+
+volumes:
+  pgdata:
+  gomod: { name: finplat_gomod }
+  gobuild: { name: finplat_gobuild }
+  bun: { name: finplat_bun }

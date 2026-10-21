@@ -1,0 +1,16 @@
+[
+  { "amount": "1.5", "currency": "BAM", "expected": "1.50" },
+  { "amount": "100", "currency": "JPY", "expected": "100" },
+  { "amount": "1.500", "currency": "EUR", "expected": "1.50" },
+  { "amount": "-0.00", "currency": "EUR", "expected": "0.00" },
+  { "amount": "0.125", "currency": "KWD", "expected": "0.125" },
+  { "amount": "-42", "currency": "BAM", "expected": "-42.00" },
+  { "amount": "1.505", "currency": "EUR", "error": true },
+  { "amount": "1.5", "currency": "JPY", "error": true },
+  { "amount": "abc", "currency": "EUR", "error": true },
+  { "amount": "1e5", "currency": "EUR", "error": true },
+  { "amount": ".5", "currency": "EUR", "error": true },
+  { "amount": "+1", "currency": "EUR", "error": true },
+  { "amount": "", "currency": "EUR", "error": true },
+  { "amount": "1.25", "currency": "XXX", "error": true }
+]
