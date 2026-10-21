@@ -161,6 +161,13 @@ func TestZipLimits(t *testing.T) {
 	}
 }
 
+func TestXMLEntityAttacks(t *testing.T) {
+	xxe := []byte(`<?xml version="1.0"?><!DOCTYPE d [<!ENTITY x SYSTEM "file:///etc/passwd">]><Document><BkToCstmrStmt><Stmt><Id>&x;</Id></Stmt></BkToCstmrStmt></Document>`)
+	if _, err := parseCAMT("053")(xxe, ParseContext{}); err == nil {
+		t.Fatal("DOCTYPE must be rejected")
+	}
+}
+
 func TestMarkupNestingBomb(t *testing.T) {
 	deep := "<OFX>" + strings.Repeat("<A>", 100000) + "x"
 	if root := parseMarkup(deep); root == nil {

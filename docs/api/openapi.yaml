@@ -3661,7 +3661,7 @@ paths:
           $ref: "#/components/responses/Error"
     post:
       tags: ["imports"]
-      summary: "Upload file → detect + parse into staging"
+      summary: "Stage an import: upload a file (server parses; a ZIP with one file is accepted) or send a client-parsed ImportResult with the original bytes"
       operationId: "post_imports"
       parameters:
         - $ref: "#/components/parameters/ProfileHeader"
@@ -3682,7 +3682,10 @@ paths:
                   $ref: "#/components/schemas/Uuid"
                 accountId:
                   $ref: "#/components/schemas/Uuid"
-              required: ["file"]
+              required: ["file", "accountId"]
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClientImportStage"
       responses:
         "201":
           description: "OK"
@@ -3813,6 +3816,97 @@ paths:
                   nextCursor:
                     type: "string"
                 required: ["items"]
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/imports/coverage:
+    get:
+      tags: ["imports"]
+      summary: "Import coverage per account: segments and months (complete/partial/missing/unverified/conflicting)"
+      operationId: "get_imports_coverage"
+      parameters:
+        - $ref: "#/components/parameters/ProfileHeader"
+        - name: "accountIds"
+          in: "query"
+          description: "Comma-separated account ids (default: all)"
+          schema:
+            type: "string"
+        - name: "from"
+          in: "query"
+          schema:
+            $ref: "#/components/schemas/Date"
+        - name: "to"
+          in: "query"
+          schema:
+            $ref: "#/components/schemas/Date"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            application/json:
+              schema:
+                type: "object"
+                properties:
+                  accounts:
+                    type: "array"
+                    items:
+                      $ref: "#/components/schemas/ImportCoverage"
+                required: ["accounts"]
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/imports/inbox:
+    get:
+      tags: ["imports"]
+      summary: "Uncategorized inbox: live income/expense/refund transactions without a category (newest first)"
+      operationId: "get_imports_inbox"
+      parameters:
+        - $ref: "#/components/parameters/ProfileHeader"
+        - name: "accountIds"
+          in: "query"
+          schema:
+            type: "string"
+        - name: "from"
+          in: "query"
+          schema:
+            $ref: "#/components/schemas/Date"
+        - name: "to"
+          in: "query"
+          schema:
+            $ref: "#/components/schemas/Date"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            application/json:
+              schema:
+                type: "object"
+                properties:
+                  items:
+                    type: "array"
+                    items:
+                      $ref: "#/components/schemas/InboxItem"
+                  nextCursor:
+                    type: "string"
+                required: ["items"]
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/imports/{id}/source:
+    get:
+      tags: ["imports"]
+      summary: "Download the original uploaded file (immutable evidence)"
+      operationId: "get_imports_id_source"
+      parameters:
+        - $ref: "#/components/parameters/ProfileHeader"
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: "Original bytes"
+          content:
+            application/octet-stream:
+              schema:
+                type: "string"
+                format: "binary"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/attachments:
@@ -4668,6 +4762,11 @@ paths:
       parameters:
         - $ref: "#/components/parameters/ProfileHeader"
         - $ref: "#/components/parameters/Id"
+        - name: "apply"
+          in: "query"
+          description: "true = apply immediately after approving (otherwise the agent calls apply_approved_changes)"
+          schema:
+            type: "boolean"
         - $ref: "#/components/parameters/IdempotencyKey"
       responses:
         "200":
@@ -6276,6 +6375,15 @@ components:
           $ref: "#/components/schemas/Uuid"
         importBatchId:
           $ref: "#/components/schemas/Uuid"
+        accountId:
+          oneOf:
+            - $ref: "#/components/schemas/Uuid"
+            - type: "null"
+        dedupeFingerprint:
+          type: "string"
+          description: "fp1 fingerprint (docs/importing/fingerprint.md)"
+        createdAt:
+          $ref: "#/components/schemas/Instant"
         rowNumber:
           type: "integer"
         sourceDescription:
@@ -7566,6 +7674,17 @@ components:
         status:
           type: "string"
           enum: ["stable", "beta", "blocked_external"]
+        sdkVersion:
+          type: "integer"
+        requiresTemplate:
+          type: "boolean"
+        limitations:
+          type: "array"
+          items:
+            type: "string"
+        serverSide:
+          type: "boolean"
+          description: "false = only the web client can parse this format (XLSX/XLS/PDF/OCR); the server accepts its normalized result"
       additionalProperties: false
     ImportTemplate:
       allOf:
@@ -7664,6 +7783,10 @@ components:
               oneOf:
                 - $ref: "#/components/schemas/Instant"
                 - type: "null"
+            reprocessedFromBatchId:
+              oneOf:
+                - $ref: "#/components/schemas/Uuid"
+                - type: "null"
           additionalProperties: false
     ImportPreview:
       type: "object"
@@ -7686,6 +7809,10 @@ components:
                 oneOf:
                   - $ref: "#/components/schemas/Uuid"
                   - type: "null"
+              matchScore:
+                oneOf:
+                  - $ref: "#/components/schemas/Decimal"
+                  - type: "null"
               suggestedCategoryId:
                 oneOf:
                   - $ref: "#/components/schemas/Uuid"
@@ -7706,7 +7833,13 @@ components:
               $ref: "#/components/schemas/Money"
             count:
               type: "integer"
+            new:
+              type: "integer"
             duplicates:
+              type: "integer"
+            matched:
+              type: "integer"
+            conflicts:
               type: "integer"
             errors:
               type: "integer"
@@ -7728,6 +7861,13 @@ components:
                 - type: "null"
             ok:
               type: "boolean"
+            hasBalances:
+              type: "boolean"
+            openingSource:
+              type: "string"
+              enum: ["statement", "running_balance"]
+            runningBalanceMismatches:
+              type: "integer"
           additionalProperties: false
         nextCursor:
           type: "string"
@@ -7753,7 +7893,110 @@ components:
             additionalProperties: false
         version:
           type: "integer"
+        allowUnreconciled:
+          type: "boolean"
+          description: "Commit although statement balances do not reconcile with the file's rows"
+        createOpeningBalance:
+          type: "boolean"
+          description: "Book the difference between the statement opening balance and the ledger (opening_balance or adjustment)"
       additionalProperties: false
+    ClientImportStage:
+      type: "object"
+      description: "A file parsed in the web client with @finplat/bank-importers; the server re-validates, recomputes fingerprints and stores the original bytes."
+      properties:
+        importerId:
+          type: "string"
+        importerVersion:
+          type: "string"
+        accountId:
+          $ref: "#/components/schemas/Uuid"
+        templateId:
+          $ref: "#/components/schemas/Uuid"
+        fileName:
+          type: "string"
+        fileSha256:
+          type: "string"
+          description: "hex sha256 of the original bytes"
+        source:
+          type: "string"
+          description: "base64 of the original file"
+        encoding:
+          type: "string"
+        result:
+          type: "object"
+          description: "ImportResult of packages/importer-sdk"
+        reprocessedFromBatchId:
+          $ref: "#/components/schemas/Uuid"
+      required: ["importerId", "importerVersion", "accountId", "fileName", "fileSha256", "source", "result"]
+      additionalProperties: false
+    ImportCoverage:
+      type: "object"
+      properties:
+        accountId:
+          $ref: "#/components/schemas/Uuid"
+        name:
+          type: "string"
+        from:
+          $ref: "#/components/schemas/Date"
+        to:
+          $ref: "#/components/schemas/Date"
+        segments:
+          type: "array"
+          items:
+            type: "object"
+            properties:
+              from:
+                $ref: "#/components/schemas/Date"
+              to:
+                $ref: "#/components/schemas/Date"
+              status:
+                type: "string"
+                enum: ["complete", "unverified", "conflicting", "missing"]
+        months:
+          type: "array"
+          items:
+            type: "object"
+            properties:
+              month:
+                type: "string"
+              status:
+                type: "string"
+                enum: ["complete", "partial", "missing", "unverified", "conflicting"]
+        covered:
+          type: "array"
+          items:
+            type: "object"
+        gaps:
+          type: "array"
+          items:
+            type: "object"
+    InboxItem:
+      type: "object"
+      properties:
+        id:
+          $ref: "#/components/schemas/Uuid"
+        bookingDate:
+          $ref: "#/components/schemas/Date"
+        kind:
+          type: "string"
+        description:
+          type: "string"
+        payee:
+          type: "string"
+        amount:
+          $ref: "#/components/schemas/Money"
+        accountId:
+          $ref: "#/components/schemas/Uuid"
+        source:
+          type: "string"
+        importRecordId:
+          oneOf:
+            - $ref: "#/components/schemas/Uuid"
+            - type: "null"
+        splitCount:
+          type: "integer"
+        uncategorizedAmount:
+          $ref: "#/components/schemas/Money"
     Attachment:
       allOf:
         - $ref: "#/components/schemas/SyncMeta"
@@ -8223,6 +8466,10 @@ components:
         status:
           type: "string"
           enum: ["pending", "approved", "rejected", "applied", "failed", "expired"]
+        decidedBy:
+          oneOf:
+            - $ref: "#/components/schemas/Uuid"
+            - type: "null"
         decidedAt:
           oneOf:
             - $ref: "#/components/schemas/Instant"
@@ -8231,9 +8478,17 @@ components:
           oneOf:
             - $ref: "#/components/schemas/Instant"
             - type: "null"
+        result:
+          oneOf:
+            - type: "object"
+            - type: "null"
         error:
           oneOf:
             - type: "string"
+            - type: "null"
+        expiresAt:
+          oneOf:
+            - $ref: "#/components/schemas/Instant"
             - type: "null"
         createdAt:
           $ref: "#/components/schemas/Instant"

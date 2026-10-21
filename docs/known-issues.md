@@ -22,8 +22,7 @@
 - MT940 `:86:` is used verbatim; bank-specific sub-field parsing (`?20`, `/REMI/` …) is not done.
 - CAMT batched entries (several TxDtls) become one record for the entry total.
 - Web app must call `setPdfWorkerSrc()` (bundled pdf.worker URL) before PDF import in the browser.
-- fp1 fingerprint must be implemented identically in Go (docs/importing/fingerprint.md, vectors in
-  packages/test-fixtures/imports/fingerprint.json); TS side passes the vectors.
+- (fixed) fp1 fingerprint is implemented identically in Go; both pass packages/test-fixtures/imports/fingerprint.json.
 
 ## Shared TS engine (packages/finance-engine, forecasting)
 - Go conformance runner (`apps/api/internal/conformance_test`) runs recurrence, subscriptions and fx_lookup;
@@ -99,3 +98,32 @@
   (the Go logic is DB-backed and covered by DB tests; `forecasting.Project` is pure and could host one).
 - PDF reports are plain text (Helvetica/WinAnsi; characters outside Latin-1 print as `?`).
 
+## Imports API (apps/api/internal/imports)
+- One batch = one account. Multi-account statements (several CAMT `Stmt`/MT940 accounts in one file) are
+  staged against the chosen account; rows are not split per `accountRef`. Several statements of the same
+  account in one file are merged (first opening, last closing balance).
+- Server-side OFX converts `<CURRENCY>` foreign amounts like the TS importer; it does not port the TS
+  converter's rounding edge cases beyond half-up (covered by the golden fixture only).
+- Go parsers read whole files in memory (bounded by `MAX_UPLOAD_BYTES`, 100 000 records); no streaming.
+- Commit creates up to 100k transactions in one DB transaction (COPY) but records one sync change per
+  transaction (4 round trips each); very large batches can approach the 60 s request timeout.
+- Fuzzy matching is amount + date (±3 days manual, ±1 day imported) only; descriptions are not compared.
+- Category suggestions: same source description previously classified by the user, then merchant default
+  category. Automation rules are not applied at import time (automation module's job; not wired).
+- Reprocessing of client-only importers (XLSX/XLS/PDF/OCR) must be re-run in the web client.
+- Coverage days are computed in memory per account (≤ 25 years per call).
+- `GET /analytics/import-coverage` (analytics module) and `GET /imports/coverage` both exist; the imports one
+  is authoritative for batch statuses (reconciliation + ledger check).
+
+## Remote MCP (apps/api/internal/mcp)
+- Authentication is a static bearer token per client; no OAuth 2.1 authorization server yet, so Claude
+  Desktop's UI connectors (OAuth-only) need the `mcp-remote` bridge (docs/mcp/README.md).
+- Stateless Streamable HTTP: no server-initiated requests/notifications, no resumable SSE streams.
+- `read_attachments` grant exists but no attachment tool is exposed.
+- `get_income_summary` returns income per month (not per income category).
+- Budget status, savings goals, budgets and categorization rules are refused for account-restricted clients
+  (they span all accounts). Forecasts include only granted accounts.
+- `list_recurring_expenses` converts annualized amounts at today's rate; plan amounts stay native.
+- Rate limit is per client IP (auth.RateLimit), not per MCP client.
+- Proposal expiry is lazy (on list/approve/apply); expired rows are not cleaned up.
+- Batch approval is not atomic: it approves ids one by one and stops at the first error.

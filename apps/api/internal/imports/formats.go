@@ -576,6 +576,9 @@ type camtDoc struct {
 
 func parseCAMT(kind string) func(b []byte, pc ParseContext) (Result, error) {
 	return func(b []byte, pc ParseContext) (Result, error) {
+		if bytes.Contains(bytes.ToUpper(b[:min(len(b), 4096)]), []byte("<!DOCTYPE")) {
+			return Result{}, errors.New("camt: DOCTYPE/DTD is not allowed")
+		}
 		var doc camtDoc
 		dec := xml.NewDecoder(bytes.NewReader(b))
 		dec.CharsetReader = func(label string, in io.Reader) (io.Reader, error) {

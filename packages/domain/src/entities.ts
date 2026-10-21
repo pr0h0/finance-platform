@@ -251,6 +251,7 @@ export interface ImportBatch extends Syncable {
   error: string | null;
   committedAt: IsoInstant | null;
   rolledBackAt: IsoInstant | null;
+  reprocessedFromBatchId: Uuid | null;
 }
 
 export interface ImportTemplate extends Omit<Syncable, 'profileId'> {
@@ -461,9 +462,12 @@ export interface McpProposedChange {
   input: Record<string, unknown>;
   preview: Record<string, unknown>;
   status: E.McpProposalStatus;
+  decidedBy: Uuid | null;
   decidedAt: IsoInstant | null;
   appliedAt: IsoInstant | null;
+  result: Record<string, unknown> | null;
   error: string | null;
+  expiresAt: IsoInstant | null;
   createdAt: IsoInstant;
 }
 
