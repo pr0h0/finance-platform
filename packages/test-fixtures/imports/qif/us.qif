@@ -1,0 +1,20 @@
+!Type:Bank
+D1/03'25
+T-3.50
+PCoffee Shop
+MCard 1234
+^
+D1/15'25
+T2,500.00
+PEmployer Ltd
+N1001
+^
+D1/20'25
+T-1,234.56
+PLandlord
+LRent
+SHousing
+$-1000.00
+SUtilities
+$-234.56
+^

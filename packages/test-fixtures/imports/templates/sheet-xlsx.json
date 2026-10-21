@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "id": "sheet-xlsx",
+  "name": "Spreadsheet statement (synthetic example)",
+  "format": "xlsx",
+  "sheet": "Transakcije",
+  "skipRows": 1,
+  "columns": {
+    "postingDate": "Datum",
+    "description": "Opis",
+    "amount": "Iznos",
+    "currency": "Valuta",
+    "runningBalance": "Stanje"
+  },
+  "dateFormat": "DD.MM.YYYY",
+  "number": { "decimalSeparator": ",", "thousandsSeparator": "" }
+}

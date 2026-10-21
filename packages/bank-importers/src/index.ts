@@ -1,20 +1,63 @@
-import type { BankImporter, ImporterManifest } from '@finplat/importer-sdk';
+import { type BankImporter, type ImporterManifest, ImporterRegistry } from '@finplat/importer-sdk';
+import { raiffeisenBih } from './banks/raiffeisen-bih/index.ts';
+import { camtImporter } from './formats/camt.ts';
+import { jsonImporter } from './formats/json.ts';
+import { mt940Importer } from './formats/mt940.ts';
+import { ofxImporter } from './formats/ofx.ts';
+import { ocrImporter, pdfTextImporter } from './formats/pdf.ts';
+import { qifImporter } from './formats/qif.ts';
+import { delimitedImporter, spreadsheetImporter } from './formats/tabular.ts';
 
-/** Bundled, reviewed importers. Imports agent registers parsers here. */
-export const importers: BankImporter[] = [];
+export { raiffeisenBih } from './banks/raiffeisen-bih/index.ts';
+export { camtImporter } from './formats/camt.ts';
+export { jsonImporter } from './formats/json.ts';
+export { decodeEntities, parseMarkup } from './formats/markup.ts';
+export { mt940Importer } from './formats/mt940.ts';
+export { ofxImporter } from './formats/ofx.ts';
+export {
+  itemsToRows,
+  type OcrOptions,
+  ocrImporter,
+  ocrLines,
+  pdfTextImporter,
+  pdfTextItems,
+  setPdfWorkerSrc,
+  type TextItem,
+} from './formats/pdf.ts';
+export { qifImporter } from './formats/qif.ts';
+export {
+  delimitedImporter,
+  excelNumberText,
+  readTablePreview,
+  spreadsheetImporter,
+  suggestTemplate,
+  type TablePreview,
+  type TemplateSuggestion,
+} from './formats/tabular.ts';
 
-/**
- * Importers whose real format is unknown. Raiffeisen Bank BiH (Feature 121) is BLOCKED_EXTERNAL
- * until a sanitized sample statement is provided; do not guess its format.
- */
-export const blockedImporters: ImporterManifest[] = [
-  {
-    id: 'raiffeisen-bih',
-    version: '0.0.0',
-    sdkVersion: 1,
-    name: 'Raiffeisen Bank BiH',
-    bank: { name: 'Raiffeisen Bank d.d. Bosna i Hercegovina', country: 'BA' },
-    formats: [],
-    status: 'blocked_external',
-  },
+/** Bundled, reviewed importers (PLAN §24: no runtime-loaded code). */
+export const importers: BankImporter[] = [
+  delimitedImporter('csv'),
+  delimitedImporter('tsv'),
+  spreadsheetImporter('xlsx'),
+  spreadsheetImporter('xls'),
+  ofxImporter(false),
+  ofxImporter(true),
+  qifImporter(),
+  camtImporter('053'),
+  camtImporter('054'),
+  mt940Importer(),
+  jsonImporter(),
+  pdfTextImporter(),
+  ocrImporter(),
+  raiffeisenBih,
 ];
+
+/** Importers whose real format is unknown (Raiffeisen BiH, Feature 121). */
+export const blockedImporters: ImporterManifest[] = importers
+  .map((i) => i.manifest)
+  .filter((m) => m.status === 'blocked_external');
+
+export function createRegistry(): ImporterRegistry {
+  return new ImporterRegistry(importers);
+}

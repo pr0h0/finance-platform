@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.054.001.02">
+  <BkToCstmrDbtCdtNtfctn>
+    <GrpHdr><MsgId>SYNTH-NTF-1</MsgId><CreDtTm>2025-03-02T08:00:00</CreDtTm></GrpHdr>
+    <Ntfctn>
+      <Id>NTF-1</Id>
+      <Acct><Id><Othr><Id>SYNTH-ACC-7</Id></Othr></Id></Acct>
+      <Ntry>
+        <Amt Ccy="EUR">12.00</Amt><CdtDbtInd>DBIT</CdtDbtInd><RvslInd>true</RvslInd><Sts>BOOK</Sts>
+        <BookgDt><Dt>2025-03-01</Dt></BookgDt>
+        <AcctSvcrRef>NTF-REF-1</AcctSvcrRef>
+        <AddtlNtryInf>Storno naknade</AddtlNtryInf>
+      </Ntry>
+    </Ntfctn>
+  </BkToCstmrDbtCdtNtfctn>
+</Document>

@@ -1,0 +1,41 @@
+{
+  "format": "finplat-import",
+  "version": 1,
+  "statements": [
+    {
+      "ref": "J-1",
+      "accountRef": "JSON-ACC",
+      "periodStart": "2025-04-01",
+      "periodEnd": "2025-04-30",
+      "openingBalance": "100.00",
+      "closingBalance": "80.01",
+      "currency": "EUR"
+    }
+  ],
+  "transactions": [
+    {
+      "postingDate": "2025-04-02",
+      "amount": "-20.00",
+      "currency": "EUR",
+      "description": "Books",
+      "reference": "J-T1",
+      "accountRef": "JSON-ACC",
+      "statementRef": "J-1"
+    },
+    {
+      "postingDate": "2025-04-03",
+      "amount": "0.01",
+      "currency": "EUR",
+      "description": "Interest",
+      "accountRef": "JSON-ACC",
+      "statementRef": "J-1"
+    },
+    {
+      "postingDate": "2025-04-04",
+      "amount": -5.5,
+      "currency": "EUR",
+      "description": "Float amount is rejected"
+    },
+    { "postingDate": "2025-04-05", "amount": "1000", "currency": "JPY", "description": "Yen" }
+  ]
+}

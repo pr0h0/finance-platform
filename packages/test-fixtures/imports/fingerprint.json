@@ -1,0 +1,109 @@
+[
+  {
+    "name": "debit with reference",
+    "input": {
+      "postingDate": "2025-01-07",
+      "amount": "45.10",
+      "direction": "debit",
+      "currency": "EUR",
+      "bankReference": " tx 1007 ",
+      "description": "Grocery, Market 12"
+    },
+    "ordinal": 1,
+    "payload": "fp1\u001f2025-01-07\u001f-45.1\u001fEUR\u001fref\u001fTX1007\u001f1",
+    "expected": "fp1:6fea6359195ace11ac87d22af31a35c411f1c5f2be2d6bb667597d534c06748f"
+  },
+  {
+    "name": "credit, trailing zeros stripped, currency uppercased",
+    "input": {
+      "postingDate": "2025-01-05",
+      "amount": "2500.00",
+      "direction": "credit",
+      "currency": "eur",
+      "bankReference": "SAL-0001",
+      "description": "x"
+    },
+    "ordinal": 1,
+    "payload": "fp1\u001f2025-01-05\u001f2500\u001fEUR\u001fref\u001fSAL-0001\u001f1",
+    "expected": "fp1:619e34981bde5aa65e15f8f04df029b91f401f139822e22a9171432b1299b442"
+  },
+  {
+    "name": "no reference uses description",
+    "input": {
+      "postingDate": "2025-01-03",
+      "amount": "3.50",
+      "direction": "debit",
+      "currency": "EUR",
+      "description": "Coffee Shop \"Bean\""
+    },
+    "ordinal": 1,
+    "payload": "fp1\u001f2025-01-03\u001f-3.5\u001fEUR\u001fdesc\u001fcoffeeshopbean\u001f1",
+    "expected": "fp1:e2f369c95aa62a3a69d29a0ea1b666f41f4cd84cdec69cd1dc678252596ef8ae"
+  },
+  {
+    "name": "second identical row gets ordinal 2",
+    "input": {
+      "postingDate": "2025-01-03",
+      "amount": "3.50",
+      "direction": "debit",
+      "currency": "EUR",
+      "description": "COFFEE  shop bean"
+    },
+    "ordinal": 2,
+    "payload": "fp1\u001f2025-01-03\u001f-3.5\u001fEUR\u001fdesc\u001fcoffeeshopbean\u001f2",
+    "expected": "fp1:250aa6b54a07ad82c7047ad64e3b3a797030bd735ab0dfa34895570330bb402f"
+  },
+  {
+    "name": "placeholder reference NONREF is ignored",
+    "input": {
+      "postingDate": "2025-01-03",
+      "amount": "3.5",
+      "direction": "debit",
+      "currency": "EUR",
+      "bankReference": "NONREF",
+      "description": "coffee-shop bean"
+    },
+    "ordinal": 1,
+    "payload": "fp1\u001f2025-01-03\u001f-3.5\u001fEUR\u001fdesc\u001fcoffeeshopbean\u001f1",
+    "expected": "fp1:e2f369c95aa62a3a69d29a0ea1b666f41f4cd84cdec69cd1dc678252596ef8ae"
+  },
+  {
+    "name": "diacritics kept, NFKC + lowercase",
+    "input": {
+      "postingDate": "2025-01-07",
+      "amount": "15.50",
+      "direction": "debit",
+      "currency": "BAM",
+      "description": "Ćevapi i ČAJ — Željo"
+    },
+    "ordinal": 1,
+    "payload": "fp1\u001f2025-01-07\u001f-15.5\u001fBAM\u001fdesc\u001fćevapiičajželjo\u001f1",
+    "expected": "fp1:ae0fe4e40af808f1653c6e596e5a131053e2798e4d52adef3928682da657e929"
+  },
+  {
+    "name": "leading zero kept, trailing zero stripped",
+    "input": {
+      "postingDate": "2025-02-01",
+      "amount": "0.50",
+      "direction": "credit",
+      "currency": "BAM",
+      "description": "Kamata"
+    },
+    "ordinal": 1,
+    "payload": "fp1\u001f2025-02-01\u001f0.5\u001fBAM\u001fdesc\u001fkamata\u001f1",
+    "expected": "fp1:da8957d00e77d77d2743de5ec1cb8aca24539bfa9f318f74676ed4b121c1241c"
+  },
+  {
+    "name": "zero-decimal currency",
+    "input": {
+      "postingDate": "2025-04-05",
+      "amount": "1000",
+      "direction": "credit",
+      "currency": "JPY",
+      "description": "Yen"
+    },
+    "ordinal": 1,
+    "payload": "fp1\u001f2025-04-05\u001f1000\u001fJPY\u001fdesc\u001fyen\u001f1",
+    "expected": "fp1:aa68aeaa6dd507e3b84953340310e5d9319696fc5118ddaf16d63a4b156425c8"
+  }
+]

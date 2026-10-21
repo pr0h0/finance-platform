@@ -40,7 +40,7 @@ Current target: backend + web (Phases 1–2). Mobile (3) and desktop (4) are def
 | 11 | Quick expense entry | API, Web | 1-2 | NOT_STARTED | transactions, accounts, categories, attachments, imports | — |  |
 | 12 | Transaction templates | API, Web | 1-2 | NOT_STARTED | transactions, accounts, categories, attachments, imports | — |  |
 | 13 | Refunds and reimbursements | API, Web | 1-2 | NOT_STARTED | transactions, accounts, categories, attachments, imports | — |  |
-| 14 | Transaction import | API, Web | 1-2 | NOT_STARTED | transactions, accounts, categories, attachments, imports | — |  |
+| 14 | Transaction import | API, Web | 1-2 | IN_PROGRESS | transactions, accounts, categories, attachments, imports | `scripts/bun.sh test packages/importer-sdk packages/bank-importers` (client) | Client side: importer framework + 13 format importers in packages/importer-sdk + bank-importers (TESTED). API staging/commit and web UI owned by imports/web agents. |
 | 15 | Transaction export | API, Web | 1-2 | NOT_STARTED | transactions, accounts, categories, attachments, imports | — |  |
 | 16 | Multiple currencies | API, Web | 1-2 | NOT_STARTED | currency, exchangerates | — | Phase 0: schema, ISO 4217 scales, exact engine (TS+Go) with conformance fixtures. |
 | 17 | Primary reporting currency | API, Web | 1-2 | NOT_STARTED | currency, exchangerates | — |  |
@@ -127,7 +127,7 @@ Current target: backend + web (Phases 1–2). Mobile (3) and desktop (4) are def
 | 98 | Web | API, Web | 1-2 | NOT_STARTED | platform | — | Phase 0 shell only (server status page). |
 | 99 | Mobile | Android, iOS | 3 | DEFERRED_TO_PHASE | platform | — | Mobile is Phase 3. |
 | 100 | Cross-platform synchronization | API, Web | 1-2 | NOT_STARTED | platform | — | Web<->server sync in Phase 1-2; mobile/desktop clients later. |
-| 101 | Bank statement import | API, Web | 1-2 | NOT_STARTED | platform | — |  |
+| 101 | Bank statement import | API, Web | 1-2 | IN_PROGRESS | platform | `scripts/bun.sh test packages/importer-sdk packages/bank-importers` (client) | Client side parsers TESTED (CSV/TSV/XLSX/XLS/OFX/QFX/QIF/CAMT.053/054/MT940/JSON/text PDF; OCR optional, untested). See docs/importing/formats.md. |
 | 102 | Optional bank integrations | API, Web | 1-2 | NOT_STARTED | platform | — |  |
 | 103 | Themes | Web | 2 | NOT_STARTED | platform | — |  |
 | 104 | Localization | API, Web | 1-2 | NOT_STARTED | platform | — | Phase 0: packages/localization skeleton (en catalog, fallback). |
@@ -136,27 +136,27 @@ Current target: backend + web (Phases 1–2). Mobile (3) and desktop (4) are def
 | 107 | Custom backend URL | API, Web | 1-2 | NOT_STARTED | web, sync, api-client | — |  |
 | 108 | Synchronization dashboard | Web (+API) | 2 | NOT_STARTED | web, sync, api-client | — |  |
 | 109 | Server migration | API, Web | 1-2 | NOT_STARTED | web, sync, api-client | — |  |
-| 110 | Bank importer registry | API, Web | 1-2 | NOT_STARTED | imports, importer-sdk, bank-importers | — |  |
-| 111 | Custom bank templates | API, Web | 1-2 | NOT_STARTED | imports, importer-sdk, bank-importers | — |  |
-| 112 | Code-based bank adapters | API, Web | 1-2 | NOT_STARTED | imports, importer-sdk, bank-importers | — |  |
-| 113 | Import preview | API, Web | 1-2 | NOT_STARTED | imports, importer-sdk, bank-importers | — |  |
+| 110 | Bank importer registry | API, Web | 1-2 | IN_PROGRESS | imports, importer-sdk, bank-importers | `scripts/bun.sh test packages/importer-sdk packages/bank-importers` (client) | TS `ImporterRegistry` + `createRegistry()` (detect ranking, sdkVersion/semver checks, blocked importers refused) TESTED. API /importers by imports module. |
+| 111 | Custom bank templates | API, Web | 1-2 | IN_PROGRESS | imports, importer-sdk, bank-importers | `scripts/bun.sh test packages/importer-sdk packages/bank-importers` (client) | Declarative template schema v1 (zod, data only, no code/regex) + engine TESTED; docs/importing/templates.md. |
+| 112 | Code-based bank adapters | API, Web | 1-2 | IN_PROGRESS | imports, importer-sdk, bank-importers | `scripts/bun.sh test packages/importer-sdk packages/bank-importers` (client) | `BankImporter` contract, `ResultBuilder`, banks/<id>/ adapter slot; bundled-only (no runtime code loading). Contributor guide docs/importing/README.md. |
+| 113 | Import preview | API, Web | 1-2 | IN_PROGRESS | imports, importer-sdk, bank-importers | `scripts/bun.sh test packages/importer-sdk packages/bank-importers` (client) | Client helpers: totals(), per-row errors/warnings/confidence, readTablePreview(). Preview UI not in this package. |
 | 114 | Import history and rollback | API, Web | 1-2 | NOT_STARTED | imports, importer-sdk, bank-importers | — |  |
-| 115 | Import deduplication | API, Web | 1-2 | NOT_STARTED | imports, importer-sdk, bank-importers | — |  |
-| 116 | Account reconciliation | API, Web | 1-2 | NOT_STARTED | imports, importer-sdk, bank-importers | — |  |
-| 117 | Mapping editor | API, Web | 1-2 | NOT_STARTED | imports, importer-sdk, bank-importers | — |  |
-| 118 | Community templates | API, Web | 1-2 | NOT_STARTED | imports, importer-sdk, bank-importers | — |  |
+| 115 | Import deduplication | API, Web | 1-2 | IN_PROGRESS | imports, importer-sdk, bank-importers | `scripts/bun.sh test packages/importer-sdk packages/bank-importers` (client) | fp1 fingerprint (docs/importing/fingerprint.md, shared vectors packages/test-fixtures/imports/fingerprint.json) + matchExisting() TESTED in TS; Go side must pass the same vectors. |
+| 116 | Account reconciliation | API, Web | 1-2 | IN_PROGRESS | imports, importer-sdk, bank-importers | `scripts/bun.sh test packages/importer-sdk packages/bank-importers` (client) | checkStatementBalance(), checkRunningBalances() exact minor-unit arithmetic TESTED (client side). |
+| 117 | Mapping editor | API, Web | 1-2 | IN_PROGRESS | imports, importer-sdk, bank-importers | `scripts/bun.sh test packages/importer-sdk packages/bank-importers` (client) | Client helpers readTablePreview() + suggestTemplate() + validateTemplate() TESTED; editor UI by web agent. |
+| 118 | Community templates | API, Web | 1-2 | IN_PROGRESS | imports, importer-sdk, bank-importers | `scripts/bun.sh test packages/importer-sdk packages/bank-importers` (client) | Contribution/testing procedure documented (docs/importing/README.md); example synthetic templates in packages/test-fixtures/imports/templates/. |
 | 119 | Device management | API, Web | 1-2 | NOT_STARTED | imports, importer-sdk, bank-importers | — |  |
 | 120 | Self-hosted administration | API, Web | 1-2 | NOT_STARTED | imports, importer-sdk, bank-importers | — |  |
-| 121 | Raiffeisen Bank BiH integration | API, Web | 1 | BLOCKED_EXTERNAL | imports, importer-sdk, bank-importers | — | Needs a real (sanitized) Raiffeisen BiH statement. Only the plug-in slot exists (packages/bank-importers blockedImporters). |
-| 122 | Historical import | API, Web | 1-2 | NOT_STARTED | imports, importer-sdk, bank-importers | — |  |
+| 121 | Raiffeisen Bank BiH integration | API, Web | 1 | BLOCKED_EXTERNAL | imports, importer-sdk, bank-importers | — | Needs a real (sanitized) Raiffeisen BiH statement. Only the plug-in slot exists: packages/bank-importers/src/banks/raiffeisen-bih (README + manifest, detect=0, parse throws importer_blocked; tested). |
+| 122 | Historical import | API, Web | 1-2 | IN_PROGRESS | imports, importer-sdk, bank-importers | `scripts/bun.sh test packages/importer-sdk packages/bank-importers` (client) | Parsers stream line formats (CSV/TSV/QIF/MT940) via Web Streams; whole-file formats capped by maxBytes. No date restriction. |
 | 123 | Editable imported records | API, Web | 1-2 | NOT_STARTED | imports, importer-sdk, bank-importers | — |  |
 | 124 | Unlimited category splitting | API, Web | 1-2 | NOT_STARTED | imports, importer-sdk, bank-importers | — | Phase 0: split invariant + allocation (largest remainder) in engine. |
 | 125 | Merchant-specific templates | API, Web | 1-2 | NOT_STARTED | imports, importer-sdk, bank-importers | — |  |
 | 126 | Uncategorized inbox | API, Web | 1-2 | NOT_STARTED | imports, importer-sdk, bank-importers | — |  |
-| 127 | Historical completeness | API, Web | 1-2 | NOT_STARTED | imports, importer-sdk, bank-importers | — |  |
-| 128 | Immutable source preservation | API, Web | 1-2 | NOT_STARTED | imports, importer-sdk, bank-importers | — | Phase 0: imported_raw_records with DB immutability trigger. |
-| 129 | Opening balance reconstruction | API, Web | 1-2 | NOT_STARTED | imports, importer-sdk, bank-importers | — |  |
-| 130 | Import reprocessing | API, Web | 1-2 | NOT_STARTED | imports, importer-sdk, bank-importers | — |  |
+| 127 | Historical completeness | API, Web | 1-2 | IN_PROGRESS | imports, importer-sdk, bank-importers | `scripts/bun.sh test packages/importer-sdk packages/bank-importers` (client) | coverageSources/computeCoverage/monthlyCoverage (complete/partial/missing/unverified/conflicting) TESTED client side. |
+| 128 | Immutable source preservation | API, Web | 1-2 | IN_PROGRESS | imports, importer-sdk, bank-importers | `scripts/bun.sh test packages/importer-sdk packages/bank-importers` (client) | Phase 0: imported_raw_records with DB immutability trigger. NormalizedRecord.raw keeps every source field as read + rowNumber + importer id/version. |
+| 129 | Opening balance reconstruction | API, Web | 1-2 | IN_PROGRESS | imports, importer-sdk, bank-importers | `scripts/bun.sh test packages/importer-sdk packages/bank-importers` (client) | checkRunningBalances() derives opening balance from printed balances; statement opening/closing from CAMT/MT940/JSON. |
+| 130 | Import reprocessing | API, Web | 1-2 | IN_PROGRESS | imports, importer-sdk, bank-importers | `scripts/bun.sh test packages/importer-sdk packages/bank-importers` (client) | Every importer has a semver version stored per result; fingerprints are parser-version independent so reprocessing can re-match. Reprocess flow itself is API/web. |
 | 131 | Local MCP server | Desktop | 4 | DEFERRED_TO_PHASE | mcp, mcp-contracts | — | Native local MCP server ships with desktop; contracts in packages/mcp-contracts. |
 | 132 | Remote MCP endpoint | API, Web | 1-2 | NOT_STARTED | mcp, mcp-contracts | — |  |
 | 133 | Per-client authorization | API, Web | 1-2 | NOT_STARTED | mcp, mcp-contracts | — |  |

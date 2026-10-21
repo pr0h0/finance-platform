@@ -1,0 +1,50 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>
+endobj
+4 0 obj
+<< /Length 825 >>
+stream
+BT /F1 14 Tf 50 790 Td (Synthetic Bank - Statement February 2025) Tj ET
+BT /F1 10 Tf 50 740 Td (Date) Tj ET
+BT /F1 10 Tf 140 740 Td (Description) Tj ET
+BT /F1 10 Tf 330 740 Td (Amount) Tj ET
+BT /F1 10 Tf 430 740 Td (Balance) Tj ET
+BT /F1 10 Tf 50 722 Td (01.02.2025) Tj ET
+BT /F1 10 Tf 140 722 Td (Opening card fee) Tj ET
+BT /F1 10 Tf 330 722 Td (-2,00) Tj ET
+BT /F1 10 Tf 430 722 Td (998,00) Tj ET
+BT /F1 10 Tf 50 704 Td (03.02.2025) Tj ET
+BT /F1 10 Tf 140 704 Td (Salary February) Tj ET
+BT /F1 10 Tf 330 704 Td (1.500,00) Tj ET
+BT /F1 10 Tf 430 704 Td (2.498,00) Tj ET
+BT /F1 10 Tf 50 686 Td (04.02.2025) Tj ET
+BT /F1 10 Tf 140 686 Td (Grocery store 12) Tj ET
+BT /F1 10 Tf 330 686 Td (-63,45) Tj ET
+BT /F1 10 Tf 430 686 Td (2.434,55) Tj ET
+BT /F1 10 Tf 50 668 Td (Page total) Tj ET
+BT /F1 10 Tf 330 668 Td (1.434,55) Tj ET
+endstream
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+xref
+0 6
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000241 00000 n 
+0000001116 00000 n 
+trailer
+<< /Size 6 /Root 1 0 R >>
+startxref
+1213
+%%EOF

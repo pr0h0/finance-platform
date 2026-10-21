@@ -14,3 +14,16 @@
   slower next run). Use `down` without `-v`; reset the dev DB with `docker volume rm finplat-dev_pgdata`.
 - `middleware.RealIP` trusts `X-Forwarded-For`; safe only because the API container is reachable solely
   through the gateway (no published port in prod). Do not publish the API port in prod.
+
+## Importers (packages/importer-sdk, packages/bank-importers)
+- OCR importer (`generic-ocr`, tesseract.js) is implemented but not covered by automated tests: it needs
+  language data from the network and raster input. Scanned PDFs can only be rasterised in a browser.
+  Results are always low-confidence and flagged `requiresApproval`.
+- XML (CAMT/OFX), JSON, XLSX/XLS and PDF are parsed whole-file (capped by `maxBytes`); only CSV/TSV/QIF/MT940 stream.
+- PDF text import rebuilds rows from text positions; multi-line descriptions keep only their first line.
+- QIF: day/month order is inferred per file; all-ambiguous files assume MM/DD (DD.MM for dot dates) with a warning. QIF splits are kept raw only.
+- MT940 `:86:` is used verbatim; bank-specific sub-field parsing (`?20`, `/REMI/` …) is not done.
+- CAMT batched entries (several TxDtls) become one record for the entry total.
+- Web app must call `setPdfWorkerSrc()` (bundled pdf.worker URL) before PDF import in the browser.
+- fp1 fingerprint must be implemented identically in Go (docs/importing/fingerprint.md, vectors in
+  packages/test-fixtures/imports/fingerprint.json); TS side passes the vectors.

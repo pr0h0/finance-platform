@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "id": "direction-tsv",
+  "name": "TSV with D/C direction column (synthetic example)",
+  "format": "tsv",
+  "columns": {
+    "postingDate": "Posted",
+    "description": "Narrative",
+    "amount": "Amount",
+    "direction": "D/C"
+  },
+  "dateFormat": "MM/DD/YYYY",
+  "number": { "decimalSeparator": ".", "thousandsSeparator": "," },
+  "directionValues": { "debit": ["D", "DR"], "credit": ["C", "CR"] },
+  "currency": "USD"
+}

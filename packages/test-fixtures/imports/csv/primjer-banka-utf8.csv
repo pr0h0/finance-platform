@@ -1,0 +1,8 @@
+Primjer Banka d.d. - izvod po računu
+Račun: 000-SYNTH-001;;;;;;
+Datum;Datum valute;Opis;Primalac;Duguje;Potražuje;Stanje;Referenca
+02.01.2025;02.01.2025;Kupovina;Trgovina Šećer;45,20;;1.954,80;R-001
+03.01.2025;03.01.2025;Uplata plate;Poslodavac d.o.o.;;2.500,00;4.454,80;R-002
+05.01.2025;04.01.2025;"Račun; struja";Elektroprivreda ŽĐ;120,00;;4.334,80;R-003
+07.01.2025;07.01.2025;Ćevapi i čaj;Ćevabdžinica Željo;15,50;;4.319,30;
+Ukupno;;;;180,70;2.500,00;;

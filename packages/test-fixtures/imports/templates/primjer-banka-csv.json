@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "id": "primjer-banka-csv",
+  "name": "Primjer Banka CSV (synthetic example)",
+  "templateVersion": "1.0.0",
+  "bank": { "name": "Primjer Banka (fictional)", "country": "BA" },
+  "format": "csv",
+  "encoding": "auto",
+  "delimiter": "auto",
+  "skipRows": 2,
+  "header": true,
+  "columns": {
+    "postingDate": "Datum",
+    "valueDate": "Datum valute",
+    "description": ["Opis", "Primalac"],
+    "debit": "Duguje",
+    "credit": "Potražuje",
+    "runningBalance": "Stanje",
+    "reference": "Referenca",
+    "counterparty": "Primalac"
+  },
+  "dateFormat": "DD.MM.YYYY",
+  "number": { "decimalSeparator": ",", "thousandsSeparator": "." },
+  "currency": "BAM",
+  "skipInvalidRows": true,
+  "detect": { "headerIncludes": ["Datum", "Opis", "Duguje", "Potražuje"] }
+}

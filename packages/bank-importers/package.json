@@ -11,6 +11,13 @@
     "test": "bun test"
   },
   "dependencies": {
-    "@finplat/importer-sdk": "workspace:*"
+    "@finplat/finance-engine": "workspace:*",
+    "@finplat/importer-sdk": "workspace:*",
+    "pdfjs-dist": "^6.4.299",
+    "tesseract.js": "^7.0.0",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
+  },
+  "devDependencies": {
+    "@finplat/test-fixtures": "workspace:*"
   }
 }

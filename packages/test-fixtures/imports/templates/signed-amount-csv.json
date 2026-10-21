@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "id": "signed-amount-csv",
+  "name": "Signed amount CSV (synthetic example)",
+  "format": "csv",
+  "delimiter": ",",
+  "columns": {
+    "postingDate": "Date",
+    "description": "Description",
+    "amount": "Amount",
+    "currency": "Currency",
+    "reference": "Reference"
+  },
+  "dateFormat": "YYYY-MM-DD",
+  "number": { "decimalSeparator": ".", "thousandsSeparator": "," }
+}

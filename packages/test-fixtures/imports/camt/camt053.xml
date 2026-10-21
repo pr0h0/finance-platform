@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.053.001.08">
+  <BkToCstmrStmt>
+    <GrpHdr><MsgId>SYNTH-MSG-1</MsgId><CreDtTm>2025-02-01T08:00:00+01:00</CreDtTm></GrpHdr>
+    <Stmt>
+      <Id>STMT-2025-01</Id>
+      <FrToDt><FrDtTm>2025-01-01T00:00:00+01:00</FrDtTm><ToDtTm>2025-01-31T23:59:59+01:00</ToDtTm></FrToDt>
+      <Acct><Id><IBAN>BA391234567890123456</IBAN></Id><Ccy>BAM</Ccy></Acct>
+      <Bal><Tp><CdOrPrtry><Cd>OPBD</Cd></CdOrPrtry></Tp><Amt Ccy="BAM">1000.00</Amt><CdtDbtInd>CRDT</CdtDbtInd><Dt><Dt>2025-01-01</Dt></Dt></Bal>
+      <Bal><Tp><CdOrPrtry><Cd>CLBD</Cd></CdOrPrtry></Tp><Amt Ccy="BAM">2805.10</Amt><CdtDbtInd>CRDT</CdtDbtInd><Dt><Dt>2025-01-31</Dt></Dt></Bal>
+      <Ntry>
+        <Amt Ccy="BAM">2000.00</Amt><CdtDbtInd>CRDT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts>
+        <BookgDt><Dt>2025-01-05</Dt></BookgDt><ValDt><Dt>2025-01-05</Dt></ValDt>
+        <AcctSvcrRef>REF-0001</AcctSvcrRef>
+        <NtryDtls><TxDtls>
+          <Refs><EndToEndId>NOTPROVIDED</EndToEndId></Refs>
+          <RltdPties><Dbtr><Nm>Employer d.o.o.</Nm></Dbtr></RltdPties>
+          <RmtInf><Ustrd>Plata za januar</Ustrd></RmtInf>
+        </TxDtls></NtryDtls>
+      </Ntry>
+      <Ntry>
+        <Amt Ccy="BAM">150.00</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts>
+        <BookgDt><Dt>2025-01-10</Dt></BookgDt><ValDt><Dt>2025-01-09</Dt></ValDt>
+        <AcctSvcrRef>REF-0002</AcctSvcrRef>
+        <NtryDtls><TxDtls>
+          <AmtDtls><InstdAmt><Amt Ccy="EUR">76.69</Amt><CcyXchg><SrcCcy>EUR</SrcCcy><TrgtCcy>BAM</TrgtCcy><XchgRate>1.95583</XchgRate></CcyXchg></InstdAmt></AmtDtls>
+          <RltdPties><Cdtr><Nm>Supermarket &amp; Co</Nm></Cdtr></RltdPties>
+          <RmtInf><Ustrd>Kupovina</Ustrd></RmtInf>
+        </TxDtls></NtryDtls>
+      </Ntry>
+      <Ntry>
+        <Amt Ccy="BAM">44.90</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts>
+        <BookgDt><DtTm>2025-01-20T10:15:00+01:00</DtTm></BookgDt>
+        <AcctSvcrRef>REF-0003</AcctSvcrRef>
+        <NtryDtls>
+          <TxDtls><RmtInf><Ustrd>Struja</Ustrd></RmtInf></TxDtls>
+          <TxDtls><RmtInf><Ustrd>Voda</Ustrd></RmtInf></TxDtls>
+        </NtryDtls>
+      </Ntry>
+      <Ntry>
+        <Amt Ccy="BAM">99.00</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>PDNG</Cd></Sts>
+        <BookgDt><Dt>2025-01-31</Dt></BookgDt>
+        <AcctSvcrRef>REF-0004</AcctSvcrRef>
+      </Ntry>
+    </Stmt>
+  </BkToCstmrStmt>
+</Document>

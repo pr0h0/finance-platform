@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "id": "pdf-table",
+  "name": "PDF table statement (synthetic example)",
+  "format": "pdf",
+  "skipRows": 1,
+  "header": true,
+  "columns": {
+    "postingDate": "Date",
+    "description": "Description",
+    "amount": "Amount",
+    "runningBalance": "Balance"
+  },
+  "dateFormat": "DD.MM.YYYY",
+  "number": { "decimalSeparator": ",", "thousandsSeparator": "." },
+  "currency": "EUR"
+}

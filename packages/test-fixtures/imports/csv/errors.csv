@@ -1,0 +1,7 @@
+Date,Description,Amount,Currency,Reference
+2025-13-01,Bad month,-1.00,EUR,E1
+2025-01-02,Bad amount,12.3.4,EUR,E2
+2025-01-03,Unknown currency,-5.00,XYZ,E3
+2025-01-04,Too precise,-5.001,EUR,E4
+2025-01-05,Zero,0.00,EUR,E5
+2025-01-06,Good row,-7.25,EUR,E6
