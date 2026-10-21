@@ -177,3 +177,24 @@
 - Template names and the per-row "save as template" use `window.prompt`.
 - Not yet translated: the ledger pages' strings are English only.
 
+
+## Web shell (onboarding, settings, sync, households, devices, MCP, admin)
+
+- Connected mode cannot upload data yet: no API module calls `sync.RegisterEntity`, so every push (and sync
+  activation) is refused with `unsupported_entity`. The UI reports this honestly (activation verification fails,
+  refused changes are listed on /sync) and keeps local data unchanged. Fresh connected profiles still download
+  server data (pull/snapshot work), and server-side endpoints (categories defaults, households, MCP, devices,
+  backups) work directly.
+- Activation always creates the server profile with the local profile's id (or reuses it); merging a local profile
+  into a different existing server profile is not offered because `RemoteDataSource` maps one id to both sides.
+  While connected, local profiles that were not activated are hidden; they reappear after disconnecting.
+- The hosted web app can only connect to its own origin: the gateway CSP keeps `connect-src 'self'`, and cookie
+  sessions are same-site. Using another server means opening that server's web app.
+- Scheduled local backups are reminders (banner when due) plus a one-click encrypted download; browsers cannot
+  write backup files silently, and the passphrase is never stored. Device-backup restore is local mode only.
+- The app lock is an Argon2id verifier in localStorage that hides the UI; it does not encrypt IndexedDB. Clearing
+  site data removes both the lock and the data. Biometric unlock is Phase 3/4.
+- The MCP management page is at `/agents` because `/mcp` is the MCP protocol endpoint (proxied by the gateway).
+- Bosnian covers the shell strings only; other text falls back to English.
+- No automated accessibility audit (axe) yet; keyboard flows were checked in the Playwright smoke run only.
+- `libsodium` (app lock, backups, E2EE) needs `'wasm-unsafe-eval'` in the gateway CSP `script-src` (added).

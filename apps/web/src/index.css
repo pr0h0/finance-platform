@@ -1,1 +1,75 @@
 @import "tailwindcss";
+
+/* Theme: semantic tokens. Light by default, dark via the .dark class on <html> (set from the
+   theme preference: light / dark / system). Use the token classes (bg-surface, text-muted,
+   border-line, text-pos/text-neg …) instead of raw palette colors. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --bg: #f7f8fa;
+  --surface: #ffffff;
+  --surface-2: #f1f3f6;
+  --line: #e2e5ea;
+  --fg: #111827;
+  --muted: #5b6472;
+  --accent: #1f6feb;
+  --accent-fg: #ffffff;
+  --pos: #137333;
+  --neg: #b42318;
+  --warn: #9a6700;
+  --focus: #1f6feb;
+  color-scheme: light;
+}
+
+:root.dark {
+  --bg: #0d1117;
+  --surface: #151b23;
+  --surface-2: #1c2330;
+  --line: #2b3440;
+  --fg: #e6edf3;
+  --muted: #9aa5b1;
+  --accent: #4c8dff;
+  --accent-fg: #0d1117;
+  --pos: #3fb950;
+  --neg: #f47067;
+  --warn: #d29922;
+  --focus: #4c8dff;
+  color-scheme: dark;
+}
+
+@theme {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--line);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-fg: var(--accent-fg);
+  --color-pos: var(--pos);
+  --color-neg: var(--neg);
+  --color-warn: var(--warn);
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+html,
+body {
+  background: var(--bg);
+  color: var(--fg);
+}
+
+body {
+  font-feature-settings: "tnum" 1; /* tabular figures: amounts line up */
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
