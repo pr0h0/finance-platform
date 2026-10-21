@@ -8,9 +8,14 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit -p .",
-    "test": "bun test"
+    "test": "bun test",
+    "generate": "openapi-typescript ../../docs/api/openapi.yaml -o src/schema.gen.ts"
   },
   "dependencies": {
-    "@finplat/domain": "workspace:*"
+    "@finplat/domain": "workspace:*",
+    "openapi-fetch": "^0.17.0"
+  },
+  "devDependencies": {
+    "openapi-typescript": "^7.13.0"
   }
 }

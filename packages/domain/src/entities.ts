@@ -550,3 +550,31 @@ export interface ListResponse<T> {
   items: T[];
   nextCursor?: string;
 }
+
+/** Quick-entry template (OpenAPI TransactionTemplate). */
+export interface TransactionTemplate extends Syncable {
+  name: string;
+  kind: 'income' | 'expense' | 'transfer';
+  accountId: Uuid | null;
+  toAccountId: Uuid | null;
+  amount: Money | null;
+  categoryId: Uuid | null;
+  merchantId: Uuid | null;
+  description: string;
+  tagIds: Uuid[];
+  sortOrder: number;
+}
+
+/** Reusable split layout: each line has a weight (proportional) or a fixed amount. */
+export interface SplitTemplateLine {
+  categoryId: Uuid | null;
+  weight?: Decimal;
+  amount?: Money;
+  description: string;
+}
+
+export interface SplitTemplate extends Syncable {
+  name: string;
+  merchantId: Uuid | null;
+  lines: SplitTemplateLine[];
+}

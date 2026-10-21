@@ -127,3 +127,22 @@
 - Rate limit is per client IP (auth.RateLimit), not per MCP client.
 - Proposal expiry is lazy (on list/approve/apply); expired rows are not cleaned up.
 - Batch approval is not atomic: it approves ids one by one and stops at the first error.
+
+## Client data layer (packages/storage, sync-client, api-client, localization)
+- Real-API sync: `/sync/push` currently answers `unsupported_entity` for accounts/tags/transactions (no module
+  calls `sync.RegisterEntity` yet); `packages/sync-client/src/real-server.test.ts` shows it. All sync behaviour
+  is tested against the in-memory mocked server only. E2EE has not been run against the real API.
+- Activation does not upload imported raw records, import batches or attachment contents (no sync entity for
+  them); uploaded imported transactions get `importRecordId = null`. Local imports/attachments made in
+  connected mode are queued as ops the server will reject until those entities are syncable (or the web app
+  uses the server import/attachment APIs in connected mode).
+- `LocalFinanceService` reads compute balances by scanning all transactions of the profile (fine for tens of
+  thousands; add a balance cache if profiles grow beyond that). Transaction history/undo (feature 84),
+  reconciliations and server-only analytics endpoints are not mirrored locally (engine functions are).
+- Discarding a server-rejected op leaves the local row with the rejected edit until it changes again.
+- E2EE: device private key and unlocked keyrings are stored in browser storage (not a secure enclave); the
+  IndexedDB database itself is not encrypted at rest; the app lock only gates the UI. Revocation creates a new
+  key generation but old envelopes are not re-encrypted (lazy re-encryption not implemented).
+- Recovery code is 52 Crockford-base32 characters instead of the "24 words" of ADR 0005 (same 256-bit entropy).
+- Encrypted backups hold the whole payload in memory (fine for typical personal data; streaming not done).
+- `bs` locale is a skeleton (≈35 keys); missing keys fall back to English.

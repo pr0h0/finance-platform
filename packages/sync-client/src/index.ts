@@ -1,5 +1,6 @@
-// Sync engine for clients (protocol: docs/architecture/sync-protocol.md). Implementation is
-// owned by the sync agent; wire types live in @finplat/domain.
+// @finplat/sync-client: sync engine, activation/disconnect, E2EE, encrypted backups and the
+// connected-mode DataSource. Protocol: docs/architecture/sync-protocol.md; client notes:
+// docs/architecture/sync-client.md.
 export type {
   PullResponse,
   PushRequest,
@@ -8,4 +9,9 @@ export type {
   SyncOperation,
 } from '@finplat/domain';
 export { SYNC_PROTOCOL_VERSION } from '@finplat/domain';
-export type { LocalStore } from '@finplat/storage';
+export * from './activation.ts';
+export * from './backup.ts';
+export * from './crypto.ts';
+export * from './e2ee.ts';
+export * from './engine.ts';
+export * from './remote.ts';

@@ -11,6 +11,12 @@
     "test": "bun test"
   },
   "dependencies": {
-    "@finplat/domain": "workspace:*"
+    "@finplat/domain": "workspace:*",
+    "@finplat/finance-engine": "workspace:*",
+    "@finplat/validation": "workspace:*",
+    "idb": "8"
+  },
+  "devDependencies": {
+    "fake-indexeddb": "6"
   }
 }

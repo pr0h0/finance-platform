@@ -10,5 +10,7 @@
     "typecheck": "tsc --noEmit -p .",
     "test": "bun test"
   },
-  "dependencies": {}
+  "dependencies": {
+    "i18next": "^26.5.4"
+  }
 }

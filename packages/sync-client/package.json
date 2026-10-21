@@ -1,17 +1,23 @@
 {
   "name": "@finplat/sync-client",
   "version": "0.0.0",
-  "private": true,
-  "type": "module",
+  "dependencies": {
+    "@finplat/api-client": "workspace:*",
+    "@finplat/domain": "workspace:*",
+    "@finplat/finance-engine": "workspace:*",
+    "@finplat/storage": "workspace:*",
+    "libsodium-wrappers-sumo": "^0.8"
+  },
   "exports": {
     ".": "./src/index.ts"
   },
+  "private": true,
   "scripts": {
     "typecheck": "tsc --noEmit -p .",
     "test": "bun test"
   },
-  "dependencies": {
-    "@finplat/domain": "workspace:*",
-    "@finplat/storage": "workspace:*"
+  "type": "module",
+  "devDependencies": {
+    "fake-indexeddb": "6"
   }
 }
