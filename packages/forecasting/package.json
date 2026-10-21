@@ -13,5 +13,8 @@
   "dependencies": {
     "@finplat/domain": "workspace:*",
     "@finplat/finance-engine": "workspace:*"
+  },
+  "devDependencies": {
+    "@finplat/test-fixtures": "workspace:*"
   }
 }

@@ -23,6 +23,23 @@ Current target: backend + web (Phases 1–2). Mobile (3) and desktop (4) are def
 | Docker (dev + prod-like), gateway on 127.0.0.1:3810 | TESTED | health/meta via gateway, Chromium render check |
 | CI workflow | IMPLEMENTED | not yet run on GitHub |
 
+## Shared TS engine (web local mode) — packages/finance-engine, forecasting, currency, charts
+
+Engine-level only; each feature row below stays owned by its API/web module.
+
+| Area (features) | Status | Tests | Notes |
+|---|---|---|---|
+| Balances, balance history, net worth (49, 52, 61) | TESTED | finance-engine `critical-cases`, `engine`, conformance `aggregation.json` | |
+| Aggregations: category (+parent rollup), merchant, income vs expense, savings rate (54–59) | TESTED | conformance `aggregation.json`; §46 cases 3–7 | Go runner pending (no pure Go aggregation exported) |
+| FX valuation, historical rates, EUR/BAM parity, converter, exposure (16–20, 23, 24) | TESTED | conformance `fx_lookup.json` (TS + Go `exchangerates.Lookup`); currency tests | `fin.Converter` diverges on EUR/BAM, see known-issues |
+| Recurrence expansion, annualization, installments, plan occurrences, matching (26–29, 33, 34, 37, 38) | TESTED | conformance `recurrence.json`, `subscriptions.json` (TS + Go pass); §46 cases 11, 13 | |
+| Budget periods, utilization, rollover, alerts, actual vs planned (39–45) | TESTED | conformance `budgets.json`; §46 case 10 | Go runner pending |
+| Forecast (daily, expected/conservative/optimistic), shortfalls, safe-to-spend, what-if, goals, emergency fund (66–75) | TESTED | conformance `forecast.json`; forecasting tests; §46 case 12 | Go runner pending |
+| Rules, history suggestions, duplicates, recurring detection (76–78, 80) | TESTED | finance-engine `engine.test.ts` | no shared fixture yet |
+| Insights + unusual expenses (64, 65) | TESTED | finance-engine `engine.test.ts` | no shared fixture yet |
+| Chart data helpers | TESTED | charts tests | |
+| Performance: 50k transactions, 2-year forecast over 200 plans | TESTED | `engine.test.ts`, `forecast.test.ts` (< 5 s each, ~1 s observed) | |
+
 ## Features
 
 | # | Name | Platforms | Phase | Status | Backend module / package | Tests | Notes / limitations |

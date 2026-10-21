@@ -27,3 +27,18 @@
 - Web app must call `setPdfWorkerSrc()` (bundled pdf.worker URL) before PDF import in the browser.
 - fp1 fingerprint must be implemented identically in Go (docs/importing/fingerprint.md, vectors in
   packages/test-fixtures/imports/fingerprint.json); TS side passes the vectors.
+
+## Shared TS engine (packages/finance-engine, forecasting)
+- Go conformance runner (`apps/api/internal/conformance_test`) runs recurrence, subscriptions and fx_lookup;
+  aggregation, budgets and forecast fixtures are skipped until the Go modules export pure functions over
+  in-memory data.
+- `analytics/fin.Converter` lets a provider EUR/BAM quote newer than the seeded 1999 fixed row override the
+  1.95583 parity (violates invariant 5); `exchangerates.Lookup` is correct. The 3 cases are skipped by name in
+  the Go runner (`finConverterDivergence`) — remove them once fixed.
+- Rule regexes run on the JS engine; only the RE2-compatible subset is guaranteed to behave like Go. Patterns
+  are capped at 256 chars (no other ReDoS protection on the client).
+- Budget `utilization` is `null` when the limit is <= 0 (OpenAPI `BudgetStatus` types it as non-null Decimal).
+- Annualization uses the documented approximations of Go `recurrence.PerYear` (365-day year, 52 weeks,
+  4 per month for an un-ordinaled weekday in a monthly rule).
+- Forecast converts foreign balances at the start-date rate for the whole horizon (constant-rate assumption,
+  listed in `assumptions`).

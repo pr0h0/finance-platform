@@ -1,0 +1,855 @@
+{
+  "rates": [],
+  "cases": [
+    {
+      "name": "mid-month negative balance is detected even though the month ends positive",
+      "op": "forecast",
+      "input": {
+        "from": "2026-11-01",
+        "to": "2026-11-30",
+        "currency": "BAM",
+        "reserve": null,
+        "accounts": [
+          {
+            "id": "chk",
+            "currency": "BAM",
+            "balance": {
+              "amount": "300.00",
+              "currency": "BAM"
+            },
+            "accountType": "checking",
+            "creditLimit": null,
+            "includeInSafeToSpend": true
+          }
+        ],
+        "events": [
+          {
+            "date": "2026-11-03",
+            "accountId": "chk",
+            "amount": {
+              "amount": "-800.00",
+              "currency": "BAM"
+            },
+            "amountMin": null,
+            "amountMax": null,
+            "confidence": "certain",
+            "source": "recurring",
+            "sourceId": "rent",
+            "description": "Rent"
+          },
+          {
+            "date": "2026-11-15",
+            "accountId": "chk",
+            "amount": {
+              "amount": "2000.00",
+              "currency": "BAM"
+            },
+            "amountMin": null,
+            "amountMax": null,
+            "confidence": "certain",
+            "source": "recurring",
+            "sourceId": "salary",
+            "description": "Salary"
+          },
+          {
+            "date": "2026-11-20",
+            "accountId": "chk",
+            "amount": {
+              "amount": "-120.00",
+              "currency": "BAM"
+            },
+            "amountMin": {
+              "amount": "100.00",
+              "currency": "BAM"
+            },
+            "amountMax": {
+              "amount": "150.00",
+              "currency": "BAM"
+            },
+            "confidence": "expected",
+            "source": "recurring",
+            "sourceId": "util",
+            "description": "Utilities"
+          },
+          {
+            "date": "2026-11-25",
+            "accountId": "chk",
+            "amount": {
+              "amount": "-30.00",
+              "currency": "BAM"
+            },
+            "amountMin": null,
+            "amountMax": null,
+            "confidence": "possible",
+            "source": "planned",
+            "sourceId": "gym",
+            "description": "Gym"
+          },
+          {
+            "date": "2026-11-28",
+            "accountId": "chk",
+            "amount": {
+              "amount": "300.00",
+              "currency": "BAM"
+            },
+            "amountMin": null,
+            "amountMax": {
+              "amount": "500.00",
+              "currency": "BAM"
+            },
+            "confidence": "speculative",
+            "source": "planned",
+            "sourceId": "bonus",
+            "description": "Bonus"
+          }
+        ]
+      },
+      "expected": {
+        "lowest": {
+          "date": "2026-11-03",
+          "amount": {
+            "amount": "-500.00",
+            "currency": "BAM"
+          }
+        },
+        "shortfalls": [
+          {
+            "date": "2026-11-03",
+            "amount": {
+              "amount": "-500.00",
+              "currency": "BAM"
+            },
+            "accountId": "chk"
+          }
+        ],
+        "monthEnd": {
+          "amount": "1380.00",
+          "currency": "BAM"
+        },
+        "safeToSpend": {
+          "amount": "0.00",
+          "currency": "BAM"
+        },
+        "complete": true,
+        "days": [
+          {
+            "date": "2026-11-01",
+            "expected": {
+              "amount": "300.00",
+              "currency": "BAM"
+            },
+            "conservative": {
+              "amount": "300.00",
+              "currency": "BAM"
+            },
+            "optimistic": {
+              "amount": "300.00",
+              "currency": "BAM"
+            }
+          },
+          {
+            "date": "2026-11-03",
+            "expected": {
+              "amount": "-500.00",
+              "currency": "BAM"
+            },
+            "conservative": {
+              "amount": "-500.00",
+              "currency": "BAM"
+            },
+            "optimistic": {
+              "amount": "-500.00",
+              "currency": "BAM"
+            }
+          },
+          {
+            "date": "2026-11-15",
+            "expected": {
+              "amount": "1500.00",
+              "currency": "BAM"
+            },
+            "conservative": {
+              "amount": "1500.00",
+              "currency": "BAM"
+            },
+            "optimistic": {
+              "amount": "1500.00",
+              "currency": "BAM"
+            }
+          },
+          {
+            "date": "2026-11-20",
+            "expected": {
+              "amount": "1380.00",
+              "currency": "BAM"
+            },
+            "conservative": {
+              "amount": "1350.00",
+              "currency": "BAM"
+            },
+            "optimistic": {
+              "amount": "1400.00",
+              "currency": "BAM"
+            }
+          },
+          {
+            "date": "2026-11-25",
+            "expected": {
+              "amount": "1380.00",
+              "currency": "BAM"
+            },
+            "conservative": {
+              "amount": "1320.00",
+              "currency": "BAM"
+            },
+            "optimistic": {
+              "amount": "1400.00",
+              "currency": "BAM"
+            }
+          },
+          {
+            "date": "2026-11-28",
+            "expected": {
+              "amount": "1380.00",
+              "currency": "BAM"
+            },
+            "conservative": {
+              "amount": "1320.00",
+              "currency": "BAM"
+            },
+            "optimistic": {
+              "amount": "1900.00",
+              "currency": "BAM"
+            }
+          },
+          {
+            "date": "2026-11-30",
+            "expected": {
+              "amount": "1380.00",
+              "currency": "BAM"
+            },
+            "conservative": {
+              "amount": "1320.00",
+              "currency": "BAM"
+            },
+            "optimistic": {
+              "amount": "1900.00",
+              "currency": "BAM"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "safe-to-spend uses only safe accounts, conservative path and the reserve; transfers keep the total; card within its limit is no shortfall",
+      "op": "forecast",
+      "input": {
+        "from": "2026-12-01",
+        "to": "2026-12-31",
+        "currency": "BAM",
+        "reserve": {
+          "amount": "100.00",
+          "currency": "BAM"
+        },
+        "accounts": [
+          {
+            "id": "chk",
+            "currency": "BAM",
+            "balance": {
+              "amount": "1000.00",
+              "currency": "BAM"
+            },
+            "accountType": "checking",
+            "creditLimit": null,
+            "includeInSafeToSpend": true
+          },
+          {
+            "id": "sav",
+            "currency": "BAM",
+            "balance": {
+              "amount": "5000.00",
+              "currency": "BAM"
+            },
+            "accountType": "savings",
+            "creditLimit": null,
+            "includeInSafeToSpend": false
+          },
+          {
+            "id": "card",
+            "currency": "BAM",
+            "balance": {
+              "amount": "-200.00",
+              "currency": "BAM"
+            },
+            "accountType": "credit_card",
+            "creditLimit": {
+              "amount": "1000.00",
+              "currency": "BAM"
+            },
+            "includeInSafeToSpend": false
+          }
+        ],
+        "events": [
+          {
+            "date": "2026-12-05",
+            "accountId": "chk",
+            "amount": {
+              "amount": "-600.00",
+              "currency": "BAM"
+            },
+            "amountMin": null,
+            "amountMax": null,
+            "confidence": "certain",
+            "source": "recurring",
+            "sourceId": "rent",
+            "description": "Rent"
+          },
+          {
+            "date": "2026-12-10",
+            "accountId": "chk",
+            "amount": {
+              "amount": "-200.00",
+              "currency": "BAM"
+            },
+            "amountMin": null,
+            "amountMax": null,
+            "confidence": "expected",
+            "source": "transfer",
+            "sourceId": "cardpay",
+            "description": "Card payment"
+          },
+          {
+            "date": "2026-12-10",
+            "accountId": "card",
+            "amount": {
+              "amount": "200.00",
+              "currency": "BAM"
+            },
+            "amountMin": null,
+            "amountMax": null,
+            "confidence": "expected",
+            "source": "transfer",
+            "sourceId": "cardpay",
+            "description": "Card payment"
+          },
+          {
+            "date": "2026-12-15",
+            "accountId": "card",
+            "amount": {
+              "amount": "-15.00",
+              "currency": "BAM"
+            },
+            "amountMin": null,
+            "amountMax": null,
+            "confidence": "certain",
+            "source": "recurring",
+            "sourceId": "netflix",
+            "description": "Netflix"
+          }
+        ]
+      },
+      "expected": {
+        "lowest": {
+          "date": "2026-12-15",
+          "amount": {
+            "amount": "5185.00",
+            "currency": "BAM"
+          }
+        },
+        "shortfalls": [],
+        "monthEnd": {
+          "amount": "5185.00",
+          "currency": "BAM"
+        },
+        "safeToSpend": {
+          "amount": "100.00",
+          "currency": "BAM"
+        },
+        "complete": true,
+        "days": [
+          {
+            "date": "2026-12-01",
+            "expected": {
+              "amount": "5800.00",
+              "currency": "BAM"
+            },
+            "conservative": {
+              "amount": "5800.00",
+              "currency": "BAM"
+            },
+            "optimistic": {
+              "amount": "5800.00",
+              "currency": "BAM"
+            }
+          },
+          {
+            "date": "2026-12-05",
+            "expected": {
+              "amount": "5200.00",
+              "currency": "BAM"
+            },
+            "conservative": {
+              "amount": "5200.00",
+              "currency": "BAM"
+            },
+            "optimistic": {
+              "amount": "5200.00",
+              "currency": "BAM"
+            }
+          },
+          {
+            "date": "2026-12-10",
+            "expected": {
+              "amount": "5200.00",
+              "currency": "BAM"
+            },
+            "conservative": {
+              "amount": "5200.00",
+              "currency": "BAM"
+            },
+            "optimistic": {
+              "amount": "5200.00",
+              "currency": "BAM"
+            }
+          },
+          {
+            "date": "2026-12-15",
+            "expected": {
+              "amount": "5185.00",
+              "currency": "BAM"
+            },
+            "conservative": {
+              "amount": "5185.00",
+              "currency": "BAM"
+            },
+            "optimistic": {
+              "amount": "5185.00",
+              "currency": "BAM"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "foreign account converted at the start-date rate; liability without a limit never alerts",
+      "op": "forecast",
+      "input": {
+        "from": "2026-10-01",
+        "to": "2026-10-05",
+        "currency": "BAM",
+        "reserve": null,
+        "accounts": [
+          {
+            "id": "eur",
+            "currency": "EUR",
+            "balance": {
+              "amount": "100.00",
+              "currency": "EUR"
+            },
+            "accountType": "checking",
+            "creditLimit": null,
+            "includeInSafeToSpend": true
+          },
+          {
+            "id": "loan",
+            "currency": "BAM",
+            "balance": {
+              "amount": "-5000.00",
+              "currency": "BAM"
+            },
+            "accountType": "loan",
+            "creditLimit": null,
+            "includeInSafeToSpend": false
+          }
+        ],
+        "events": [
+          {
+            "date": "2026-10-02",
+            "accountId": "eur",
+            "amount": {
+              "amount": "-150.00",
+              "currency": "EUR"
+            },
+            "amountMin": null,
+            "amountMax": null,
+            "confidence": "certain",
+            "source": "planned",
+            "sourceId": "trip",
+            "description": "Trip"
+          }
+        ]
+      },
+      "expected": {
+        "lowest": {
+          "date": "2026-10-02",
+          "amount": {
+            "amount": "-5097.79",
+            "currency": "BAM"
+          }
+        },
+        "shortfalls": [
+          {
+            "date": "2026-10-02",
+            "amount": {
+              "amount": "-50.00",
+              "currency": "EUR"
+            },
+            "accountId": "eur"
+          }
+        ],
+        "monthEnd": {
+          "amount": "-5097.79",
+          "currency": "BAM"
+        },
+        "safeToSpend": {
+          "amount": "0.00",
+          "currency": "BAM"
+        },
+        "complete": true,
+        "days": [
+          {
+            "date": "2026-10-01",
+            "expected": {
+              "amount": "-4804.42",
+              "currency": "BAM"
+            },
+            "conservative": {
+              "amount": "-4804.42",
+              "currency": "BAM"
+            },
+            "optimistic": {
+              "amount": "-4804.42",
+              "currency": "BAM"
+            }
+          },
+          {
+            "date": "2026-10-02",
+            "expected": {
+              "amount": "-5097.79",
+              "currency": "BAM"
+            },
+            "conservative": {
+              "amount": "-5097.79",
+              "currency": "BAM"
+            },
+            "optimistic": {
+              "amount": "-5097.79",
+              "currency": "BAM"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "plan events: matched occurrences excluded, overrides applied, overdue pending moved to the start, transfers produce two legs, cancelled plans ignored",
+      "op": "planEvents",
+      "input": {
+        "plans": [
+          {
+            "id": "p-rent",
+            "kind": "expense",
+            "accountId": "chk",
+            "toAccountId": null,
+            "categoryId": "housing",
+            "description": "Rent",
+            "amount": {
+              "amount": "700.00",
+              "currency": "BAM"
+            },
+            "amountMin": null,
+            "amountMax": null,
+            "dueDate": "2026-10-01",
+            "recurrenceId": "r-rent",
+            "priority": "essential",
+            "confidence": "certain",
+            "status": "active"
+          },
+          {
+            "id": "p-salary",
+            "kind": "income",
+            "accountId": "chk",
+            "toAccountId": null,
+            "categoryId": "salary",
+            "description": "Salary",
+            "amount": {
+              "amount": "2500.00",
+              "currency": "BAM"
+            },
+            "amountMin": {
+              "amount": "2400.00",
+              "currency": "BAM"
+            },
+            "amountMax": null,
+            "dueDate": "2026-01-15",
+            "recurrenceId": "r-salary",
+            "priority": "normal",
+            "confidence": "certain",
+            "status": "active"
+          },
+          {
+            "id": "p-buy",
+            "kind": "expense",
+            "accountId": "chk",
+            "toAccountId": null,
+            "categoryId": "electronics",
+            "description": "New phone",
+            "amount": {
+              "amount": "250.00",
+              "currency": "BAM"
+            },
+            "amountMin": null,
+            "amountMax": {
+              "amount": "300.00",
+              "currency": "BAM"
+            },
+            "dueDate": "2026-11-20",
+            "recurrenceId": null,
+            "priority": "optional",
+            "confidence": "expected",
+            "status": "active"
+          },
+          {
+            "id": "p-save",
+            "kind": "transfer",
+            "accountId": "chk",
+            "toAccountId": "sav",
+            "categoryId": null,
+            "description": "Savings",
+            "amount": {
+              "amount": "100.00",
+              "currency": "BAM"
+            },
+            "amountMin": null,
+            "amountMax": null,
+            "dueDate": "2026-11-20",
+            "recurrenceId": "r-save",
+            "priority": "normal",
+            "confidence": "certain",
+            "status": "active"
+          },
+          {
+            "id": "p-old",
+            "kind": "expense",
+            "accountId": "chk",
+            "toAccountId": null,
+            "categoryId": null,
+            "description": "Cancelled gym",
+            "amount": {
+              "amount": "30.00",
+              "currency": "BAM"
+            },
+            "amountMin": null,
+            "amountMax": null,
+            "dueDate": "2026-11-10",
+            "recurrenceId": null,
+            "priority": "low",
+            "confidence": "certain",
+            "status": "cancelled"
+          }
+        ],
+        "schedules": [
+          {
+            "id": "r-rent",
+            "rrule": "FREQ=MONTHLY;BYMONTHDAY=1",
+            "startDate": "2026-10-01",
+            "endDate": null,
+            "occurrenceCount": null,
+            "businessDayAdjustment": "none"
+          },
+          {
+            "id": "r-salary",
+            "rrule": "FREQ=MONTHLY;BYMONTHDAY=15",
+            "startDate": "2026-01-15",
+            "endDate": null,
+            "occurrenceCount": null,
+            "businessDayAdjustment": "none"
+          },
+          {
+            "id": "r-save",
+            "rrule": "FREQ=MONTHLY;BYMONTHDAY=20",
+            "startDate": "2026-11-20",
+            "endDate": null,
+            "occurrenceCount": null,
+            "businessDayAdjustment": "none"
+          }
+        ],
+        "stored": [
+          {
+            "plannedTransactionId": "p-rent",
+            "occurrenceDate": "2026-10-01",
+            "status": "pending",
+            "amountOverride": null,
+            "dateOverride": null,
+            "matchedTransactionId": null
+          },
+          {
+            "plannedTransactionId": "p-rent",
+            "occurrenceDate": "2026-11-01",
+            "status": "matched",
+            "amountOverride": null,
+            "dateOverride": null,
+            "matchedTransactionId": "tx-rent-nov"
+          },
+          {
+            "plannedTransactionId": "p-rent",
+            "occurrenceDate": "2026-12-01",
+            "status": "pending",
+            "amountOverride": {
+              "amount": "720.00",
+              "currency": "BAM"
+            },
+            "dateOverride": null,
+            "matchedTransactionId": null
+          },
+          {
+            "plannedTransactionId": "p-salary",
+            "occurrenceDate": "2026-12-15",
+            "status": "pending",
+            "amountOverride": null,
+            "dateOverride": "2026-12-14",
+            "matchedTransactionId": null
+          }
+        ],
+        "from": "2026-11-01",
+        "to": "2026-12-31"
+      },
+      "expected": [
+        {
+          "date": "2026-11-01",
+          "accountId": "chk",
+          "amount": {
+            "amount": "-700.00",
+            "currency": "BAM"
+          },
+          "amountMin": null,
+          "amountMax": null,
+          "confidence": "certain",
+          "source": "recurring",
+          "sourceId": "p-rent",
+          "description": "Rent (overdue since 2026-10-01)"
+        },
+        {
+          "date": "2026-11-15",
+          "accountId": "chk",
+          "amount": {
+            "amount": "2500.00",
+            "currency": "BAM"
+          },
+          "amountMin": {
+            "amount": "2400.00",
+            "currency": "BAM"
+          },
+          "amountMax": null,
+          "confidence": "certain",
+          "source": "recurring",
+          "sourceId": "p-salary",
+          "description": "Salary"
+        },
+        {
+          "date": "2026-11-20",
+          "accountId": "chk",
+          "amount": {
+            "amount": "-250.00",
+            "currency": "BAM"
+          },
+          "amountMin": null,
+          "amountMax": {
+            "amount": "300.00",
+            "currency": "BAM"
+          },
+          "confidence": "expected",
+          "source": "planned",
+          "sourceId": "p-buy",
+          "description": "New phone"
+        },
+        {
+          "date": "2026-11-20",
+          "accountId": "chk",
+          "amount": {
+            "amount": "-100.00",
+            "currency": "BAM"
+          },
+          "amountMin": null,
+          "amountMax": null,
+          "confidence": "certain",
+          "source": "transfer",
+          "sourceId": "p-save",
+          "description": "Savings"
+        },
+        {
+          "date": "2026-11-20",
+          "accountId": "sav",
+          "amount": {
+            "amount": "100.00",
+            "currency": "BAM"
+          },
+          "amountMin": null,
+          "amountMax": null,
+          "confidence": "certain",
+          "source": "transfer",
+          "sourceId": "p-save",
+          "description": "Savings"
+        },
+        {
+          "date": "2026-12-01",
+          "accountId": "chk",
+          "amount": {
+            "amount": "-720.00",
+            "currency": "BAM"
+          },
+          "amountMin": null,
+          "amountMax": null,
+          "confidence": "certain",
+          "source": "recurring",
+          "sourceId": "p-rent",
+          "description": "Rent"
+        },
+        {
+          "date": "2026-12-14",
+          "accountId": "chk",
+          "amount": {
+            "amount": "2500.00",
+            "currency": "BAM"
+          },
+          "amountMin": {
+            "amount": "2400.00",
+            "currency": "BAM"
+          },
+          "amountMax": null,
+          "confidence": "certain",
+          "source": "recurring",
+          "sourceId": "p-salary",
+          "description": "Salary"
+        },
+        {
+          "date": "2026-12-20",
+          "accountId": "chk",
+          "amount": {
+            "amount": "-100.00",
+            "currency": "BAM"
+          },
+          "amountMin": null,
+          "amountMax": null,
+          "confidence": "certain",
+          "source": "transfer",
+          "sourceId": "p-save",
+          "description": "Savings"
+        },
+        {
+          "date": "2026-12-20",
+          "accountId": "sav",
+          "amount": {
+            "amount": "100.00",
+            "currency": "BAM"
+          },
+          "amountMin": null,
+          "amountMax": null,
+          "confidence": "certain",
+          "source": "transfer",
+          "sourceId": "p-save",
+          "description": "Savings"
+        }
+      ]
+    }
+  ]
+}

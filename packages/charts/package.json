@@ -10,5 +10,7 @@
     "typecheck": "tsc --noEmit -p .",
     "test": "bun test"
   },
-  "dependencies": {}
+  "dependencies": {
+    "@finplat/finance-engine": "workspace:*"
+  }
 }

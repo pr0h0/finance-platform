@@ -1,0 +1,297 @@
+{
+  "rates": [
+    {
+      "baseCurrency": "EUR",
+      "quoteCurrency": "USD",
+      "rate": "1.1000",
+      "rateDate": "2026-10-01",
+      "source": "provider"
+    },
+    {
+      "baseCurrency": "EUR",
+      "quoteCurrency": "USD",
+      "rate": "1.1200",
+      "rateDate": "2026-10-15",
+      "source": "provider"
+    },
+    {
+      "baseCurrency": "EUR",
+      "quoteCurrency": "USD",
+      "rate": "1.1150",
+      "rateDate": "2026-10-18",
+      "source": "manual"
+    },
+    {
+      "baseCurrency": "EUR",
+      "quoteCurrency": "USD",
+      "rate": "1.1300",
+      "rateDate": "2026-10-18",
+      "source": "provider"
+    },
+    {
+      "baseCurrency": "EUR",
+      "quoteCurrency": "BAM",
+      "rate": "1.9500",
+      "rateDate": "2026-10-18",
+      "source": "provider"
+    },
+    {
+      "baseCurrency": "GBP",
+      "quoteCurrency": "EUR",
+      "rate": "1.15",
+      "rateDate": "2026-10-10",
+      "source": "provider"
+    },
+    {
+      "baseCurrency": "EUR",
+      "quoteCurrency": "GBP",
+      "rate": "0.87",
+      "rateDate": "2026-10-12",
+      "source": "provider"
+    }
+  ],
+  "cases": [
+    {
+      "name": "latest rate on or before the date",
+      "from": "EUR",
+      "to": "USD",
+      "date": "2026-10-10",
+      "amount": {
+        "amount": "100.00",
+        "currency": "EUR"
+      },
+      "expected": {
+        "amount": {
+          "amount": "110.00",
+          "currency": "USD"
+        },
+        "rate": "1.1",
+        "rateDate": "2026-10-01",
+        "source": "provider",
+        "inverse": false
+      }
+    },
+    {
+      "name": "newer snapshot wins",
+      "from": "EUR",
+      "to": "USD",
+      "date": "2026-10-16",
+      "amount": {
+        "amount": "100.00",
+        "currency": "EUR"
+      },
+      "expected": {
+        "amount": {
+          "amount": "112.00",
+          "currency": "USD"
+        },
+        "rate": "1.12",
+        "rateDate": "2026-10-15",
+        "source": "provider",
+        "inverse": false
+      }
+    },
+    {
+      "name": "no future rates",
+      "from": "EUR",
+      "to": "USD",
+      "date": "2026-09-30",
+      "amount": {
+        "amount": "100.00",
+        "currency": "EUR"
+      },
+      "expected": null
+    },
+    {
+      "name": "inverse quote",
+      "from": "USD",
+      "to": "EUR",
+      "date": "2026-10-16",
+      "amount": {
+        "amount": "112.00",
+        "currency": "USD"
+      },
+      "expected": {
+        "amount": {
+          "amount": "100.00",
+          "currency": "EUR"
+        },
+        "rate": "0.892857142857142857",
+        "rateDate": "2026-10-15",
+        "source": "provider",
+        "inverse": true
+      }
+    },
+    {
+      "name": "manual beats provider on the same date",
+      "from": "EUR",
+      "to": "USD",
+      "date": "2026-10-20",
+      "amount": {
+        "amount": "100.00",
+        "currency": "EUR"
+      },
+      "expected": {
+        "amount": {
+          "amount": "111.50",
+          "currency": "USD"
+        },
+        "rate": "1.115",
+        "rateDate": "2026-10-18",
+        "source": "manual",
+        "inverse": false
+      }
+    },
+    {
+      "name": "EUR/BAM fixed parity",
+      "from": "EUR",
+      "to": "BAM",
+      "date": "2026-10-20",
+      "amount": {
+        "amount": "100.00",
+        "currency": "EUR"
+      },
+      "expected": {
+        "amount": {
+          "amount": "195.58",
+          "currency": "BAM"
+        },
+        "rate": "1.95583",
+        "rateDate": "2026-10-20",
+        "source": "fixed",
+        "inverse": false
+      }
+    },
+    {
+      "name": "BAM/EUR fixed parity inverse",
+      "from": "BAM",
+      "to": "EUR",
+      "date": "2026-10-20",
+      "amount": {
+        "amount": "195.58",
+        "currency": "BAM"
+      },
+      "expected": {
+        "amount": {
+          "amount": "100.00",
+          "currency": "EUR"
+        },
+        "rate": "0.511291881196218485",
+        "rateDate": "2026-10-20",
+        "source": "fixed",
+        "inverse": true
+      }
+    },
+    {
+      "name": "fixed parity ignores provider EUR/BAM quotes",
+      "from": "EUR",
+      "to": "BAM",
+      "date": "2026-10-19",
+      "amount": {
+        "amount": "1.00",
+        "currency": "EUR"
+      },
+      "expected": {
+        "amount": {
+          "amount": "1.96",
+          "currency": "BAM"
+        },
+        "rate": "1.95583",
+        "rateDate": "2026-10-19",
+        "source": "fixed",
+        "inverse": false
+      }
+    },
+    {
+      "name": "cross via EUR uses oldest leg date and weakest source",
+      "from": "BAM",
+      "to": "USD",
+      "date": "2026-10-16",
+      "amount": {
+        "amount": "195.58",
+        "currency": "BAM"
+      },
+      "expected": {
+        "amount": {
+          "amount": "112.00",
+          "currency": "USD"
+        },
+        "rate": "0.572646906939764703",
+        "rateDate": "2026-10-15",
+        "source": "provider",
+        "inverse": true
+      }
+    },
+    {
+      "name": "newer inverse beats older direct",
+      "from": "GBP",
+      "to": "EUR",
+      "date": "2026-10-12",
+      "amount": {
+        "amount": "87.00",
+        "currency": "GBP"
+      },
+      "expected": {
+        "amount": {
+          "amount": "100.00",
+          "currency": "EUR"
+        },
+        "rate": "1.149425287356321839",
+        "rateDate": "2026-10-12",
+        "source": "provider",
+        "inverse": true
+      }
+    },
+    {
+      "name": "older direct when inverse is in the future",
+      "from": "GBP",
+      "to": "EUR",
+      "date": "2026-10-11",
+      "amount": {
+        "amount": "100.00",
+        "currency": "GBP"
+      },
+      "expected": {
+        "amount": {
+          "amount": "115.00",
+          "currency": "EUR"
+        },
+        "rate": "1.15",
+        "rateDate": "2026-10-10",
+        "source": "provider",
+        "inverse": false
+      }
+    },
+    {
+      "name": "same currency is identity",
+      "from": "USD",
+      "to": "USD",
+      "date": "2026-01-01",
+      "amount": {
+        "amount": "12.34",
+        "currency": "USD"
+      },
+      "expected": {
+        "amount": {
+          "amount": "12.34",
+          "currency": "USD"
+        },
+        "rate": "1",
+        "rateDate": "2026-01-01",
+        "source": "fixed",
+        "inverse": false
+      }
+    },
+    {
+      "name": "no rate for the pair",
+      "from": "EUR",
+      "to": "JPY",
+      "date": "2026-10-16",
+      "amount": {
+        "amount": "10.00",
+        "currency": "EUR"
+      },
+      "expected": null
+    }
+  ]
+}

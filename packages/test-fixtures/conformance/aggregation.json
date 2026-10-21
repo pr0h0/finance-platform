@@ -1,0 +1,1052 @@
+{
+  "categories": [
+    {
+      "id": "food",
+      "parentId": null,
+      "name": "Food"
+    },
+    {
+      "id": "groceries",
+      "parentId": "food",
+      "name": "Groceries"
+    },
+    {
+      "id": "restaurants",
+      "parentId": "food",
+      "name": "Restaurants"
+    },
+    {
+      "id": "household",
+      "parentId": null,
+      "name": "Household"
+    },
+    {
+      "id": "leisure",
+      "parentId": null,
+      "name": "Leisure"
+    },
+    {
+      "id": "salary",
+      "parentId": null,
+      "name": "Salary"
+    }
+  ],
+  "accounts": [
+    {
+      "id": "chk",
+      "accountType": "checking"
+    },
+    {
+      "id": "sav",
+      "accountType": "savings"
+    },
+    {
+      "id": "card",
+      "accountType": "credit_card"
+    },
+    {
+      "id": "eur",
+      "accountType": "checking"
+    }
+  ],
+  "merchants": [
+    {
+      "id": "m-konzum",
+      "name": "Konzum"
+    }
+  ],
+  "rates": [],
+  "transactions": [
+    {
+      "id": "t01",
+      "kind": "opening_balance",
+      "status": "cleared",
+      "bookingDate": "2026-10-01",
+      "excludeFromReports": false,
+      "deletedAt": null,
+      "merchantId": null,
+      "payee": "",
+      "description": "",
+      "relatedTransactionId": null,
+      "postings": [
+        {
+          "accountId": "chk",
+          "amount": {
+            "amount": "1000.00",
+            "currency": "BAM"
+          }
+        }
+      ],
+      "splits": []
+    },
+    {
+      "id": "t02",
+      "kind": "income",
+      "status": "cleared",
+      "bookingDate": "2026-10-01",
+      "excludeFromReports": false,
+      "deletedAt": null,
+      "merchantId": null,
+      "payee": "Employer",
+      "description": "",
+      "relatedTransactionId": null,
+      "postings": [
+        {
+          "accountId": "chk",
+          "amount": {
+            "amount": "2000.00",
+            "currency": "BAM"
+          }
+        }
+      ],
+      "splits": [
+        {
+          "categoryId": "salary",
+          "amount": {
+            "amount": "2000.00",
+            "currency": "BAM"
+          }
+        }
+      ]
+    },
+    {
+      "id": "t03",
+      "kind": "expense",
+      "status": "cleared",
+      "bookingDate": "2026-10-03",
+      "excludeFromReports": false,
+      "deletedAt": null,
+      "merchantId": "m-konzum",
+      "payee": "KONZUM",
+      "description": "",
+      "relatedTransactionId": null,
+      "postings": [
+        {
+          "accountId": "chk",
+          "amount": {
+            "amount": "-150.00",
+            "currency": "BAM"
+          }
+        }
+      ],
+      "splits": [
+        {
+          "categoryId": "groceries",
+          "amount": {
+            "amount": "95.40",
+            "currency": "BAM"
+          }
+        },
+        {
+          "categoryId": "household",
+          "amount": {
+            "amount": "32.50",
+            "currency": "BAM"
+          }
+        },
+        {
+          "categoryId": "leisure",
+          "amount": {
+            "amount": "22.10",
+            "currency": "BAM"
+          }
+        }
+      ]
+    },
+    {
+      "id": "t04",
+      "kind": "transfer",
+      "status": "cleared",
+      "bookingDate": "2026-10-05",
+      "excludeFromReports": false,
+      "deletedAt": null,
+      "merchantId": null,
+      "payee": "",
+      "description": "",
+      "relatedTransactionId": null,
+      "postings": [
+        {
+          "accountId": "chk",
+          "amount": {
+            "amount": "-500.00",
+            "currency": "BAM"
+          }
+        },
+        {
+          "accountId": "sav",
+          "amount": {
+            "amount": "500.00",
+            "currency": "BAM"
+          }
+        }
+      ],
+      "splits": []
+    },
+    {
+      "id": "t05",
+      "kind": "expense",
+      "status": "cleared",
+      "bookingDate": "2026-10-06",
+      "excludeFromReports": false,
+      "deletedAt": null,
+      "merchantId": null,
+      "payee": "PIZZERIA NAPOLI 0042",
+      "description": "",
+      "relatedTransactionId": null,
+      "postings": [
+        {
+          "accountId": "card",
+          "amount": {
+            "amount": "-80.00",
+            "currency": "BAM"
+          }
+        }
+      ],
+      "splits": [
+        {
+          "categoryId": "restaurants",
+          "amount": {
+            "amount": "80.00",
+            "currency": "BAM"
+          }
+        }
+      ]
+    },
+    {
+      "id": "t06",
+      "kind": "transfer",
+      "status": "cleared",
+      "bookingDate": "2026-10-20",
+      "excludeFromReports": false,
+      "deletedAt": null,
+      "merchantId": null,
+      "payee": "",
+      "description": "Credit card payment",
+      "relatedTransactionId": null,
+      "postings": [
+        {
+          "accountId": "chk",
+          "amount": {
+            "amount": "-80.00",
+            "currency": "BAM"
+          }
+        },
+        {
+          "accountId": "card",
+          "amount": {
+            "amount": "80.00",
+            "currency": "BAM"
+          }
+        }
+      ],
+      "splits": []
+    },
+    {
+      "id": "t07",
+      "kind": "refund",
+      "status": "cleared",
+      "bookingDate": "2026-10-08",
+      "excludeFromReports": false,
+      "deletedAt": null,
+      "merchantId": "m-konzum",
+      "payee": "",
+      "description": "",
+      "relatedTransactionId": "t03",
+      "postings": [
+        {
+          "accountId": "chk",
+          "amount": {
+            "amount": "22.10",
+            "currency": "BAM"
+          }
+        }
+      ],
+      "splits": [
+        {
+          "categoryId": "leisure",
+          "amount": {
+            "amount": "22.10",
+            "currency": "BAM"
+          }
+        }
+      ]
+    },
+    {
+      "id": "t08",
+      "kind": "expense",
+      "status": "cleared",
+      "bookingDate": "2026-10-09",
+      "excludeFromReports": false,
+      "deletedAt": null,
+      "merchantId": null,
+      "payee": "Lidl",
+      "description": "",
+      "relatedTransactionId": null,
+      "postings": [
+        {
+          "accountId": "eur",
+          "amount": {
+            "amount": "-10.00",
+            "currency": "EUR"
+          }
+        }
+      ],
+      "splits": [
+        {
+          "categoryId": "groceries",
+          "amount": {
+            "amount": "10.00",
+            "currency": "EUR"
+          }
+        }
+      ]
+    },
+    {
+      "id": "t09",
+      "kind": "expense",
+      "status": "void",
+      "bookingDate": "2026-10-10",
+      "excludeFromReports": false,
+      "deletedAt": null,
+      "merchantId": null,
+      "payee": "",
+      "description": "",
+      "relatedTransactionId": null,
+      "postings": [
+        {
+          "accountId": "chk",
+          "amount": {
+            "amount": "-5.00",
+            "currency": "BAM"
+          }
+        }
+      ],
+      "splits": [
+        {
+          "categoryId": "groceries",
+          "amount": {
+            "amount": "5.00",
+            "currency": "BAM"
+          }
+        }
+      ]
+    },
+    {
+      "id": "t10",
+      "kind": "expense",
+      "status": "cleared",
+      "bookingDate": "2026-10-11",
+      "excludeFromReports": false,
+      "deletedAt": "2026-10-12T08:00:00Z",
+      "merchantId": null,
+      "payee": "",
+      "description": "",
+      "relatedTransactionId": null,
+      "postings": [
+        {
+          "accountId": "chk",
+          "amount": {
+            "amount": "-7.00",
+            "currency": "BAM"
+          }
+        }
+      ],
+      "splits": [
+        {
+          "categoryId": "groceries",
+          "amount": {
+            "amount": "7.00",
+            "currency": "BAM"
+          }
+        }
+      ]
+    },
+    {
+      "id": "t11",
+      "kind": "expense",
+      "status": "cleared",
+      "bookingDate": "2026-10-12",
+      "excludeFromReports": true,
+      "deletedAt": null,
+      "merchantId": null,
+      "payee": "",
+      "description": "",
+      "relatedTransactionId": null,
+      "postings": [
+        {
+          "accountId": "chk",
+          "amount": {
+            "amount": "-9.00",
+            "currency": "BAM"
+          }
+        }
+      ],
+      "splits": [
+        {
+          "categoryId": "groceries",
+          "amount": {
+            "amount": "9.00",
+            "currency": "BAM"
+          }
+        }
+      ]
+    },
+    {
+      "id": "t12",
+      "kind": "expense",
+      "status": "cleared",
+      "bookingDate": "2026-10-13",
+      "excludeFromReports": false,
+      "deletedAt": null,
+      "merchantId": null,
+      "payee": "Konzum 123 Sarajevo",
+      "description": "",
+      "relatedTransactionId": null,
+      "postings": [
+        {
+          "accountId": "chk",
+          "amount": {
+            "amount": "-12.00",
+            "currency": "BAM"
+          }
+        }
+      ],
+      "splits": []
+    },
+    {
+      "id": "t13",
+      "kind": "expense",
+      "status": "cleared",
+      "bookingDate": "2026-09-28",
+      "excludeFromReports": false,
+      "deletedAt": null,
+      "merchantId": null,
+      "payee": "Lidl",
+      "description": "",
+      "relatedTransactionId": null,
+      "postings": [
+        {
+          "accountId": "chk",
+          "amount": {
+            "amount": "-40.00",
+            "currency": "BAM"
+          }
+        }
+      ],
+      "splits": [
+        {
+          "categoryId": "groceries",
+          "amount": {
+            "amount": "40.00",
+            "currency": "BAM"
+          }
+        }
+      ]
+    },
+    {
+      "id": "t14",
+      "kind": "fx",
+      "status": "cleared",
+      "bookingDate": "2026-10-14",
+      "excludeFromReports": false,
+      "deletedAt": null,
+      "merchantId": null,
+      "payee": "",
+      "description": "",
+      "relatedTransactionId": null,
+      "postings": [
+        {
+          "accountId": "chk",
+          "amount": {
+            "amount": "-19.56",
+            "currency": "BAM"
+          }
+        },
+        {
+          "accountId": "eur",
+          "amount": {
+            "amount": "10.00",
+            "currency": "EUR"
+          }
+        }
+      ],
+      "splits": []
+    }
+  ],
+  "cases": [
+    {
+      "name": "spending by leaf category: transfers, fx, opening balance, void, deleted and excluded never count; refunds reduce their category; EUR converted at the fixed parity",
+      "op": "byCategory",
+      "params": {
+        "from": "2026-10-01",
+        "to": "2026-10-31",
+        "currency": "BAM"
+      },
+      "expected": {
+        "rows": [
+          {
+            "key": "groceries",
+            "label": "Groceries",
+            "amount": {
+              "amount": "114.96",
+              "currency": "BAM"
+            },
+            "count": 2
+          },
+          {
+            "key": "restaurants",
+            "label": "Restaurants",
+            "amount": {
+              "amount": "80.00",
+              "currency": "BAM"
+            },
+            "count": 1
+          },
+          {
+            "key": "household",
+            "label": "Household",
+            "amount": {
+              "amount": "32.50",
+              "currency": "BAM"
+            },
+            "count": 1
+          },
+          {
+            "key": "uncategorized",
+            "label": "Uncategorized",
+            "amount": {
+              "amount": "12.00",
+              "currency": "BAM"
+            },
+            "count": 1
+          },
+          {
+            "key": "leisure",
+            "label": "Leisure",
+            "amount": {
+              "amount": "0.00",
+              "currency": "BAM"
+            },
+            "count": 2
+          }
+        ],
+        "total": {
+          "amount": "239.46",
+          "currency": "BAM"
+        },
+        "complete": true,
+        "missingRates": []
+      }
+    },
+    {
+      "name": "spending rolled up to parent categories",
+      "op": "byCategory",
+      "params": {
+        "from": "2026-10-01",
+        "to": "2026-10-31",
+        "currency": "BAM",
+        "rollup": "parent"
+      },
+      "expected": {
+        "rows": [
+          {
+            "key": "food",
+            "label": "Food",
+            "amount": {
+              "amount": "194.96",
+              "currency": "BAM"
+            },
+            "count": 3
+          },
+          {
+            "key": "household",
+            "label": "Household",
+            "amount": {
+              "amount": "32.50",
+              "currency": "BAM"
+            },
+            "count": 1
+          },
+          {
+            "key": "uncategorized",
+            "label": "Uncategorized",
+            "amount": {
+              "amount": "12.00",
+              "currency": "BAM"
+            },
+            "count": 1
+          },
+          {
+            "key": "leisure",
+            "label": "Leisure",
+            "amount": {
+              "amount": "0.00",
+              "currency": "BAM"
+            },
+            "count": 2
+          }
+        ],
+        "total": {
+          "amount": "239.46",
+          "currency": "BAM"
+        },
+        "complete": true,
+        "missingRates": []
+      }
+    },
+    {
+      "name": "income by category (refunds are not income, transfers are not income)",
+      "op": "byCategory",
+      "params": {
+        "from": "2026-10-01",
+        "to": "2026-10-31",
+        "currency": "BAM",
+        "kind": "income"
+      },
+      "expected": {
+        "rows": [
+          {
+            "key": "salary",
+            "label": "Salary",
+            "amount": {
+              "amount": "2000.00",
+              "currency": "BAM"
+            },
+            "count": 1
+          }
+        ],
+        "total": {
+          "amount": "2000.00",
+          "currency": "BAM"
+        },
+        "complete": true,
+        "missingRates": []
+      }
+    },
+    {
+      "name": "account filter: card purchases only",
+      "op": "byCategory",
+      "params": {
+        "from": "2026-10-01",
+        "to": "2026-10-31",
+        "currency": "BAM",
+        "accountIds": ["card"]
+      },
+      "expected": {
+        "rows": [
+          {
+            "key": "restaurants",
+            "label": "Restaurants",
+            "amount": {
+              "amount": "80.00",
+              "currency": "BAM"
+            },
+            "count": 1
+          }
+        ],
+        "total": {
+          "amount": "80.00",
+          "currency": "BAM"
+        },
+        "complete": true,
+        "missingRates": []
+      }
+    },
+    {
+      "name": "spending by merchant with normalized payees",
+      "op": "byMerchant",
+      "params": {
+        "from": "2026-10-01",
+        "to": "2026-10-31",
+        "currency": "BAM"
+      },
+      "expected": {
+        "rows": [
+          {
+            "key": "m-konzum",
+            "label": "Konzum",
+            "amount": {
+              "amount": "127.90",
+              "currency": "BAM"
+            },
+            "count": 2
+          },
+          {
+            "key": "name:pizzeria napoli",
+            "label": "pizzeria napoli",
+            "amount": {
+              "amount": "80.00",
+              "currency": "BAM"
+            },
+            "count": 1
+          },
+          {
+            "key": "name:lidl",
+            "label": "lidl",
+            "amount": {
+              "amount": "19.56",
+              "currency": "BAM"
+            },
+            "count": 1
+          },
+          {
+            "key": "name:konzum sarajevo",
+            "label": "konzum sarajevo",
+            "amount": {
+              "amount": "12.00",
+              "currency": "BAM"
+            },
+            "count": 1
+          }
+        ],
+        "total": {
+          "amount": "239.46",
+          "currency": "BAM"
+        },
+        "complete": true,
+        "missingRates": []
+      }
+    },
+    {
+      "name": "monthly cash flow and savings rate",
+      "op": "cashflow",
+      "params": {
+        "from": "2026-09-01",
+        "to": "2026-10-31",
+        "currency": "BAM",
+        "granularity": "month"
+      },
+      "expected": {
+        "periods": [
+          {
+            "period": "2026-09",
+            "income": {
+              "amount": "0.00",
+              "currency": "BAM"
+            },
+            "expense": {
+              "amount": "40.00",
+              "currency": "BAM"
+            },
+            "net": {
+              "amount": "-40.00",
+              "currency": "BAM"
+            },
+            "savingsRate": null
+          },
+          {
+            "period": "2026-10",
+            "income": {
+              "amount": "2000.00",
+              "currency": "BAM"
+            },
+            "expense": {
+              "amount": "239.46",
+              "currency": "BAM"
+            },
+            "net": {
+              "amount": "1760.54",
+              "currency": "BAM"
+            },
+            "savingsRate": "0.8803"
+          }
+        ],
+        "totals": {
+          "income": {
+            "amount": "2000.00",
+            "currency": "BAM"
+          },
+          "expense": {
+            "amount": "279.46",
+            "currency": "BAM"
+          },
+          "net": {
+            "amount": "1720.54",
+            "currency": "BAM"
+          },
+          "savingsRate": "0.8603"
+        },
+        "complete": true,
+        "missingRates": []
+      }
+    },
+    {
+      "name": "EUR reporting currency converts BAM at the inverse fixed parity",
+      "op": "byCategory",
+      "params": {
+        "from": "2026-10-09",
+        "to": "2026-10-13",
+        "currency": "EUR"
+      },
+      "expected": {
+        "rows": [
+          {
+            "key": "groceries",
+            "label": "Groceries",
+            "amount": {
+              "amount": "10.00",
+              "currency": "EUR"
+            },
+            "count": 1
+          },
+          {
+            "key": "uncategorized",
+            "label": "Uncategorized",
+            "amount": {
+              "amount": "6.14",
+              "currency": "EUR"
+            },
+            "count": 1
+          }
+        ],
+        "total": {
+          "amount": "16.14",
+          "currency": "EUR"
+        },
+        "complete": true,
+        "missingRates": []
+      }
+    },
+    {
+      "name": "missing rate: USD left out and reported",
+      "op": "byCategory",
+      "params": {
+        "from": "2026-10-01",
+        "to": "2026-10-31",
+        "currency": "BAM",
+        "extraTransactions": [
+          {
+            "id": "t15",
+            "kind": "expense",
+            "status": "cleared",
+            "bookingDate": "2026-10-15",
+            "excludeFromReports": false,
+            "deletedAt": null,
+            "merchantId": null,
+            "payee": "",
+            "description": "",
+            "relatedTransactionId": null,
+            "postings": [
+              {
+                "accountId": "usd",
+                "amount": {
+                  "amount": "-5.00",
+                  "currency": "USD"
+                }
+              }
+            ],
+            "splits": [
+              {
+                "categoryId": "groceries",
+                "amount": {
+                  "amount": "5.00",
+                  "currency": "USD"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "rows": [
+          {
+            "key": "groceries",
+            "label": "Groceries",
+            "amount": {
+              "amount": "114.96",
+              "currency": "BAM"
+            },
+            "count": 2
+          },
+          {
+            "key": "restaurants",
+            "label": "Restaurants",
+            "amount": {
+              "amount": "80.00",
+              "currency": "BAM"
+            },
+            "count": 1
+          },
+          {
+            "key": "household",
+            "label": "Household",
+            "amount": {
+              "amount": "32.50",
+              "currency": "BAM"
+            },
+            "count": 1
+          },
+          {
+            "key": "uncategorized",
+            "label": "Uncategorized",
+            "amount": {
+              "amount": "12.00",
+              "currency": "BAM"
+            },
+            "count": 1
+          },
+          {
+            "key": "leisure",
+            "label": "Leisure",
+            "amount": {
+              "amount": "0.00",
+              "currency": "BAM"
+            },
+            "count": 2
+          }
+        ],
+        "total": {
+          "amount": "239.46",
+          "currency": "BAM"
+        },
+        "complete": false,
+        "missingRates": [
+          {
+            "from": "USD",
+            "to": "BAM",
+            "date": "2026-10-15"
+          }
+        ]
+      }
+    },
+    {
+      "name": "balances from all live postings (excluded-from-reports still moves money; void/deleted do not)",
+      "op": "balances",
+      "params": {},
+      "expected": [
+        {
+          "accountId": "card",
+          "amount": "0.00",
+          "currency": "BAM"
+        },
+        {
+          "accountId": "chk",
+          "amount": "2211.54",
+          "currency": "BAM"
+        },
+        {
+          "accountId": "eur",
+          "amount": "0.00",
+          "currency": "EUR"
+        },
+        {
+          "accountId": "sav",
+          "amount": "500.00",
+          "currency": "BAM"
+        }
+      ]
+    },
+    {
+      "name": "balances as of a date",
+      "op": "balances",
+      "params": {
+        "asOf": "2026-10-05"
+      },
+      "expected": [
+        {
+          "accountId": "chk",
+          "amount": "2310.00",
+          "currency": "BAM"
+        },
+        {
+          "accountId": "sav",
+          "amount": "500.00",
+          "currency": "BAM"
+        }
+      ]
+    },
+    {
+      "name": "net worth at the valuation date",
+      "op": "netWorth",
+      "params": {
+        "asOf": "2026-10-31",
+        "currency": "BAM"
+      },
+      "expected": {
+        "assets": {
+          "amount": "2711.54",
+          "currency": "BAM"
+        },
+        "liabilities": {
+          "amount": "0.00",
+          "currency": "BAM"
+        },
+        "netWorth": {
+          "amount": "2711.54",
+          "currency": "BAM"
+        },
+        "complete": true,
+        "missingRates": []
+      }
+    },
+    {
+      "name": "net worth with an unpaid card balance",
+      "op": "netWorth",
+      "params": {
+        "asOf": "2026-10-19",
+        "currency": "BAM"
+      },
+      "expected": {
+        "assets": {
+          "amount": "2791.54",
+          "currency": "BAM"
+        },
+        "liabilities": {
+          "amount": "80.00",
+          "currency": "BAM"
+        },
+        "netWorth": {
+          "amount": "2711.54",
+          "currency": "BAM"
+        },
+        "complete": true,
+        "missingRates": []
+      }
+    },
+    {
+      "name": "savings rate: no income",
+      "op": "savingsRate",
+      "params": {
+        "income": {
+          "amount": "0.00",
+          "currency": "BAM"
+        },
+        "expense": {
+          "amount": "10.00",
+          "currency": "BAM"
+        }
+      },
+      "expected": null
+    },
+    {
+      "name": "savings rate: overspending is negative",
+      "op": "savingsRate",
+      "params": {
+        "income": {
+          "amount": "1000.00",
+          "currency": "BAM"
+        },
+        "expense": {
+          "amount": "1250.00",
+          "currency": "BAM"
+        }
+      },
+      "expected": "-0.2500"
+    },
+    {
+      "name": "savings rate rounds half up",
+      "op": "savingsRate",
+      "params": {
+        "income": {
+          "amount": "3.00",
+          "currency": "BAM"
+        },
+        "expense": {
+          "amount": "1.00",
+          "currency": "BAM"
+        }
+      },
+      "expected": "0.6667"
+    }
+  ]
+}

@@ -1,0 +1,102 @@
+[
+  {
+    "rrule": "FREQ=MONTHLY",
+    "amount": {
+      "amount": "9.99",
+      "currency": "EUR"
+    },
+    "perYear": [12, 1],
+    "annual": "119.88",
+    "monthly": "9.99"
+  },
+  {
+    "rrule": "FREQ=WEEKLY",
+    "amount": {
+      "amount": "10.00",
+      "currency": "BAM"
+    },
+    "perYear": [52, 1],
+    "annual": "520.00",
+    "monthly": "43.33"
+  },
+  {
+    "rrule": "FREQ=WEEKLY;INTERVAL=2",
+    "amount": {
+      "amount": "1500.00",
+      "currency": "BAM"
+    },
+    "perYear": [52, 2],
+    "annual": "39000.00",
+    "monthly": "3250.00"
+  },
+  {
+    "rrule": "FREQ=YEARLY",
+    "amount": {
+      "amount": "99.99",
+      "currency": "USD"
+    },
+    "perYear": [1, 1],
+    "annual": "99.99",
+    "monthly": "8.33"
+  },
+  {
+    "rrule": "FREQ=MONTHLY;INTERVAL=3",
+    "amount": {
+      "amount": "100.00",
+      "currency": "EUR"
+    },
+    "perYear": [12, 3],
+    "annual": "400.00",
+    "monthly": "33.33"
+  },
+  {
+    "rrule": "FREQ=DAILY",
+    "amount": {
+      "amount": "2.50",
+      "currency": "EUR"
+    },
+    "perYear": [365, 1],
+    "annual": "912.50",
+    "monthly": "76.04"
+  },
+  {
+    "rrule": "FREQ=MONTHLY;BYMONTHDAY=1,15",
+    "amount": {
+      "amount": "0.05",
+      "currency": "EUR"
+    },
+    "perYear": [24, 1],
+    "annual": "1.20",
+    "monthly": "0.10"
+  },
+  {
+    "rrule": "FREQ=WEEKLY;BYDAY=MO,WE,FR",
+    "amount": {
+      "amount": "3.33",
+      "currency": "EUR"
+    },
+    "perYear": [156, 1],
+    "annual": "519.48",
+    "monthly": "43.29"
+  },
+  {
+    "rrule": "FREQ=MONTHLY",
+    "amount": {
+      "amount": "1000",
+      "currency": "JPY"
+    },
+    "perYear": [12, 1],
+    "annual": "12000",
+    "monthly": "1000"
+  },
+  {
+    "rrule": "FREQ=YEARLY;INTERVAL=2",
+    "amount": {
+      "amount": "0.01",
+      "currency": "EUR"
+    },
+    "perYear": [1, 2],
+    "annual": "0.01",
+    "monthly": "0.00"
+  }
+]
