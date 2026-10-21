@@ -198,11 +198,7 @@ type fxFixture struct {
 
 // Cases where analytics/fin.Converter is known to disagree with the fixture (and with
 // exchangerates.Lookup). Remove an entry once fin is fixed; the case must then pass.
-var finConverterDivergence = map[string]string{
-	"EUR/BAM fixed parity":                         "fin.Converter lets a newer provider EUR/BAM quote override the 1999 fixed row",
-	"BAM/EUR fixed parity inverse":                 "fin.Converter lets a newer provider EUR/BAM quote override the 1999 fixed row",
-	"fixed parity ignores provider EUR/BAM quotes": "fin.Converter lets a newer provider EUR/BAM quote override the 1999 fixed row",
-}
+var finConverterDivergence = map[string]string{}
 
 // TestFXLookup loads the fixture rates into a throwaway database (manual rates belong to the test
 // profile) and checks both Go valuation paths: exchangerates.Lookup (converter API) and

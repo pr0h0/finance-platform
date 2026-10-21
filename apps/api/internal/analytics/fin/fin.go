@@ -3,10 +3,8 @@
 // historical FX valuation and ledger aggregation queries. It never writes.
 //
 // Valuation policy (docs/architecture/valuation-policy.md):
-//   - An amount in currency C on local date D is valued in reporting currency R with the most recent
-//     rate dated on or before D: a profile manual override beats the fixed EUR/BAM rate, which beats
-//     provider rates (by provider priority); direct quotes and inverse quotes are both used.
-//   - If no direct/inverse rate exists the conversion triangulates through EUR.
+//   - An amount in currency C on local date D is valued in reporting currency R with the rate
+//     exchangerates.Lookup selects for D (historical rates, never today's rate for past flows).
 //   - The product is rounded once, half-up, to R's minor units.
 //   - No rate on or before D: the amount is left out of the total, the pair/date is reported in
 //     MissingRates and the result is marked incomplete. Nothing is guessed.
@@ -27,6 +25,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/pr0h0/finance-platform/apps/api/internal/exchangerates"
 	"github.com/pr0h0/finance-platform/apps/api/internal/httpx"
 	"github.com/pr0h0/finance-platform/apps/api/internal/money"
 )
@@ -248,114 +247,57 @@ type MissingRate struct {
 	Date string `json:"date"`
 }
 
-type ratePoint struct {
-	date time.Time
-	rate *big.Rat // units of quote per 1 base
-}
-
-// Converter values amounts in another currency with historical rates (see package doc). Not safe
+// Converter values amounts in another currency with historical rates. Rate selection is
+// exchangerates.Lookup (the single valuation policy of the API: latest snapshot on or before the
+// date, legally fixed EUR/BAM always current, manual override > fixed > provider, inverse pairs,
+// cross via EUR); conversion rounds once, half-up. Lookups are cached per pair and date. Not safe
 // for concurrent use; create one per request.
 type Converter struct {
 	db        DB
 	profileID uuid.UUID
-	pairs     map[[2]string][]ratePoint
+	cache     map[rateKey]rateHit
 	missing   map[MissingRate]bool
 }
 
+type rateKey struct {
+	from, to string
+	on       time.Time
+}
+
+type rateHit struct {
+	rate exchangerates.Rate
+	ok   bool
+}
+
 func NewConverter(db DB, profileID uuid.UUID) *Converter {
-	return &Converter{db: db, profileID: profileID, pairs: map[[2]string][]ratePoint{}, missing: map[MissingRate]bool{}}
+	return &Converter{db: db, profileID: profileID, cache: map[rateKey]rateHit{}, missing: map[MissingRate]bool{}}
 }
 
-func (c *Converter) load(ctx context.Context, base, quote string) ([]ratePoint, error) {
-	k := [2]string{base, quote}
-	if pts, ok := c.pairs[k]; ok {
-		return pts, nil
+func (c *Converter) lookup(ctx context.Context, from, to string, on time.Time) (rateHit, error) {
+	k := rateKey{from, to, on}
+	if h, ok := c.cache[k]; ok {
+		return h, nil
 	}
-	// Per date the last row wins: provider (by ascending priority value = higher precedence last)
-	// < fixed < profile override.
-	rows, err := c.db.Query(ctx, `SELECT r.rate::text, r.rate_date FROM exchange_rates r
-		LEFT JOIN exchange_rate_providers pr ON pr.id = r.provider_id
-		WHERE r.base_currency = $1 AND r.quote_currency = $2 AND (r.profile_id IS NULL OR r.profile_id = $3)
-		ORDER BY r.rate_date, (r.profile_id IS NOT NULL), (r.source = 'fixed'), coalesce(pr.priority, 1000) DESC, r.fetched_at`,
-		base, quote, c.profileID)
-	if err != nil {
-		return nil, fmt.Errorf("load rates: %w", err)
+	r, err := exchangerates.Lookup(ctx, c.db, c.profileID, from, to, Fmt(on))
+	h := rateHit{rate: r, ok: err == nil}
+	if err != nil && !errors.Is(err, exchangerates.ErrNoRate) {
+		return h, err
 	}
-	defer rows.Close()
-	var pts []ratePoint
-	for rows.Next() {
-		var s string
-		var d time.Time
-		if err := rows.Scan(&s, &d); err != nil {
-			return nil, err
-		}
-		r, ok := new(big.Rat).SetString(s)
-		if !ok || r.Sign() <= 0 {
-			continue
-		}
-		d = AsDate(d)
-		if n := len(pts); n > 0 && pts[n-1].date.Equal(d) {
-			pts[n-1].rate = r
-		} else {
-			pts = append(pts, ratePoint{d, r})
-		}
-	}
-	c.pairs[k] = pts
-	return pts, rows.Err()
+	c.cache[k] = h
+	return h, nil
 }
 
-func latest(pts []ratePoint, on time.Time) (ratePoint, bool) {
-	i := sort.Search(len(pts), func(i int) bool { return pts[i].date.After(on) })
-	if i == 0 {
-		return ratePoint{}, false
-	}
-	return pts[i-1], true
-}
-
-// rate returns units of `to` per 1 `from` valid on `on`.
-func (c *Converter) rate(ctx context.Context, from, to string, on time.Time) (*big.Rat, bool, error) {
-	direct, err := c.load(ctx, from, to)
-	if err != nil {
-		return nil, false, err
-	}
-	inverse, err := c.load(ctx, to, from)
-	if err != nil {
-		return nil, false, err
-	}
-	d, okD := latest(direct, on)
-	i, okI := latest(inverse, on)
-	switch {
-	case okD && (!okI || !i.date.After(d.date)):
-		return d.rate, true, nil
-	case okI:
-		return new(big.Rat).Inv(i.rate), true, nil
-	}
-	return nil, false, nil
-}
-
-// Rate is the exact conversion factor from -> to on a date (via EUR when needed).
+// Rate is the conversion factor from -> to valid on a date (units of `to` per 1 `from`).
 func (c *Converter) Rate(ctx context.Context, from, to string, on time.Time) (*big.Rat, bool, error) {
 	if from == to {
 		return big.NewRat(1, 1), true, nil
 	}
-	r, ok, err := c.rate(ctx, from, to, on)
-	if err != nil || ok {
-		return r, ok, err
+	h, err := c.lookup(ctx, from, to, on)
+	if err != nil || !h.ok {
+		return nil, false, err
 	}
-	if from != "EUR" && to != "EUR" {
-		a, okA, err := c.rate(ctx, from, "EUR", on)
-		if err != nil {
-			return nil, false, err
-		}
-		b, okB, err := c.rate(ctx, "EUR", to, on)
-		if err != nil {
-			return nil, false, err
-		}
-		if okA && okB {
-			return new(big.Rat).Mul(a, b), true, nil
-		}
-	}
-	return nil, false, nil
+	r, _ := new(big.Rat).SetString(h.rate.Value())
+	return r, true, nil
 }
 
 // Convert values m in `to` on date `on`. ok=false (and a recorded MissingRate) when no rate exists.
@@ -363,26 +305,16 @@ func (c *Converter) Convert(ctx context.Context, m money.Money, to string, on ti
 	if m.Currency() == to {
 		return m, true, nil
 	}
-	r, ok, err := c.Rate(ctx, m.Currency(), to, on)
+	h, err := c.lookup(ctx, m.Currency(), to, on)
 	if err != nil {
 		return money.Money{}, false, err
 	}
-	if !ok {
+	if !h.ok {
 		c.missing[MissingRate{From: m.Currency(), To: to, Date: Fmt(on)}] = true
 		return Zero(to), false, nil
 	}
-	return ConvertRat(m, to, r), true, nil
-}
-
-// ConvertRat converts with an exact rate, rounding once half-up.
-func ConvertRat(m money.Money, to string, r *big.Rat) money.Money {
-	fs, _ := money.Scale(m.Currency())
-	ts, _ := money.Scale(to)
-	num := new(big.Int).Mul(m.Minor(), r.Num())
-	num.Mul(num, new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(ts)), nil))
-	den := new(big.Int).Mul(r.Denom(), new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(fs)), nil))
-	out, _ := money.FromMinor(money.DivRound(num, den, money.HalfUp), to)
-	return out
+	out, err := h.rate.Convert(m, money.HalfUp)
+	return out, err == nil, err
 }
 
 // Missing lists the pairs/dates that could not be valued (sorted, deduplicated).

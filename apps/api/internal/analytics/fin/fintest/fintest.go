@@ -143,3 +143,6 @@ func (a *API) Must(want int, method, path string, body any, out any) {
 		}
 	}
 }
+
+// Handler exposes the router (for non-JSON responses).
+func (a *API) Handler() http.Handler { return a.h }
