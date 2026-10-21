@@ -1,0 +1,78 @@
+{
+ "case": {
+  "name": "tsv-direction",
+  "file": "tsv/direction.tsv",
+  "importer": "generic-tsv",
+  "template": "direction-tsv.json"
+ },
+ "result": {
+  "importerId": "generic-tsv",
+  "importerVersion": "1.0.0",
+  "format": "tsv",
+  "records": [
+   {
+    "rowNumber": 2,
+    "postingDate": "2025-01-02",
+    "description": "ATM withdrawal",
+    "direction": "debit",
+    "amount": "60.00",
+    "currency": "USD",
+    "raw": {
+     "Posted": "01/02/2025",
+     "Narrative": "ATM withdrawal",
+     "Amount": "60.00",
+     "D/C": "D"
+    },
+    "fingerprint": "fp1:6b1820a89d7b008506859cca7808ca5715100aeb421efd012349fbea20ab67d7",
+    "confidence": 1,
+    "warnings": []
+   },
+   {
+    "rowNumber": 3,
+    "postingDate": "2025-01-03",
+    "description": "Refund shop",
+    "direction": "credit",
+    "amount": "15.25",
+    "currency": "USD",
+    "raw": {
+     "Posted": "01/03/2025",
+     "Narrative": "Refund shop",
+     "Amount": "15.25",
+     "D/C": "C"
+    },
+    "fingerprint": "fp1:afd1c65b5b9c73932cee3a196ccf11c353220e61ae7e7733488f462c43d5f56a",
+    "confidence": 1,
+    "warnings": []
+   },
+   {
+    "rowNumber": 4,
+    "postingDate": "2025-01-04",
+    "description": "Card payment",
+    "direction": "debit",
+    "amount": "1020.40",
+    "currency": "USD",
+    "raw": {
+     "Posted": "01/04/2025",
+     "Narrative": "Card payment",
+     "Amount": "1,020.40",
+     "D/C": "DR"
+    },
+    "fingerprint": "fp1:d2801b4b2a3b08fff8fac6c6ff4c91c9bb3f47ade2ccd3fbb325d3e0c2f1579f",
+    "confidence": 1,
+    "warnings": []
+   }
+  ],
+  "statements": [],
+  "errors": [
+   {
+    "row": 5,
+    "field": "direction",
+    "code": "invalid_direction",
+    "message": "unknown direction \"x\""
+   }
+  ],
+  "warnings": [],
+  "confidence": 0.75,
+  "encoding": "utf-8"
+ }
+}

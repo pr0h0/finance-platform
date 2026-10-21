@@ -105,6 +105,11 @@ export const transactionCreate = z
     tagIds: z.array(uuid).max(50).default([]),
     relatedTransactionId: uuid.nullable().default(null),
     excludeFromReports: z.boolean().default(false),
+    originalAmount: positiveMoney.optional(), // foreign amount of a card spend abroad
+    fee: positiveMoney.optional(), // transfer/fx fee on the source account (recorded as a linked expense)
+    feeCategoryId: uuid.nullable().optional(),
+    reference: z.string().max(200).default(''),
+    status: z.enum(['pending', 'cleared', 'void']).default('cleared'),
   })
   .superRefine((t, ctx) => {
     const twoSided = t.kind === 'transfer' || t.kind === 'fx';
@@ -116,8 +121,14 @@ export const transactionCreate = z
         path: ['toAccountId'],
         message: 'must differ from accountId',
       });
-    if (t.kind === 'fx' && !t.toAmount)
-      ctx.addIssue({ code: 'custom', path: ['toAmount'], message: 'required for fx' });
+    if (t.fee && !twoSided)
+      ctx.addIssue({ code: 'custom', path: ['fee'], message: 'only transfers carry a fee' });
+    if (t.kind === 'refund' && !t.relatedTransactionId)
+      ctx.addIssue({
+        code: 'custom',
+        path: ['relatedTransactionId'],
+        message: 'a refund must link the original transaction',
+      });
     if (t.splits && t.categoryId !== undefined)
       ctx.addIssue({
         code: 'custom',
@@ -139,6 +150,29 @@ export const transactionCreate = z
       });
     }
   });
+
+/** POST /transactions/{id}/refunds — accountId defaults to the original's account. */
+export const refundCreate = z.object({
+  id: uuid.optional(),
+  accountId: uuid.optional(),
+  amount: positiveMoney,
+  bookingDate: isoDate,
+  description: z.string().max(500).default(''),
+  notes: z.string().max(5000).default(''),
+  payee: z.string().max(200).default(''),
+  categoryId: uuid.nullable().optional(),
+  splits: z.array(splitInput).max(500).optional(),
+  tagIds: z.array(uuid).max(50).default([]),
+});
+
+export const merchantCreate = z.object({
+  id: uuid.optional(),
+  name: nonEmpty,
+  defaultCategoryId: uuid.nullable().default(null),
+  website: z.string().max(500).default(''),
+  notes: z.string().max(5000).default(''),
+  aliases: z.array(z.string().min(1).max(200)).max(50).default([]),
+});
 
 export const categoryCreate = z.object({
   id: uuid.optional(),

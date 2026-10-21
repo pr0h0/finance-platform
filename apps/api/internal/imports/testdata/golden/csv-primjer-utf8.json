@@ -1,0 +1,126 @@
+{
+ "case": {
+  "name": "csv-primjer-utf8",
+  "file": "csv/primjer-banka-utf8.csv",
+  "importer": "generic-csv",
+  "template": "primjer-banka-csv.json"
+ },
+ "result": {
+  "importerId": "generic-csv",
+  "importerVersion": "1.0.0",
+  "format": "csv",
+  "records": [
+   {
+    "rowNumber": 4,
+    "postingDate": "2025-01-02",
+    "description": "Kupovina Trgovina Šećer",
+    "direction": "debit",
+    "amount": "45.20",
+    "currency": "BAM",
+    "raw": {
+     "Datum": "02.01.2025",
+     "Datum valute": "02.01.2025",
+     "Opis": "Kupovina",
+     "Primalac": "Trgovina Šećer",
+     "Duguje": "45,20",
+     "Potražuje": "",
+     "Stanje": "1.954,80",
+     "Referenca": "R-001"
+    },
+    "fingerprint": "fp1:b25729d3daf526f454e0710d7427feddc548faebde674e8927031dfe79207d5f",
+    "confidence": 1,
+    "warnings": [],
+    "valueDate": "2025-01-02",
+    "runningBalance": "1954.80",
+    "bankReference": "R-001",
+    "counterparty": "Trgovina Šećer"
+   },
+   {
+    "rowNumber": 5,
+    "postingDate": "2025-01-03",
+    "description": "Uplata plate Poslodavac d.o.o.",
+    "direction": "credit",
+    "amount": "2500.00",
+    "currency": "BAM",
+    "raw": {
+     "Datum": "03.01.2025",
+     "Datum valute": "03.01.2025",
+     "Opis": "Uplata plate",
+     "Primalac": "Poslodavac d.o.o.",
+     "Duguje": "",
+     "Potražuje": "2.500,00",
+     "Stanje": "4.454,80",
+     "Referenca": "R-002"
+    },
+    "fingerprint": "fp1:a0f1429e5e350295850f9af1fb8b931f9f301a9873e28d94a705b0b2d2342349",
+    "confidence": 1,
+    "warnings": [],
+    "valueDate": "2025-01-03",
+    "runningBalance": "4454.80",
+    "bankReference": "R-002",
+    "counterparty": "Poslodavac d.o.o."
+   },
+   {
+    "rowNumber": 6,
+    "postingDate": "2025-01-05",
+    "description": "Račun; struja Elektroprivreda ŽĐ",
+    "direction": "debit",
+    "amount": "120.00",
+    "currency": "BAM",
+    "raw": {
+     "Datum": "05.01.2025",
+     "Datum valute": "04.01.2025",
+     "Opis": "Račun; struja",
+     "Primalac": "Elektroprivreda ŽĐ",
+     "Duguje": "120,00",
+     "Potražuje": "",
+     "Stanje": "4.334,80",
+     "Referenca": "R-003"
+    },
+    "fingerprint": "fp1:294de63b8ab84b2e7615a598d9598c120cabeb5dda41dbce1797f1499fb01cb5",
+    "confidence": 1,
+    "warnings": [],
+    "valueDate": "2025-01-04",
+    "runningBalance": "4334.80",
+    "bankReference": "R-003",
+    "counterparty": "Elektroprivreda ŽĐ"
+   },
+   {
+    "rowNumber": 7,
+    "postingDate": "2025-01-07",
+    "description": "Ćevapi i čaj Ćevabdžinica Željo",
+    "direction": "debit",
+    "amount": "15.50",
+    "currency": "BAM",
+    "raw": {
+     "Datum": "07.01.2025",
+     "Datum valute": "07.01.2025",
+     "Opis": "Ćevapi i čaj",
+     "Primalac": "Ćevabdžinica Željo",
+     "Duguje": "15,50",
+     "Potražuje": "",
+     "Stanje": "4.319,30",
+     "Referenca": ""
+    },
+    "fingerprint": "fp1:cbda59d77f62c93c1d464364b0b757c832bbe186e9f5fd148d6893fc134097c4",
+    "confidence": 1,
+    "warnings": [],
+    "valueDate": "2025-01-07",
+    "runningBalance": "4319.30",
+    "counterparty": "Ćevabdžinica Željo"
+   }
+  ],
+  "statements": [],
+  "errors": [],
+  "warnings": [
+   {
+    "row": 8,
+    "field": "postingDate",
+    "code": "invalid_date",
+    "message": "cannot read date \"Ukupno\" as DD.MM.YYYY"
+   }
+  ],
+  "confidence": 1,
+  "encoding": "utf-8"
+ }
+}

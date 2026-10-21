@@ -124,6 +124,8 @@ export interface Account extends Syncable {
   sortOrder: number;
   notes: string;
 }
+  classification: 'asset' | 'liability'; // from the account type
+  balances: Money[]; // current balance per currency, computed from postings (never stored)
 
 export interface Category extends Syncable {
   parentId: Uuid | null;
@@ -148,6 +150,7 @@ export interface Merchant extends Syncable {
   website: string;
   notes: string;
 }
+  aliases: string[]; // normalized alias strings used to recognise bank descriptions
 
 /** One money movement on one account. Immutable once written. */
 export interface Posting {
@@ -192,6 +195,19 @@ export interface Transaction extends Syncable {
   tagIds: Uuid[];
   attachmentIds: Uuid[];
 }
+  conversion: Conversion | null; // fx transactions only
+  sourceRecord?: ImportedRawRecord | null; // GET /transactions/{id} only: imported evidence
+}
+
+/** Rate actually applied by an fx transaction (currency_conversions). */
+export interface Conversion {
+  from: Money;
+  to: Money;
+  rate: Decimal; // to per 1 from
+  rateDate: IsoDate;
+  method: 'market' | 'manual' | 'fixed' | 'bank_actual';
+  exchangeRateId: Uuid | null;
+  fee: Money | null; // also recorded as an expense linked via relatedTransactionId
 
 /** Immutable source evidence from an import. */
 export interface ImportedRawRecord {

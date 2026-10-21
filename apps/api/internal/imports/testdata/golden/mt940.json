@@ -1,0 +1,120 @@
+{
+ "case": {
+  "name": "mt940",
+  "file": "mt940/statement.sta",
+  "importer": "generic-mt940"
+ },
+ "result": {
+  "importerId": "generic-mt940",
+  "importerVersion": "1.0.0",
+  "format": "mt940",
+  "records": [
+   {
+    "rowNumber": 6,
+    "postingDate": "2024-12-31",
+    "description": "Kartično plaćanje Market 12 Sarajevo",
+    "direction": "debit",
+    "amount": "25.50",
+    "currency": "BAM",
+    "raw": {
+     "61": "2412311231D25,50NMSCNONREF//BANKREF-1",
+     "86": "Kartično plaćanje\nMarket 12 Sarajevo"
+    },
+    "fingerprint": "fp1:1f2573da765f1abae5151b5efdbc8a0494347589e6c685d17de09f056cb29e53",
+    "confidence": 1,
+    "warnings": [],
+    "valueDate": "2024-12-31",
+    "accountRef": "SYNTH/0001",
+    "statementRef": "STMT-001",
+    "bankReference": "BANKREF-1"
+   },
+   {
+    "rowNumber": 9,
+    "postingDate": "2025-01-02",
+    "description": "Plata",
+    "direction": "credit",
+    "amount": "500.00",
+    "currency": "BAM",
+    "raw": {
+     "61": "2501020102C500,NTRFSAL-0001//BANKREF-2",
+     "86": "Plata"
+    },
+    "fingerprint": "fp1:c3a5494328aa7ba7db0462135f6dc48428a8057d4865962ae7afe8718510249b",
+    "confidence": 1,
+    "warnings": [],
+    "valueDate": "2025-01-02",
+    "accountRef": "SYNTH/0001",
+    "statementRef": "STMT-001",
+    "bankReference": "BANKREF-2"
+   },
+   {
+    "rowNumber": 11,
+    "postingDate": "2025-01-03",
+    "description": "Naknada za vođenje računa",
+    "direction": "debit",
+    "amount": "10.00",
+    "currency": "BAM",
+    "raw": {
+     "61": "250103D10,00NCHGNONREF",
+     "86": "Naknada za vođenje računa"
+    },
+    "fingerprint": "fp1:d986437d16bf7e507b4a0675aac35774792ae250bdc9556aad2edb5fc6f7d8d6",
+    "confidence": 1,
+    "warnings": [],
+    "valueDate": "2025-01-03",
+    "accountRef": "SYNTH/0001",
+    "statementRef": "STMT-001",
+    "bankReference": "NONREF"
+   },
+   {
+    "rowNumber": 20,
+    "postingDate": "2025-01-04",
+    "description": "Povrat naknade",
+    "direction": "credit",
+    "amount": "5.00",
+    "currency": "BAM",
+    "raw": {
+     "61": "2501040104RD5,00NCHGNONREF//BANKREF-3",
+     "86": "Povrat naknade"
+    },
+    "fingerprint": "fp1:00bcfb6a2ca15e4ff595d376e21d06cf2e8374829908878c6527a1afbd18704a",
+    "confidence": 1,
+    "warnings": [
+     {
+      "row": 20,
+      "code": "reversal",
+      "message": "reversal RD"
+     }
+    ],
+    "valueDate": "2025-01-04",
+    "accountRef": "SYNTH/0001",
+    "statementRef": "STMT-002",
+    "bankReference": "BANKREF-3"
+   }
+  ],
+  "statements": [
+   {
+    "ref": "STMT-001",
+    "accountRef": "SYNTH/0001",
+    "openingBalance": "1000.00",
+    "currency": "BAM",
+    "periodStart": "2024-12-30",
+    "closingBalance": "1464.50",
+    "periodEnd": "2025-01-03"
+   },
+   {
+    "ref": "STMT-002",
+    "accountRef": "SYNTH/0001",
+    "openingBalance": "1464.50",
+    "currency": "BAM",
+    "periodStart": "2025-01-03",
+    "closingBalance": "1469.50",
+    "periodEnd": "2025-01-04"
+   }
+  ],
+  "errors": [],
+  "warnings": [],
+  "confidence": 1,
+  "encoding": "utf-8"
+ }
+}

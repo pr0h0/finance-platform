@@ -1,0 +1,100 @@
+{
+ "case": {
+  "name": "ofx-v1",
+  "file": "ofx/statement-v1.ofx",
+  "importer": "generic-ofx"
+ },
+ "result": {
+  "importerId": "generic-ofx",
+  "importerVersion": "1.0.0",
+  "format": "ofx",
+  "records": [
+   {
+    "rowNumber": 1,
+    "postingDate": "2025-01-03",
+    "description": "Coffee Shop & Co Card 1234",
+    "direction": "debit",
+    "amount": "3.50",
+    "currency": "EUR",
+    "raw": {
+     "TRNTYPE": "DEBIT",
+     "DTPOSTED": "20250103120000[+1:CET]",
+     "TRNAMT": "-3.50",
+     "FITID": "OFX-0001",
+     "NAME": "Coffee Shop & Co",
+     "MEMO": "Card 1234"
+    },
+    "fingerprint": "fp1:dd4f1eaf93b16364f2b77d0e7723a2653392370758581f797cf04062f3d5c674",
+    "confidence": 1,
+    "warnings": [],
+    "accountRef": "SYNTH-0001",
+    "bankReference": "OFX-0001",
+    "counterparty": "Coffee Shop & Co"
+   },
+   {
+    "rowNumber": 2,
+    "postingDate": "2025-01-05",
+    "description": "Employer Ltd",
+    "direction": "credit",
+    "amount": "2500.00",
+    "currency": "EUR",
+    "raw": {
+     "TRNTYPE": "CREDIT",
+     "DTPOSTED": "20250105",
+     "TRNAMT": "2500.00",
+     "FITID": "OFX-0002",
+     "NAME": "Employer Ltd"
+    },
+    "fingerprint": "fp1:7606bbd91b11dd626ea9b159be3a918568c1d3242e4420919efff9015b216de3",
+    "confidence": 1,
+    "warnings": [],
+    "accountRef": "SYNTH-0001",
+    "bankReference": "OFX-0002",
+    "counterparty": "Employer Ltd"
+   },
+   {
+    "rowNumber": 3,
+    "postingDate": "2025-01-10",
+    "description": "Online store",
+    "direction": "debit",
+    "amount": "46.00",
+    "currency": "EUR",
+    "raw": {
+     "TRNTYPE": "DEBIT",
+     "DTPOSTED": "20250110",
+     "TRNAMT": "-50,00",
+     "FITID": "OFX-0003",
+     "NAME": "Online store"
+    },
+    "fingerprint": "fp1:b653e7715e83755910f7c6f803e64646c1da859a1f83a89b163228d3d98ac9c0",
+    "confidence": 0.9,
+    "warnings": [
+     {
+      "row": 3,
+      "field": "amount",
+      "code": "converted_amount",
+      "message": "converted from USD at 0.92"
+     }
+    ],
+    "accountRef": "SYNTH-0001",
+    "originalAmount": "50.00",
+    "originalCurrency": "USD",
+    "exchangeRate": "0.92",
+    "bankReference": "OFX-0003",
+    "counterparty": "Online store"
+   }
+  ],
+  "statements": [
+   {
+    "accountRef": "SYNTH-0001",
+    "currency": "EUR",
+    "periodStart": "2025-01-01",
+    "periodEnd": "2025-01-31",
+    "closingBalance": "2442.50"
+   }
+  ],
+  "errors": [],
+  "warnings": [],
+  "confidence": 0.9
+ }
+}

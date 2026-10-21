@@ -1,0 +1,71 @@
+{
+ "case": {
+  "name": "ofx-v2",
+  "file": "ofx/statement-v2.ofx",
+  "importer": "generic-ofx"
+ },
+ "result": {
+  "importerId": "generic-ofx",
+  "importerVersion": "1.0.0",
+  "format": "ofx",
+  "records": [
+   {
+    "rowNumber": 1,
+    "postingDate": "2025-02-03",
+    "description": "Supermarket Šipad",
+    "direction": "debit",
+    "amount": "120.40",
+    "currency": "BAM",
+    "raw": {
+     "TRNTYPE": "DEBIT",
+     "DTPOSTED": "20250203",
+     "TRNAMT": "-120.40",
+     "FITID": "CC-1",
+     "NAME": "Supermarket Šipad"
+    },
+    "fingerprint": "fp1:cea4047ce038c3fdab78f0a6885f7e3a04377691c22ea7ea4eba21cf230b78ee",
+    "confidence": 1,
+    "warnings": [],
+    "accountRef": "CARD-SYNTH-9",
+    "originalAmount": "61.56",
+    "originalCurrency": "EUR",
+    "exchangeRate": "1.95583",
+    "bankReference": "CC-1",
+    "counterparty": "Supermarket Šipad"
+   },
+   {
+    "rowNumber": 2,
+    "postingDate": "2025-02-20",
+    "description": "Card repayment",
+    "direction": "credit",
+    "amount": "120.40",
+    "currency": "BAM",
+    "raw": {
+     "TRNTYPE": "PAYMENT",
+     "DTPOSTED": "20250220",
+     "TRNAMT": "120.40",
+     "FITID": "CC-2",
+     "NAME": "Card repayment"
+    },
+    "fingerprint": "fp1:7df5edc98546809163a291989c3df1b15d68c216fc603fa7bdcfaaa71c93e3cc",
+    "confidence": 1,
+    "warnings": [],
+    "accountRef": "CARD-SYNTH-9",
+    "bankReference": "CC-2",
+    "counterparty": "Card repayment"
+   }
+  ],
+  "statements": [
+   {
+    "accountRef": "CARD-SYNTH-9",
+    "currency": "BAM",
+    "periodStart": "2025-02-01",
+    "periodEnd": "2025-02-28",
+    "closingBalance": "0.00"
+   }
+  ],
+  "errors": [],
+  "warnings": [],
+  "confidence": 1
+ }
+}

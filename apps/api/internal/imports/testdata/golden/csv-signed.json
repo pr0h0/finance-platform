@@ -1,0 +1,132 @@
+{
+ "case": {
+  "name": "csv-signed",
+  "file": "csv/signed-utf8.csv",
+  "importer": "generic-csv",
+  "template": "signed-amount-csv.json"
+ },
+ "result": {
+  "importerId": "generic-csv",
+  "importerVersion": "1.0.0",
+  "format": "csv",
+  "records": [
+   {
+    "rowNumber": 2,
+    "postingDate": "2025-01-03",
+    "description": "Coffee Shop \"Bean\"",
+    "direction": "debit",
+    "amount": "3.50",
+    "currency": "EUR",
+    "raw": {
+     "Date": "2025-01-03",
+     "Description": "Coffee Shop \"Bean\"",
+     "Amount": "-3.50",
+     "Currency": "EUR",
+     "Reference": ""
+    },
+    "fingerprint": "fp1:e2f369c95aa62a3a69d29a0ea1b666f41f4cd84cdec69cd1dc678252596ef8ae",
+    "confidence": 1,
+    "warnings": []
+   },
+   {
+    "rowNumber": 3,
+    "postingDate": "2025-01-03",
+    "description": "Coffee Shop \"Bean\"",
+    "direction": "debit",
+    "amount": "3.50",
+    "currency": "EUR",
+    "raw": {
+     "Date": "2025-01-03",
+     "Description": "Coffee Shop \"Bean\"",
+     "Amount": "-3.50",
+     "Currency": "EUR",
+     "Reference": ""
+    },
+    "fingerprint": "fp1:250aa6b54a07ad82c7047ad64e3b3a797030bd735ab0dfa34895570330bb402f",
+    "confidence": 1,
+    "warnings": []
+   },
+   {
+    "rowNumber": 4,
+    "postingDate": "2025-01-05",
+    "description": "Salary January",
+    "direction": "credit",
+    "amount": "2500.00",
+    "currency": "EUR",
+    "raw": {
+     "Date": "2025-01-05",
+     "Description": "Salary January",
+     "Amount": "2,500.00",
+     "Currency": "EUR",
+     "Reference": "SAL-0001"
+    },
+    "fingerprint": "fp1:619e34981bde5aa65e15f8f04df029b91f401f139822e22a9171432b1299b442",
+    "confidence": 1,
+    "warnings": [],
+    "bankReference": "SAL-0001"
+   },
+   {
+    "rowNumber": 5,
+    "postingDate": "2025-01-07",
+    "description": "Grocery, Market 12",
+    "direction": "debit",
+    "amount": "45.10",
+    "currency": "EUR",
+    "raw": {
+     "Date": "2025-01-07",
+     "Description": "Grocery, Market 12",
+     "Amount": "-45.10",
+     "Currency": "EUR",
+     "Reference": "TX-1007"
+    },
+    "fingerprint": "fp1:4ae7df1f6fe73b5f93b266dcb0a2c41eb242eaf03e1534ad0f42bbb47d1773c8",
+    "confidence": 1,
+    "warnings": [],
+    "bankReference": "TX-1007"
+   },
+   {
+    "rowNumber": 6,
+    "postingDate": "2025-01-09",
+    "description": "Rent payment Jan",
+    "direction": "debit",
+    "amount": "600.00",
+    "currency": "EUR",
+    "raw": {
+     "Date": "2025-01-09",
+     "Description": "Rent\npayment Jan",
+     "Amount": "-600.00",
+     "Currency": "EUR",
+     "Reference": "TX-1009"
+    },
+    "fingerprint": "fp1:e29ff6e62cff6509e5574050dd7d1d1eeff53e5593b46d9c98ebdc13e702c32c",
+    "confidence": 1,
+    "warnings": [],
+    "bankReference": "TX-1009"
+   },
+   {
+    "rowNumber": 8,
+    "postingDate": "2025-01-10",
+    "description": "Transfer to savings",
+    "direction": "debit",
+    "amount": "100.00",
+    "currency": "BAM",
+    "raw": {
+     "Date": "2025-01-10",
+     "Description": "Transfer to savings",
+     "Amount": "-100",
+     "Currency": "BAM",
+     "Reference": "TX-1010"
+    },
+    "fingerprint": "fp1:9f09b0635aeb29295ff3fb69f9644f6a4e180be835d0c0428d1aa3ad6af8c62b",
+    "confidence": 1,
+    "warnings": [],
+    "bankReference": "TX-1010"
+   }
+  ],
+  "statements": [],
+  "errors": [],
+  "warnings": [],
+  "confidence": 1,
+  "encoding": "utf-8"
+ }
+}

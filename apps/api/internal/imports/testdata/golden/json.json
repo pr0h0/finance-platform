@@ -1,0 +1,96 @@
+{
+ "case": {
+  "name": "json",
+  "file": "json/finplat.json",
+  "importer": "generic-json"
+ },
+ "result": {
+  "importerId": "generic-json",
+  "importerVersion": "1.0.0",
+  "format": "json",
+  "records": [
+   {
+    "rowNumber": 1,
+    "postingDate": "2025-04-02",
+    "description": "Books",
+    "direction": "debit",
+    "amount": "20.00",
+    "currency": "EUR",
+    "raw": {
+     "postingDate": "2025-04-02",
+     "amount": "-20.00",
+     "currency": "EUR",
+     "description": "Books",
+     "reference": "J-T1",
+     "accountRef": "JSON-ACC",
+     "statementRef": "J-1"
+    },
+    "fingerprint": "fp1:bd1fe47f054613fb9deb135b1aed624c84a7e32e359b6715820f3e936f22e581",
+    "confidence": 1,
+    "warnings": [],
+    "accountRef": "JSON-ACC",
+    "statementRef": "J-1",
+    "bankReference": "J-T1"
+   },
+   {
+    "rowNumber": 2,
+    "postingDate": "2025-04-03",
+    "description": "Interest",
+    "direction": "credit",
+    "amount": "0.01",
+    "currency": "EUR",
+    "raw": {
+     "postingDate": "2025-04-03",
+     "amount": "0.01",
+     "currency": "EUR",
+     "description": "Interest",
+     "accountRef": "JSON-ACC",
+     "statementRef": "J-1"
+    },
+    "fingerprint": "fp1:7fa5aa964f31d5eff4f4ffc8def14bf6e2c6ee3254539f33d12775258d4fed41",
+    "confidence": 1,
+    "warnings": [],
+    "accountRef": "JSON-ACC",
+    "statementRef": "J-1"
+   },
+   {
+    "rowNumber": 4,
+    "postingDate": "2025-04-05",
+    "description": "Yen",
+    "direction": "credit",
+    "amount": "1000",
+    "currency": "JPY",
+    "raw": {
+     "postingDate": "2025-04-05",
+     "amount": "1000",
+     "currency": "JPY",
+     "description": "Yen"
+    },
+    "fingerprint": "fp1:aa68aeaa6dd507e3b84953340310e5d9319696fc5118ddaf16d63a4b156425c8",
+    "confidence": 1,
+    "warnings": []
+   }
+  ],
+  "statements": [
+   {
+    "ref": "J-1",
+    "accountRef": "JSON-ACC",
+    "periodStart": "2025-04-01",
+    "periodEnd": "2025-04-30",
+    "openingBalance": "100.00",
+    "closingBalance": "80.01",
+    "currency": "EUR"
+   }
+  ],
+  "errors": [
+   {
+    "row": 3,
+    "field": "amount",
+    "code": "invalid_amount",
+    "message": "amount must be a decimal string, not a number"
+   }
+  ],
+  "warnings": [],
+  "confidence": 0.75
+ }
+}

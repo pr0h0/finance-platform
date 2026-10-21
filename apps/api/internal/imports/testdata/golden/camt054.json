@@ -1,0 +1,53 @@
+{
+ "case": {
+  "name": "camt054",
+  "file": "camt/camt054.xml",
+  "importer": "generic-camt054"
+ },
+ "result": {
+  "importerId": "generic-camt054",
+  "importerVersion": "1.0.0",
+  "format": "camt054",
+  "records": [
+   {
+    "rowNumber": 1,
+    "postingDate": "2025-03-01",
+    "description": "Storno naknade",
+    "direction": "credit",
+    "amount": "12.00",
+    "currency": "EUR",
+    "raw": {
+     "Amt": "12.00",
+     "Amt@Ccy": "EUR",
+     "CdtDbtInd": "DBIT",
+     "RvslInd": "true",
+     "Sts": "BOOK",
+     "BookgDt/Dt": "2025-03-01",
+     "AcctSvcrRef": "NTF-REF-1",
+     "AddtlNtryInf": "Storno naknade"
+    },
+    "fingerprint": "fp1:7fe90d5a2147a78f1b7bcdee84379a240515c90c2759cc74a2075554811657f0",
+    "confidence": 1,
+    "warnings": [
+     {
+      "row": 1,
+      "code": "reversal",
+      "message": "reversal entry"
+     }
+    ],
+    "accountRef": "SYNTH-ACC-7",
+    "statementRef": "NTF-1",
+    "bankReference": "NTF-REF-1"
+   }
+  ],
+  "statements": [
+   {
+    "ref": "NTF-1",
+    "accountRef": "SYNTH-ACC-7"
+   }
+  ],
+  "errors": [],
+  "warnings": [],
+  "confidence": 1
+ }
+}

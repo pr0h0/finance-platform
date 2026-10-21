@@ -1,0 +1,59 @@
+{
+ "case": {
+  "name": "qif-eu",
+  "file": "qif/eu.qif",
+  "importer": "generic-qif",
+  "currency": "EUR"
+ },
+ "result": {
+  "importerId": "generic-qif",
+  "importerVersion": "1.0.0",
+  "format": "qif",
+  "records": [
+   {
+    "rowNumber": 2,
+    "postingDate": "2025-01-03",
+    "description": "Kafić",
+    "direction": "debit",
+    "amount": "3.50",
+    "currency": "EUR",
+    "raw": {
+     "D": "03.01.2025",
+     "T": "-3,50",
+     "P": "Kafić"
+    },
+    "fingerprint": "fp1:6b0b597b8e29445b8f07be775a114c21e39f3cddac2b15637f7d11397f1c3175",
+    "confidence": 0.7,
+    "warnings": [],
+    "counterparty": "Kafić"
+   },
+   {
+    "rowNumber": 6,
+    "postingDate": "2025-01-05",
+    "description": "Plata",
+    "direction": "credit",
+    "amount": "1250.00",
+    "currency": "EUR",
+    "raw": {
+     "D": "05.01.2025",
+     "T": "1.250,00",
+     "P": "Plata"
+    },
+    "fingerprint": "fp1:c00ecfb5867705c9a43909622ae930cce9e89c272fc920cb965f2f8f4953dc33",
+    "confidence": 0.7,
+    "warnings": [],
+    "counterparty": "Plata"
+   }
+  ],
+  "statements": [],
+  "errors": [],
+  "warnings": [
+   {
+    "code": "ambiguous_date_order",
+    "message": "all dates fit both orders; assumed DD/MM"
+   }
+  ],
+  "confidence": 0.7,
+  "encoding": "utf-8"
+ }
+}

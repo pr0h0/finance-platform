@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.053.001.08">
+  <BkToCstmrStmt>
+    <GrpHdr><MsgId>SYNTH-MSG-1</MsgId><CreDtTm>2025-02-01T08:00:00+01:00</CreDtTm></GrpHdr>
+    <Stmt>
+      <Id>SYNTH-STMT-2025-01</Id>
+      <FrToDt><FrDtTm>2025-01-01T00:00:00+01:00</FrDtTm><ToDtTm>2025-01-31T23:59:59+01:00</ToDtTm></FrToDt>
+      <Acct><Id><IBAN>BA391290079401028494</IBAN></Id><Ccy>BAM</Ccy></Acct>
+      <Bal><Tp><CdOrPrtry><Cd>OPBD</Cd></CdOrPrtry></Tp><Amt Ccy="BAM">1000.00</Amt><CdtDbtInd>CRDT</CdtDbtInd><Dt><Dt>2025-01-01</Dt></Dt></Bal>
+      <Bal><Tp><CdOrPrtry><Cd>CLBD</Cd></CdOrPrtry></Tp><Amt Ccy="BAM">2350.00</Amt><CdtDbtInd>CRDT</CdtDbtInd><Dt><Dt>2025-01-31</Dt></Dt></Bal>
+      <Ntry>
+        <Amt Ccy="BAM">150.00</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts>
+        <BookgDt><Dt>2025-01-03</Dt></BookgDt><ValDt><Dt>2025-01-03</Dt></ValDt>
+        <AcctSvcrRef>SYN-CAMT-0001</AcctSvcrRef>
+        <NtryDtls><TxDtls>
+          <RltdPties><Cdtr><Pty><Nm>Example Supermarket d.o.o.</Nm></Pty></Cdtr></RltdPties>
+          <RmtInf><Ustrd>Kupovina kartica</Ustrd></RmtInf>
+        </TxDtls></NtryDtls>
+      </Ntry>
+      <Ntry>
+        <Amt Ccy="BAM">1500.00</Amt><CdtDbtInd>CRDT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts>
+        <BookgDt><DtTm>2025-01-10T23:30:00-05:00</DtTm></BookgDt>
+        <AcctSvcrRef>SYN-CAMT-0002</AcctSvcrRef>
+        <NtryDtls><TxDtls>
+          <RltdPties><Dbtr><Nm>Example Employer</Nm></Dbtr></RltdPties>
+          <RmtInf><Ustrd>Plata 01/2025</Ustrd></RmtInf>
+        </TxDtls></NtryDtls>
+      </Ntry>
+    </Stmt>
+  </BkToCstmrStmt>
+</Document>

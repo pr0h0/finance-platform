@@ -1,0 +1,127 @@
+{
+ "case": {
+  "name": "camt053",
+  "file": "camt/camt053.xml",
+  "importer": "generic-camt053"
+ },
+ "result": {
+  "importerId": "generic-camt053",
+  "importerVersion": "1.0.0",
+  "format": "camt053",
+  "records": [
+   {
+    "rowNumber": 1,
+    "postingDate": "2025-01-05",
+    "description": "Employer d.o.o. Plata za januar",
+    "direction": "credit",
+    "amount": "2000.00",
+    "currency": "BAM",
+    "raw": {
+     "Amt": "2000.00",
+     "Amt@Ccy": "BAM",
+     "CdtDbtInd": "CRDT",
+     "Sts/Cd": "BOOK",
+     "BookgDt/Dt": "2025-01-05",
+     "ValDt/Dt": "2025-01-05",
+     "AcctSvcrRef": "REF-0001",
+     "NtryDtls/TxDtls/Refs/EndToEndId": "NOTPROVIDED",
+     "NtryDtls/TxDtls/RltdPties/Dbtr/Nm": "Employer d.o.o.",
+     "NtryDtls/TxDtls/RmtInf/Ustrd": "Plata za januar"
+    },
+    "fingerprint": "fp1:97a494c7ea06e4872f4f5013d7c9e8b2358b935cb3789be315f9628b0fae01b7",
+    "confidence": 1,
+    "warnings": [],
+    "valueDate": "2025-01-05",
+    "accountRef": "BA391234567890123456",
+    "statementRef": "STMT-2025-01",
+    "bankReference": "REF-0001",
+    "counterparty": "Employer d.o.o."
+   },
+   {
+    "rowNumber": 2,
+    "postingDate": "2025-01-10",
+    "description": "Supermarket & Co Kupovina",
+    "direction": "debit",
+    "amount": "150.00",
+    "currency": "BAM",
+    "raw": {
+     "Amt": "150.00",
+     "Amt@Ccy": "BAM",
+     "CdtDbtInd": "DBIT",
+     "Sts/Cd": "BOOK",
+     "BookgDt/Dt": "2025-01-10",
+     "ValDt/Dt": "2025-01-09",
+     "AcctSvcrRef": "REF-0002",
+     "NtryDtls/TxDtls/AmtDtls/InstdAmt/Amt": "76.69",
+     "NtryDtls/TxDtls/AmtDtls/InstdAmt/Amt@Ccy": "EUR",
+     "NtryDtls/TxDtls/AmtDtls/InstdAmt/CcyXchg/SrcCcy": "EUR",
+     "NtryDtls/TxDtls/AmtDtls/InstdAmt/CcyXchg/TrgtCcy": "BAM",
+     "NtryDtls/TxDtls/AmtDtls/InstdAmt/CcyXchg/XchgRate": "1.95583",
+     "NtryDtls/TxDtls/RltdPties/Cdtr/Nm": "Supermarket & Co",
+     "NtryDtls/TxDtls/RmtInf/Ustrd": "Kupovina"
+    },
+    "fingerprint": "fp1:0927dfe968e253e2e29827d18a3f844a7a615671c785f737620b6f5c97be50a1",
+    "confidence": 1,
+    "warnings": [],
+    "valueDate": "2025-01-09",
+    "accountRef": "BA391234567890123456",
+    "statementRef": "STMT-2025-01",
+    "originalAmount": "76.69",
+    "originalCurrency": "EUR",
+    "exchangeRate": "1.95583",
+    "bankReference": "REF-0002",
+    "counterparty": "Supermarket & Co"
+   },
+   {
+    "rowNumber": 3,
+    "postingDate": "2025-01-20",
+    "description": "Struja Voda",
+    "direction": "debit",
+    "amount": "44.90",
+    "currency": "BAM",
+    "raw": {
+     "Amt": "44.90",
+     "Amt@Ccy": "BAM",
+     "CdtDbtInd": "DBIT",
+     "Sts/Cd": "BOOK",
+     "BookgDt/DtTm": "2025-01-20T10:15:00+01:00",
+     "AcctSvcrRef": "REF-0003",
+     "NtryDtls/TxDtls/RmtInf/Ustrd": "Struja",
+     "NtryDtls/TxDtls/RmtInf/Ustrd#7": "Voda"
+    },
+    "fingerprint": "fp1:66db7e03442ec5f2aa9035fc740f6a83159067d6bade723f163e5c23ac13715d",
+    "confidence": 0.9,
+    "warnings": [
+     {
+      "row": 3,
+      "code": "batched_entry",
+      "message": "2 transactions in one entry"
+     }
+    ],
+    "accountRef": "BA391234567890123456",
+    "statementRef": "STMT-2025-01",
+    "bankReference": "REF-0003"
+   }
+  ],
+  "statements": [
+   {
+    "ref": "STMT-2025-01",
+    "accountRef": "BA391234567890123456",
+    "currency": "BAM",
+    "periodStart": "2025-01-01",
+    "periodEnd": "2025-01-31",
+    "openingBalance": "1000.00",
+    "closingBalance": "2805.10"
+   }
+  ],
+  "errors": [],
+  "warnings": [
+   {
+    "row": 4,
+    "code": "not_booked",
+    "message": "entry status PDNG skipped"
+   }
+  ],
+  "confidence": 0.9
+ }
+}

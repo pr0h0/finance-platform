@@ -1,0 +1,71 @@
+{
+ "case": {
+  "name": "csv-errors",
+  "file": "csv/errors.csv",
+  "importer": "generic-csv",
+  "template": "signed-amount-csv.json"
+ },
+ "result": {
+  "importerId": "generic-csv",
+  "importerVersion": "1.0.0",
+  "format": "csv",
+  "records": [
+   {
+    "rowNumber": 7,
+    "postingDate": "2025-01-06",
+    "description": "Good row",
+    "direction": "debit",
+    "amount": "7.25",
+    "currency": "EUR",
+    "raw": {
+     "Date": "2025-01-06",
+     "Description": "Good row",
+     "Amount": "-7.25",
+     "Currency": "EUR",
+     "Reference": "E6"
+    },
+    "fingerprint": "fp1:f1336d2b3d8ef935b5a9e2cff837db71aa244dbbe9e2216e2138d990c9a36fb4",
+    "confidence": 1,
+    "warnings": [],
+    "bankReference": "E6"
+   }
+  ],
+  "statements": [],
+  "errors": [
+   {
+    "row": 3,
+    "field": "amount",
+    "code": "invalid_amount",
+    "message": "cannot read amount \"12.3.4\""
+   },
+   {
+    "row": 4,
+    "field": "currency",
+    "code": "unknown_currency",
+    "message": "unknown currency XYZ"
+   },
+   {
+    "row": 5,
+    "field": "amount",
+    "code": "amount_precision",
+    "message": "cannot rescale 5.001 to 2 without rounding"
+   }
+  ],
+  "warnings": [
+   {
+    "row": 2,
+    "field": "postingDate",
+    "code": "invalid_date",
+    "message": "cannot read date \"2025-13-01\" as YYYY-MM-DD"
+   },
+   {
+    "row": 6,
+    "field": "amount",
+    "code": "zero_amount",
+    "message": "zero amount row skipped"
+   }
+  ],
+  "confidence": 0.25,
+  "encoding": "utf-8"
+ }
+}

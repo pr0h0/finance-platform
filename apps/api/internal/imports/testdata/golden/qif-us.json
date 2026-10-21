@@ -1,0 +1,82 @@
+{
+ "case": {
+  "name": "qif-us",
+  "file": "qif/us.qif",
+  "importer": "generic-qif",
+  "currency": "USD"
+ },
+ "result": {
+  "importerId": "generic-qif",
+  "importerVersion": "1.0.0",
+  "format": "qif",
+  "records": [
+   {
+    "rowNumber": 2,
+    "postingDate": "2025-01-03",
+    "description": "Coffee Shop Card 1234",
+    "direction": "debit",
+    "amount": "3.50",
+    "currency": "USD",
+    "raw": {
+     "D": "1/03'25",
+     "T": "-3.50",
+     "P": "Coffee Shop",
+     "M": "Card 1234"
+    },
+    "fingerprint": "fp1:c8f42b5e5688e4ec19b40743930fd3da3757a0ecccfeaf76d62ddb02ff288515",
+    "confidence": 1,
+    "warnings": [],
+    "counterparty": "Coffee Shop"
+   },
+   {
+    "rowNumber": 7,
+    "postingDate": "2025-01-15",
+    "description": "Employer Ltd",
+    "direction": "credit",
+    "amount": "2500.00",
+    "currency": "USD",
+    "raw": {
+     "D": "1/15'25",
+     "T": "2,500.00",
+     "P": "Employer Ltd",
+     "N": "1001"
+    },
+    "fingerprint": "fp1:df342a3e26f993b0e88467189a48d7e7e562e64bb6c37fa46e27d9c7143f42d4",
+    "confidence": 1,
+    "warnings": [],
+    "bankReference": "1001",
+    "counterparty": "Employer Ltd"
+   },
+   {
+    "rowNumber": 12,
+    "postingDate": "2025-01-20",
+    "description": "Landlord",
+    "direction": "debit",
+    "amount": "1234.56",
+    "currency": "USD",
+    "raw": {
+     "D": "1/20'25",
+     "T": "-1,234.56",
+     "P": "Landlord",
+     "L": "Rent",
+     "splits": "SHousing\n$-1000.00\nSUtilities\n$-234.56"
+    },
+    "fingerprint": "fp1:13874d78dcb16a8aff073f0e55ca2bba92a0bb24726e371d1f25a139834ec9d8",
+    "confidence": 1,
+    "warnings": [
+     {
+      "row": 12,
+      "code": "qif_splits_ignored",
+      "message": "QIF split lines kept in raw only"
+     }
+    ],
+    "counterparty": "Landlord"
+   }
+  ],
+  "statements": [],
+  "errors": [],
+  "warnings": [],
+  "confidence": 1,
+  "encoding": "utf-8"
+ }
+}
