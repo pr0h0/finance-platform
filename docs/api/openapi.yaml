@@ -860,22 +860,22 @@ paths:
           schema:
             type: "string"
         - $ref: "#/components/parameters/Currency"
+        - $ref: "#/components/parameters/AccountIds"
       responses:
         "200":
-        - $ref: "#/components/parameters/AccountIds"
           description: "OK"
           content:
             application/json:
               schema:
                 type: "object"
+                description: "Totals (netWorth = assets + liabilities of accounts included in net worth) are null when a rate is missing; missingRates lists the pairs. Valuation uses cached rate snapshots on asOf."
                 properties:
                   asOf:
-                description: "Totals (netWorth = assets + liabilities of accounts included in net worth) are null when a rate is missing; missingRates lists the pairs. Valuation uses cached rate snapshots on asOf."
                     $ref: "#/components/schemas/Date"
-                  balances:
-                    type: "array"
                   currency:
                     type: "string"
+                  balances:
+                    type: "array"
                     items:
                       type: "object"
                       properties:
@@ -883,8 +883,6 @@ paths:
                           $ref: "#/components/schemas/Uuid"
                         amount:
                           $ref: "#/components/schemas/Money"
-                      additionalProperties: false
-                  netWorth:
                         converted:
                           oneOf:
                             - $ref: "#/components/schemas/Money"
@@ -892,6 +890,8 @@ paths:
                         classification:
                           type: "string"
                           enum: ["asset", "liability"]
+                      additionalProperties: false
+                  netWorth:
                     oneOf:
                       - $ref: "#/components/schemas/Money"
                       - type: "null"
@@ -915,25 +915,25 @@ paths:
       tags: ["ledger"]
       summary: "Daily balance history"
       operationId: "get_accounts_id_balance_history"
+      description: "One end-of-day point per calendar day; defaults to the last 90 days, at most ~10 years. currency defaults to the account currency (multi-currency accounts: one series per currency)."
       parameters:
         - $ref: "#/components/parameters/ProfileHeader"
-      description: "One end-of-day point per calendar day; defaults to the last 90 days, at most ~10 years. currency defaults to the account currency (multi-currency accounts: one series per currency)."
         - $ref: "#/components/parameters/Id"
         - $ref: "#/components/parameters/From"
         - $ref: "#/components/parameters/To"
+        - $ref: "#/components/parameters/Currency"
       responses:
         "200":
-        - $ref: "#/components/parameters/Currency"
           description: "OK"
           content:
             application/json:
               schema:
                 type: "object"
                 properties:
-                  points:
-                    type: "array"
                   currency:
                     type: "string"
+                  points:
+                    type: "array"
                     items:
                       $ref: "#/components/schemas/BalancePoint"
                 additionalProperties: false
@@ -1021,8 +1021,6 @@ paths:
           in: "query"
           schema:
             type: "boolean"
-      responses:
-        "200":
         - name: "currency"
           in: "query"
           schema:
@@ -1042,6 +1040,8 @@ paths:
           description: "Transactions linked to this one (refunds, fees, corrections)"
           schema:
             $ref: "#/components/schemas/Uuid"
+      responses:
+        "200":
           description: "OK"
           content:
             application/json:
@@ -1302,9 +1302,9 @@ paths:
     get:
       tags: ["transactions"]
       summary: "Export transactions (CSV/JSON)"
+      description: "Accepts every filter of GET /transactions. CSV: one row per split (per posting for uncategorized kinds), UTF-8 BOM, formula-like text cells prefixed with an apostrophe. JSON: {items: Transaction[]}. At most 200000 transactions."
       operationId: "get_transactions_export"
       parameters:
-      description: "Accepts every filter of GET /transactions. CSV: one row per split (per posting for uncategorized kinds), UTF-8 BOM, formula-like text cells prefixed with an apostrophe. JSON: {items: Transaction[]}. At most 200000 transactions."
         - $ref: "#/components/parameters/ProfileHeader"
         - $ref: "#/components/parameters/From"
         - $ref: "#/components/parameters/To"
@@ -1667,8 +1667,6 @@ paths:
                 $ref: "#/components/schemas/Category"
         default:
           $ref: "#/components/responses/Error"
-  /api/v1/categories/{id}:
-    get:
   /api/v1/categories/defaults:
     post:
       tags: ["categories"]
@@ -1690,6 +1688,8 @@ paths:
                 additionalProperties: false
         default:
           $ref: "#/components/responses/Error"
+  /api/v1/categories/{id}:
+    get:
       tags: ["categories"]
       summary: "Get Category"
       operationId: "get_categories_id"
@@ -1791,8 +1791,6 @@ paths:
                 $ref: "#/components/schemas/Merchant"
         default:
           $ref: "#/components/responses/Error"
-  /api/v1/merchants/{id}:
-    get:
   /api/v1/merchants/match:
     get:
       tags: ["merchants"]
@@ -1820,6 +1818,8 @@ paths:
                 additionalProperties: false
         default:
           $ref: "#/components/responses/Error"
+  /api/v1/merchants/{id}:
+    get:
       tags: ["merchants"]
       summary: "Get Merchant"
       operationId: "get_merchants_id"
@@ -2683,13 +2683,13 @@ paths:
       operationId: "post_exchange_rate_providers_id_refresh"
       parameters:
         - $ref: "#/components/parameters/Id"
-      responses:
-        "200":
         - name: "date"
           in: "query"
           description: "Historical date to fetch (default latest)"
           schema:
             $ref: "#/components/schemas/Date"
+      responses:
+        "200":
           description: "OK"
           content:
             application/json:
@@ -3769,16 +3769,16 @@ paths:
                   oneOf:
                     - $ref: "#/components/schemas/Uuid"
                     - type: "null"
-                version:
-                  type: "integer"
                 purpose:
                   type: "string"
                   enum: ["receipt", "statement", "document", "other"]
                 fileName:
                   type: "string"
+                version:
+                  type: "integer"
+              required: ["version"]
               additionalProperties: false
       responses:
-              required: ["version"]
         "200":
           description: "OK"
           content:
@@ -5378,8 +5378,12 @@ components:
               type: "integer"
             notes:
               type: "string"
+            classification:
+              type: "string"
+              enum: ["asset", "liability"]
             balances:
               type: "array"
+              description: "Current balance per currency, computed from postings"
               items:
                 $ref: "#/components/schemas/Money"
           additionalProperties: false
@@ -5406,6 +5410,7 @@ components:
             - type: "null"
         openingBalance:
           $ref: "#/components/schemas/Money"
+          description: "Create only: records an opening_balance transaction on openingDate (default today in the profile timezone). Signed (negative for debt)."
         creditLimit:
           oneOf:
             - $ref: "#/components/schemas/Money"
@@ -5445,12 +5450,8 @@ components:
         statementDate:
           $ref: "#/components/schemas/Date"
         statementBalance:
-            classification:
-              type: "string"
-              enum: ["asset", "liability"]
           $ref: "#/components/schemas/Money"
         ledgerBalance:
-              description: "Current balance per currency, computed from postings"
           $ref: "#/components/schemas/Money"
         difference:
           $ref: "#/components/schemas/Money"
@@ -5477,7 +5478,6 @@ components:
               type: "string"
             icon:
               type: "string"
-          description: "Create only: records an opening_balance transaction on openingDate (default today in the profile timezone). Signed (negative for debt)."
             sortOrder:
               type: "integer"
             isSystem:
@@ -5551,6 +5551,11 @@ components:
               type: "string"
             notes:
               type: "string"
+            aliases:
+              type: "array"
+              description: "Normalized alias strings"
+              items:
+                type: "string"
           additionalProperties: false
     MerchantInput:
       type: "object"
@@ -5567,6 +5572,11 @@ components:
           type: "string"
         notes:
           type: "string"
+        aliases:
+          type: "array"
+          maxItems: 50
+          items:
+            type: "string"
         version:
           type: "integer"
       required: ["name"]
@@ -5618,11 +5628,6 @@ components:
           $ref: "#/components/schemas/Uuid"
         categoryId:
           oneOf:
-            aliases:
-              type: "array"
-              description: "Normalized alias strings"
-              items:
-                type: "string"
             - $ref: "#/components/schemas/Uuid"
             - type: "null"
         amount:
@@ -5639,11 +5644,6 @@ components:
         - type: "object"
           properties:
             kind:
-        aliases:
-          type: "array"
-          maxItems: 50
-          items:
-            type: "string"
               $ref: "#/components/schemas/TransactionKind"
             status:
               type: "string"
@@ -5704,11 +5704,40 @@ components:
               type: "array"
               items:
                 $ref: "#/components/schemas/Uuid"
+            conversion:
+              oneOf:
+                - $ref: "#/components/schemas/Conversion"
+                - type: "null"
             sourceRecord:
+              description: "GET /transactions/{id} only: the immutable imported evidence (omitted in lists)"
               oneOf:
                 - $ref: "#/components/schemas/ImportedRawRecord"
                 - type: "null"
           additionalProperties: false
+    Conversion:
+      type: "object"
+      description: "fx transactions: the rate actually applied (method bank_actual = from the amounts the bank reported; market/manual/fixed = from a rate snapshot) and the fee (also recorded as a separate expense linked via relatedTransactionId)."
+      properties:
+        from:
+          $ref: "#/components/schemas/Money"
+        to:
+          $ref: "#/components/schemas/Money"
+        rate:
+          $ref: "#/components/schemas/Decimal"
+        rateDate:
+          $ref: "#/components/schemas/Date"
+        method:
+          type: "string"
+          enum: ["market", "manual", "fixed", "bank_actual"]
+        exchangeRateId:
+          oneOf:
+            - $ref: "#/components/schemas/Uuid"
+            - type: "null"
+        fee:
+          oneOf:
+            - $ref: "#/components/schemas/Money"
+            - type: "null"
+      additionalProperties: false
     TransactionKind:
       type: "string"
       enum: ["income", "expense", "transfer", "refund", "adjustment", "opening_balance", "fx"]
@@ -5765,6 +5794,21 @@ components:
             - type: "null"
         excludeFromReports:
           type: "boolean"
+        originalAmount:
+          $ref: "#/components/schemas/Money"
+          description: "Foreign amount of a card spend abroad (amount is in the account currency)"
+        fee:
+          $ref: "#/components/schemas/Money"
+          description: "transfer/fx only: fee charged on the source account, recorded as a linked expense"
+        feeCategoryId:
+          oneOf:
+            - $ref: "#/components/schemas/Uuid"
+            - type: "null"
+        reference:
+          type: "string"
+        status:
+          type: "string"
+          enum: ["pending", "cleared", "void"]
       required: ["kind", "accountId", "amount", "bookingDate"]
       additionalProperties: false
       description: "Server derives postings: income/expense/refund one posting on accountId; transfer/fx -amount on accountId and +toAmount on toAccountId. toAmount defaults to amount (same currency) or a conversion with the rate snapshot of bookingDate (otherwise 422 rate_unavailable). Different currencies make the transaction kind fx. Amounts are positive except opening_balance (signed). adjustment is created only via /transactions/{id}/adjustments or /reconciliations. Splits must sum exactly to amount."
@@ -5802,40 +5846,11 @@ components:
     TransactionPatch:
       type: "object"
       properties:
-            conversion:
-              oneOf:
-                - $ref: "#/components/schemas/Conversion"
-                - type: "null"
         version:
-              description: "GET /transactions/{id} only: the immutable imported evidence (omitted in lists)"
           type: "integer"
         description:
           type: "string"
         notes:
-    Conversion:
-      type: "object"
-      description: "fx transactions: the rate actually applied (method bank_actual = from the amounts the bank reported; market/manual/fixed = from a rate snapshot) and the fee (also recorded as a separate expense linked via relatedTransactionId)."
-      properties:
-        from:
-          $ref: "#/components/schemas/Money"
-        to:
-          $ref: "#/components/schemas/Money"
-        rate:
-          $ref: "#/components/schemas/Decimal"
-        rateDate:
-          $ref: "#/components/schemas/Date"
-        method:
-          type: "string"
-          enum: ["market", "manual", "fixed", "bank_actual"]
-        exchangeRateId:
-          oneOf:
-            - $ref: "#/components/schemas/Uuid"
-            - type: "null"
-        fee:
-          oneOf:
-            - $ref: "#/components/schemas/Money"
-            - type: "null"
-      additionalProperties: false
           type: "string"
         merchantId:
           oneOf:
@@ -5865,6 +5880,12 @@ components:
           oneOf:
             - $ref: "#/components/schemas/Uuid"
             - type: "null"
+        reference:
+          type: "string"
+        occurredAt:
+          oneOf:
+            - $ref: "#/components/schemas/Instant"
+            - type: "null"
       required: ["version"]
       additionalProperties: false
       description: "Amount/date/account changes on imported transactions are rejected (409 imported_evidence); use POST /transactions/{id}/adjustments."
@@ -5890,25 +5911,13 @@ components:
           $ref: "#/components/schemas/Date"
         reason:
           type: "string"
+        accountId:
+          $ref: "#/components/schemas/Uuid"
+          description: "One of the corrected transaction's accounts (default: its first posting)"
       required: ["amount", "bookingDate", "reason"]
       additionalProperties: false
     BulkEdit:
       type: "object"
-        originalAmount:
-          $ref: "#/components/schemas/Money"
-          description: "Foreign amount of a card spend abroad (amount is in the account currency)"
-        fee:
-          $ref: "#/components/schemas/Money"
-          description: "transfer/fx only: fee charged on the source account, recorded as a linked expense"
-        feeCategoryId:
-          oneOf:
-            - $ref: "#/components/schemas/Uuid"
-            - type: "null"
-        reference:
-          type: "string"
-        status:
-          type: "string"
-          enum: ["pending", "cleared", "void"]
       properties:
         transactionIds:
           type: "array"
@@ -5937,6 +5946,10 @@ components:
               type: "boolean"
             status:
               type: "string"
+            clearCategory:
+              type: "boolean"
+            clearMerchant:
+              type: "boolean"
           additionalProperties: false
       required: ["transactionIds", "set"]
       additionalProperties: false
@@ -5949,12 +5962,6 @@ components:
           type: "array"
           items:
             type: "object"
-        reference:
-          type: "string"
-        occurredAt:
-          oneOf:
-            - $ref: "#/components/schemas/Instant"
-            - type: "null"
             properties:
               id:
                 $ref: "#/components/schemas/Uuid"
@@ -5978,9 +5985,6 @@ components:
                 - $ref: "#/components/schemas/Uuid"
                 - type: "null"
             toAccountId:
-        accountId:
-          $ref: "#/components/schemas/Uuid"
-          description: "One of the corrected transaction's accounts (default: its first posting)"
               oneOf:
                 - $ref: "#/components/schemas/Uuid"
                 - type: "null"
@@ -6013,10 +6017,6 @@ components:
             name:
               type: "string"
             merchantId:
-            clearCategory:
-              type: "boolean"
-            clearMerchant:
-              type: "boolean"
               oneOf:
                 - $ref: "#/components/schemas/Uuid"
                 - type: "null"
@@ -6135,6 +6135,9 @@ components:
           enum: ["provider", "manual", "fixed"]
         inverse:
           type: "boolean"
+        stale:
+          type: "boolean"
+          description: "The provider could not be reached and the newest cached rate is older than the date (offline fallback)"
       additionalProperties: false
     ExchangeRate:
       type: "object"
@@ -6202,9 +6205,6 @@ components:
       additionalProperties: false
     Recurrence:
       allOf:
-        stale:
-          type: "boolean"
-          description: "The provider could not be reached and the newest cached rate is older than the date (offline fallback)"
         - $ref: "#/components/schemas/SyncMeta"
         - type: "object"
           properties:

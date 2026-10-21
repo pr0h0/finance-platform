@@ -44,31 +44,31 @@ Engine-level only; each feature row below stays owned by its API/web module.
 
 | # | Name | Platforms | Phase | Status | Backend module / package | Tests | Notes / limitations |
 |---|---|---|---|---|---|---|---|
-| 1 | Expense tracking | API, Web | 1-2 | NOT_STARTED | transactions, accounts, categories, attachments, imports | — |  |
-| 2 | Income tracking | API, Web | 1-2 | NOT_STARTED | transactions, accounts, categories, attachments, imports | — |  |
-| 3 | Multiple accounts | API, Web | 1-2 | NOT_STARTED | transactions, accounts, categories, attachments, imports | — |  |
-| 4 | Transfers between accounts | API, Web | 1-2 | NOT_STARTED | transactions, accounts, categories, attachments, imports | — |  |
-| 5 | Transaction categories | API, Web | 1-2 | NOT_STARTED | transactions, accounts, categories, attachments, imports | — |  |
-| 6 | Subcategories | API, Web | 1-2 | NOT_STARTED | transactions, accounts, categories, attachments, imports | — |  |
-| 7 | Custom tags | API, Web | 1-2 | NOT_STARTED | transactions, accounts, categories, attachments, imports | — |  |
-| 8 | Split transactions | API, Web | 1-2 | NOT_STARTED | transactions, accounts, categories, attachments, imports | — | Phase 0: transaction_splits table + split invariant in engine/validation. |
-| 9 | Transaction attachments | API, Web | 1-2 | NOT_STARTED | transactions, accounts, categories, attachments, imports | — |  |
-| 10 | Transaction search and filtering | API, Web | 1-2 | NOT_STARTED | transactions, accounts, categories, attachments, imports | — |  |
-| 11 | Quick expense entry | API, Web | 1-2 | NOT_STARTED | transactions, accounts, categories, attachments, imports | — |  |
-| 12 | Transaction templates | API, Web | 1-2 | NOT_STARTED | transactions, accounts, categories, attachments, imports | — |  |
-| 13 | Refunds and reimbursements | API, Web | 1-2 | NOT_STARTED | transactions, accounts, categories, attachments, imports | — |  |
+| 1 | Expense tracking | API, Web | 1-2 | TESTED (API) | ledger, transactions, accounts, categories, merchants | `internal/transactions/api_test.go` TestCriticalExpenseIncome…, TestEditUndo… | API: create/edit (manual amounts re-post immutable postings)/duplicate/void/delete/undo, audited corrections (`/transactions/{id}/adjustments`). Transaction 'archiving' = status `void` (kept, excluded from balances). Web UI by web agent. |
+| 2 | Income tracking | API, Web | 1-2 | TESTED (API) | ledger, transactions | `internal/transactions/api_test.go` TestCriticalExpenseIncome… | API: income kind, income categories; refunds are a separate kind (not income), transfers never income. |
+| 3 | Multiple accounts | API, Web | 1-2 | TESTED (API) | accounts, ledger | `internal/transactions/api_test.go` (all) | API: 11 account types (asset/liability), per-account currency, opening balance on create, archive; delete refused once the account has transactions; balance + daily balance history from postings. |
+| 4 | Transfers between accounts | API, Web | 1-2 | TESTED (API) | transactions, ledger, exchangerates | `internal/transactions/api_test.go` TestCriticalExpenseIncome…, TestCriticalFX… | API: two-posting transfers; different currencies -> `fx` with currency_conversions (bank-actual amount or rate snapshot of the booking date); fee recorded as linked expense. |
+| 5 | Transaction categories | API, Web | 1-2 | TESTED (API) | categories | `internal/transactions/api_test.go` TestAuthorizationAndHierarchy | API: CRUD with kind/color/icon, archive, starter set `POST /categories/defaults` (`categories.SeedDefaults`). Deleted categories stay referenced by historical splits. |
+| 6 | Subcategories | API, Web | 1-2 | TESTED (API) | categories, transactions | `internal/transactions/api_test.go` TestCriticalSplitsAndRefunds, TestAuthorizationAndHierarchy | API: parent/child up to depth 5, cycle check, delete refused while children exist; filtering by a parent includes subcategories. |
+| 7 | Custom tags | API, Web | 1-2 | TESTED (API) | transactions | `internal/transactions/api_test.go` TestEditUndo… | API: tag CRUD (case-insensitive unique), tagIds on transactions, bulk add/remove, filter by tag. |
+| 8 | Split transactions | API, Web | 1-2 | TESTED (API) | ledger, transactions | `internal/transactions/api_test.go` TestCriticalSplitsAndRefunds | API: up to 500 splits per transaction, exact sum enforced in ledger.validate (every write path), PUT replace keeps existing split ids (reorder/recategorize), split templates (fixed amounts + weighted remainder, largest remainder). |
+| 9 | Transaction attachments | API, Web | 1-2 | TESTED (API) | attachments | `internal/transactions/api_test.go` TestAttachments, attachments/filename_test.go | API: multipart upload to ATTACHMENTS_DIR/<profile>/<id> (path from UUIDs only), content-sniffed allowlist (JPEG/PNG/GIF/WebP/PDF/text), size limit, sha256, download with nosniff + sandbox CSP + attachment disposition, link/unlink, delete removes content. STORAGE_BACKEND=s3 not implemented (501). HEIC not accepted. |
+| 10 | Transaction search and filtering | API, Web | 1-2 | TESTED (API) | transactions | `internal/transactions/api_test.go` TestEditUndo…, TestCriticalSplits… | API: from/to, account(s), category (incl. children), merchant, tag, kind, status, source (import source), currency, text (description/notes/payee/reference/merchant/raw bank text, ILIKE), amount range (magnitude), uncategorized, related; keyset cursor (bookingDate desc, id). |
+| 11 | Quick expense entry | API, Web | 1-2 | IMPLEMENTED (API) | transactions | covered by create tests | API: minimal create needs kind, accountId, amount, bookingDate (single split from categoryId). 'Remember recent selections' is a web concern. |
+| 12 | Transaction templates | API, Web | 1-2 | TESTED (API) | transactions | `internal/transactions/api_test.go` TestAuthorizationAndHierarchy, TestCriticalSplitsAndRefunds | API: transaction templates CRUD (kind, accounts, amount, category, merchant, tags) + split templates (applied via PUT splits `splitTemplateId`). One-click reuse = client prefill + POST /transactions. |
+| 13 | Refunds and reimbursements | API, Web | 1-2 | TESTED (API) | transactions | `internal/transactions/api_test.go` TestCriticalSplitsAndRefunds | API: `POST /transactions/{id}/refunds` (partial, capped at the original total, proportional category allocation or explicit splits); reimbursements use the same refund kind with payee. |
 | 14 | Transaction import | API, Web | 1-2 | IN_PROGRESS | transactions, accounts, categories, attachments, imports | `scripts/bun.sh test packages/importer-sdk packages/bank-importers` (client) | Client side: importer framework + 13 format importers in packages/importer-sdk + bank-importers (TESTED). API staging/commit and web UI owned by imports/web agents. |
-| 15 | Transaction export | API, Web | 1-2 | NOT_STARTED | transactions, accounts, categories, attachments, imports | — |  |
-| 16 | Multiple currencies | API, Web | 1-2 | NOT_STARTED | currency, exchangerates | — | Phase 0: schema, ISO 4217 scales, exact engine (TS+Go) with conformance fixtures. |
-| 17 | Primary reporting currency | API, Web | 1-2 | NOT_STARTED | currency, exchangerates | — |  |
-| 18 | Automatic conversion | API, Web | 1-2 | NOT_STARTED | currency, exchangerates | — | Phase 0: exact conversion functions (TS+Go), shared fixtures. |
-| 19 | Historical rates | API, Web | 1-2 | NOT_STARTED | currency, exchangerates | — | Phase 0: exchange_rates snapshot table; EUR/BAM fixed rate seeded. |
-| 20 | Manual override | API, Web | 1-2 | NOT_STARTED | currency, exchangerates | — |  |
-| 21 | Multi-currency accounts | API, Web | 1-2 | NOT_STARTED | currency, exchangerates | — |  |
-| 22 | Currency fees | API, Web | 1-2 | NOT_STARTED | currency, exchangerates | — |  |
-| 23 | Built-in converter | API, Web | 1-2 | NOT_STARTED | currency, exchangerates | — |  |
+| 15 | Transaction export | API, Web | 1-2 | TESTED (API) | transactions | `internal/transactions/api_test.go` TestEditUndo… | API: `GET /transactions/export?format=csv|json` with all search filters; CSV one row per split, BOM, formula-injection escaping for text cells. No XLSX (CSV is the spreadsheet format). |
+| 16 | Multiple currencies | API, Web | 1-2 | TESTED (API) | currency, money | `internal/transactions/api_test.go` TestCriticalFX… | API: ISO 4217 table (`GET /currencies`), scale-exact money in Go. |
+| 17 | Primary reporting currency | API, Web | 1-2 | IMPLEMENTED (API) | ledger | TestCriticalFX… (balances?currency=) | API: `GET /balances?currency=` values in any currency (default profile base_currency); original amounts never rewritten. Changing base currency is the profiles module. |
+| 18 | Automatic conversion | API, Web | 1-2 | TESTED (API) | exchangerates, currency, ledger | `internal/transactions/api_test.go` TestCriticalFX… | API: conversion with snapshot rates (direct, inverse, cross via EUR), single rounding (half_up default). |
+| 19 | Historical rates | API, Web | 1-2 | TESTED (API) | exchangerates | `internal/transactions/api_test.go` TestCriticalFX…, conformance_test TestFXLookup | Valuation policy: latest snapshot on/before the date; fixed EUR/BAM always current; same date manual > fixed > provider. Snapshots never updated in place; used rates cannot be deleted; recorded fx keep their rate. |
+| 20 | Manual override | API, Web | 1-2 | TESTED (API) | exchangerates, transactions | `internal/transactions/api_test.go` TestCriticalFX… | API: profile manual rates (`POST/DELETE /exchange-rates`) and per-transaction actual settlement amount (`toAmount` -> method bank_actual). |
+| 21 | Multi-currency accounts | API, Web | 1-2 | TESTED (API) | accounts, ledger | TestCriticalFX… | API: accounts in any currency; `isMultiCurrency` accounts hold postings in several currencies (balances per currency). |
+| 22 | Currency fees | API, Web | 1-2 | TESTED (API) | transactions | `internal/transactions/api_test.go` TestCriticalFX… | API: transfer/fx `fee` -> separate expense (feeCategoryId) linked by relatedTransactionId + currency_conversions.fee_amount; implied bank rate stored for bank_actual conversions (markup vs reference rate derivable). |
+| 23 | Built-in converter | API, Web | 1-2 | TESTED (API) | currency | `internal/transactions/api_test.go` TestCriticalFX… | API: `POST /convert` (date or explicit rate, rounding mode, stale flag). 'Result becomes planned expense' is client + planning. |
 | 24 | Currency analytics | API, Web | 1-2 | NOT_STARTED | currency, exchangerates | — |  |
-| 25 | Exchange-rate updates | API, Web | 1-2 | NOT_STARTED | currency, exchangerates | — |  |
+| 25 | Exchange-rate updates | API, Web | 1-2 | TESTED (API) | exchangerates | `internal/transactions/api_test.go` TestExchangeRateProviderFetchAndOfflineFallback | API: Frankfurter/ECB http provider (`ecb`, migration 20261021123417), periodic refresh (JOBS_ENABLED, FX_REFRESH_INTERVAL), on-demand historical fetch, DB cache, offline fallback (`stale: true`), admin refresh, json.Number parsing (no floats). |
 | 26 | Planned expenses | API, Web | 1-2 | NOT_STARTED | planning, recurrence | — |  |
 | 27 | Recurring expenses | API, Web | 1-2 | NOT_STARTED | planning, recurrence | — |  |
 | 28 | Recurring income | API, Web | 1-2 | NOT_STARTED | planning, recurrence | — |  |
@@ -92,10 +92,10 @@ Engine-level only; each feature row below stays owned by its API/web module.
 | 46 | Budget templates | API, Web | 1-2 | NOT_STARTED | budgets | — |  |
 | 47 | Financial overview | Web (+API) | 2 | NOT_STARTED | analytics (web dashboard) | — |  |
 | 48 | Customizable widgets | Web (+API) | 2 | NOT_STARTED | analytics (web dashboard) | — |  |
-| 49 | Current balance | API, Web | 1-2 | NOT_STARTED | analytics (web dashboard) | — |  |
+| 49 | Current balance | API, Web | 1-2 | TESTED (API) | ledger | `internal/transactions/api_test.go` TestCriticalExpenseIncome… | API: `GET /balances?accountId=&asOf=` per account/currency + converted values. Dashboard widget by web agent. |
 | 50 | Upcoming expenses | API, Web | 1-2 | NOT_STARTED | analytics (web dashboard) | — |  |
 | 51 | Monthly summary | API, Web | 1-2 | NOT_STARTED | analytics (web dashboard) | — |  |
-| 52 | Account breakdown | API, Web | 1-2 | NOT_STARTED | analytics (web dashboard) | — |  |
+| 52 | Account breakdown | API, Web | 1-2 | TESTED (API) | ledger, accounts | `internal/transactions/api_test.go` TestCriticalExpenseIncome… | API: per-account balances with converted value and classification (share = converted / assets, computed client-side). |
 | 53 | Quick actions | Web (+API) | 2 | NOT_STARTED | analytics (web dashboard) | — |  |
 | 54 | Spending by category | API, Web | 1-2 | NOT_STARTED | analytics | — |  |
 | 55 | Income versus expenses | API, Web | 1-2 | NOT_STARTED | analytics | — |  |
@@ -104,7 +104,7 @@ Engine-level only; each feature row below stays owned by its API/web module.
 | 58 | Merchant analytics | API, Web | 1-2 | NOT_STARTED | analytics | — |  |
 | 59 | Savings rate | API, Web | 1-2 | NOT_STARTED | analytics | — |  |
 | 60 | Recurring cost analysis | API, Web | 1-2 | NOT_STARTED | analytics | — |  |
-| 61 | Net worth | API, Web | 1-2 | NOT_STARTED | analytics | — |  |
+| 61 | Net worth | API, Web | 1-2 | IN_PROGRESS | ledger (balance parts), analytics | TestCriticalExpenseIncome… (netWorth/assets/liabilities) | Balance parts done in API: netWorth/assets/liabilities on `/balances` (accounts flagged includeInNetWorth; null + missingRates when a rate is missing). Net-worth history/analytics belongs to analytics. |
 | 62 | Financial reports | API, Web | 1-2 | NOT_STARTED | analytics | — |  |
 | 63 | Report export | API, Web | 1-2 | NOT_STARTED | analytics | — |  |
 | 64 | Automated financial insights | API, Web | 1-2 | NOT_STARTED | analytics | — |  |

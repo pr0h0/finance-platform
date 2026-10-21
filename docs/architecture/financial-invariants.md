@@ -9,6 +9,10 @@ exists.
 3. Rounding only at defined boundaries, once, with an explicit mode; default `half_up`. (conformance/rounding, fx)
 4. Arithmetic across currencies is an error unless converted with an explicit rate snapshot.
 5. EUR/BAM uses the fixed 1.95583 rate.
+5a. Valuation policy (`exchangerates.Lookup`): the snapshot with the latest `rate_date` on or before the date
+   wins (direct, inverse, else cross via EUR); fixed rates are always current; same date: profile manual >
+   fixed > provider. Snapshots are never updated in place; recorded fx transactions keep the rate they used
+   (`currency_conversions`). (transactions/api_test.go TestCriticalFXRoundingAndHistoricalRates, conformance fx_lookup)
 
 ## Ledger
 6. Account balance = sum of its non-deleted postings of non-deleted, non-void transactions. Caches

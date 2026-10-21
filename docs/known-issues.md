@@ -42,3 +42,20 @@
   4 per month for an un-ordinaled weekday in a monthly rule).
 - Forecast converts foreign balances at the start-date rate for the whole horizon (constant-rate assumption,
   listed in `assumptions`).
+
+## Ledger core (accounts, ledger, transactions, categories, merchants, currency, exchangerates, attachments)
+- Attachment links are synced through the `attachments` entity; a transaction's `attachmentIds` in its sync
+  snapshot is only refreshed when the transaction itself changes (clients should derive links from attachments).
+- Attachments: only `STORAGE_BACKEND=local` (S3 returns 501); no server-side encryption or virus scan; HEIC/HEIF
+  and office documents are rejected by the sniffing allowlist. A crash between file rename and commit can leave
+  an orphan file (never referenced, never served).
+- Transaction "archiving" is the `void` status (kept, excluded from balances) — there is no separate archive flag.
+- Reconciliation computes the difference and optionally books an `adjustment`; it does not mark individual
+  transactions `reconciled` and keeps no reconciliation history table (the audit log has each run).
+- Cross rates via EUR are rounded once to 18 fraction digits before the single money rounding.
+- Provider refresh runs in-process (goroutine started by `exchangerates.Register` when JOBS_ENABLED); only the
+  Frankfurter/ECB wire format is implemented. On-demand historical fetches are throttled per provider/date for
+  10 minutes per process. Balances/net worth use cached snapshots only (no network on that read path).
+- List endpoints of simple entities (tags, templates, categories, merchants, accounts) page with an offset cursor.
+- Undo applies the previous audit snapshot of a transaction; it cannot undo changes to imported evidence
+  (refused, as any edit would be) and only covers the transaction itself, not linked fee/refund transactions.
