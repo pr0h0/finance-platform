@@ -20,6 +20,7 @@ import (
 	"github.com/pr0h0/finance-platform/apps/api/internal/changes"
 	"github.com/pr0h0/finance-platform/apps/api/internal/httpx"
 	"github.com/pr0h0/finance-platform/apps/api/internal/ledger"
+	"github.com/pr0h0/finance-platform/apps/api/internal/sync"
 )
 
 type Category struct {
@@ -189,6 +190,7 @@ func SeedDefaults(ctx context.Context, tx pgx.Tx, profileID uuid.UUID) (int, err
 // Register mounts this module's routes on the /api/v1 router.
 func Register(r chi.Router, deps *app.Deps) {
 	Entity.Mount(r, deps.DB)
+	sync.RegisterEntity(Entity.Table, Entity.Sync())
 	r.With(httpx.Idempotent(deps.DB)).Post("/categories/defaults", httpx.H(func(w http.ResponseWriter, r *http.Request) error {
 		profileID, _, err := authz.ProfileFromRequest(r, deps.DB, authz.RoleEditor)
 		if err != nil {

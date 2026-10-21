@@ -45,6 +45,14 @@ type Change struct {
 
 var ident = regexp.MustCompile(`^[a-z_][a-z0-9_]*$`)
 
+type opIDKey struct{}
+
+// WithOpID marks every change recorded under ctx as caused by the sync push operation opID, so module
+// service functions need no op-id parameter (the sync push handler sets it around Entity.Upsert/Delete).
+func WithOpID(ctx context.Context, opID uuid.UUID) context.Context {
+	return context.WithValue(ctx, opIDKey{}, opID)
+}
+
 // Record writes the sync change + audit entry and returns the allocated server_version.
 func Record(ctx context.Context, tx pgx.Tx, c Change) (int64, error) {
 	if !ident.MatchString(c.EntityType) {
@@ -52,6 +60,9 @@ func Record(ctx context.Context, tx pgx.Tx, c Change) (int64, error) {
 	}
 	if c.Op != OpUpsert && c.Op != OpDelete {
 		return 0, fmt.Errorf("changes: invalid op %q", c.Op)
+	}
+	if id, ok := ctx.Value(opIDKey{}).(uuid.UUID); ok && c.OpID == nil {
+		c.OpID = &id
 	}
 	var v int64
 	if err := tx.QueryRow(ctx, `UPDATE profiles SET sync_version = sync_version + 1 WHERE id = $1 RETURNING sync_version`,

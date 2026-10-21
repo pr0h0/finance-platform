@@ -16,6 +16,7 @@ import (
 	"github.com/pr0h0/finance-platform/apps/api/internal/authz"
 	"github.com/pr0h0/finance-platform/apps/api/internal/changes"
 	"github.com/pr0h0/finance-platform/apps/api/internal/httpx"
+	"github.com/pr0h0/finance-platform/apps/api/internal/sync"
 )
 
 // Meta is the Syncable part of every entity.
@@ -274,6 +275,68 @@ func (e Entity[T]) Mount(r chi.Router, db *pgxpool.Pool) {
 		w.WriteHeader(http.StatusNoContent)
 		return nil
 	}))
+}
+
+// Sync is the sync push adapter for the entity (docs/architecture/sync-protocol.md): the client's full
+// API-shaped object goes through the same Write validation as REST; read-only fields are ignored.
+func (e Entity[T]) Sync(moneyFields ...string) sync.Entity {
+	decode := func(id, profileID uuid.UUID, data json.RawMessage) (*T, error) {
+		in := new(T)
+		if e.New != nil {
+			in = e.New()
+		}
+		if err := json.Unmarshal(data, in); err != nil {
+			return nil, httpx.Validation(map[string]string{"data": err.Error()})
+		}
+		*e.GetMeta(in) = Meta{ID: id, ProfileID: profileID}
+		return in, nil
+	}
+	return sync.Entity{
+		MoneyFields: moneyFields,
+		Load: func(ctx context.Context, tx pgx.Tx, profileID, id uuid.UUID) (any, bool, error) {
+			v, err := e.Scan(tx.QueryRow(ctx, `SELECT `+MetaCols+`, `+e.Cols+` FROM `+e.Table+` WHERE id = $1 AND profile_id = $2`, id, profileID))
+			if err != nil {
+				return nil, false, err
+			}
+			return v, e.GetMeta(v).DeletedAt != nil, nil
+		},
+		Upsert: func(ctx context.Context, tx pgx.Tx, profileID, id uuid.UUID, data json.RawMessage, create bool, _ *uuid.UUID) error {
+			in, err := decode(id, profileID, data)
+			if err != nil {
+				return err
+			}
+			var cur *T
+			verb := "create"
+			if !create {
+				if cur, err = e.Get(ctx, tx, profileID, id, true); err != nil {
+					return err
+				}
+				*e.GetMeta(in) = *e.GetMeta(cur)
+				verb = "update"
+			}
+			if err := e.Write(ctx, tx, profileID, id, in, cur); err != nil {
+				return err
+			}
+			_, err = e.Record(ctx, tx, profileID, id, changes.OpUpsert, cur, verb)
+			return err
+		},
+		Delete: func(ctx context.Context, tx pgx.Tx, profileID, id uuid.UUID, _ *uuid.UUID) error {
+			cur, err := e.Get(ctx, tx, profileID, id, true)
+			if err != nil {
+				return err
+			}
+			if e.BeforeDelete != nil {
+				if err := e.BeforeDelete(ctx, tx, profileID, cur); err != nil {
+					return err
+				}
+			}
+			if _, err := tx.Exec(ctx, `UPDATE `+e.Table+` SET deleted_at = now(), version = version + 1 WHERE id = $1`, id); err != nil {
+				return err
+			}
+			_, err = e.Record(ctx, tx, profileID, id, changes.OpDelete, cur, "delete")
+			return err
+		},
+	}
 }
 
 // InTx runs fn in a transaction and commits when it returns nil. Write the response after InTx returns.

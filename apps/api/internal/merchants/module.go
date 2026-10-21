@@ -20,6 +20,7 @@ import (
 	"github.com/pr0h0/finance-platform/apps/api/internal/authz"
 	"github.com/pr0h0/finance-platform/apps/api/internal/httpx"
 	"github.com/pr0h0/finance-platform/apps/api/internal/ledger"
+	"github.com/pr0h0/finance-platform/apps/api/internal/sync"
 )
 
 type Merchant struct {
@@ -182,4 +183,5 @@ func Register(r chi.Router, deps *app.Deps) {
 		return nil
 	}))
 	Entity.Mount(r, deps.DB)
+	sync.RegisterEntity(Entity.Table, Entity.Sync())
 }

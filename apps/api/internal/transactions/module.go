@@ -20,6 +20,7 @@ import (
 	"github.com/pr0h0/finance-platform/apps/api/internal/httpx"
 	"github.com/pr0h0/finance-platform/apps/api/internal/ledger"
 	"github.com/pr0h0/finance-platform/apps/api/internal/money"
+	"github.com/pr0h0/finance-platform/apps/api/internal/sync"
 )
 
 // Register mounts this module's routes on the /api/v1 router.
@@ -28,6 +29,10 @@ func Register(r chi.Router, deps *app.Deps) {
 	tags.Mount(r, db)
 	templates.Mount(r, db)
 	splitTemplates.Mount(r, db)
+	sync.RegisterEntity(tags.Table, tags.Sync())
+	sync.RegisterEntity(templates.Table, templates.Sync("amount"))
+	sync.RegisterEntity(splitTemplates.Table, splitTemplates.Sync("lines"))
+	sync.RegisterEntity("transactions", syncEntity)
 
 	r.Get("/transactions", httpx.H(func(w http.ResponseWriter, r *http.Request) error {
 		profileID, _, err := authz.ProfileFromRequest(r, db, authz.RoleViewer)

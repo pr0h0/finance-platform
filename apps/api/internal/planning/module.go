@@ -23,6 +23,9 @@ import (
 
 // Register mounts this module's routes on the /api/v1 router.
 func Register(r chi.Router, deps *app.Deps) {
+	syncPlans.Register()
+	syncSubscriptions.Register()
+	syncOccurrences.Register()
 	h := handlers{deps}
 	idem := httpx.Idempotent(deps.DB)
 	r.Get("/plans", httpx.H(h.listPlans))

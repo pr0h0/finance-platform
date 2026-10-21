@@ -82,6 +82,10 @@ type PlanInput struct {
 	ReminderDaysBefore *int              `json:"reminderDaysBefore"`
 	Notes              string            `json:"notes"`
 	Version            *int              `json:"version,omitempty"`
+	// syncRecurrence: the schedule is its own recurrence_schedules entity (sync clients); the plan only
+	// points at recurrenceID and Recurrence is a read-only copy used for validation.
+	syncRecurrence bool
+	recurrenceID   *uuid.UUID
 }
 
 var (
@@ -236,8 +240,8 @@ func CreatePlan(ctx context.Context, tx pgx.Tx, profileID uuid.UUID, in PlanInpu
 	if err := in.validate(ctx, tx, profileID); err != nil {
 		return Plan{}, err
 	}
-	var recID *uuid.UUID
-	if in.Recurrence != nil {
+	recID := in.recurrenceID
+	if in.Recurrence != nil && !in.syncRecurrence {
 		s, err := recurrence.Create(ctx, tx, profileID, *in.Recurrence)
 		if err != nil {
 			return Plan{}, err
@@ -274,6 +278,8 @@ func UpdatePlan(ctx context.Context, tx pgx.Tx, profileID uuid.UUID, cur Plan, i
 	}
 	recID := cur.RecurrenceID
 	switch {
+	case in.syncRecurrence:
+		recID = in.recurrenceID
 	case in.Recurrence == nil && cur.Recurrence != nil:
 		if err := recurrence.Delete(ctx, tx, profileID, *cur.Recurrence); err != nil {
 			return cur, err

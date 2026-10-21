@@ -77,6 +77,9 @@ type Input struct {
 	IsArchived      *bool             `json:"isArchived"`
 	Allocations     []AllocationInput `json:"allocations"`
 	Version         *int              `json:"version,omitempty"`
+	// keepAllocations: a nil Allocations leaves the stored ones alone (sync, where allocations are
+	// their own budget_allocations entity) instead of clearing them.
+	keepAllocations bool
 }
 
 var rolloverPolicies = []string{"none", "carry_surplus", "carry_deficit", "carry_both"}
@@ -266,8 +269,10 @@ func Update(ctx context.Context, tx pgx.Tx, profileID uuid.UUID, cur Budget, in 
 		in.RolloverPolicy, *in.IncludePlanned, in.AlertThresholds, isTemplate, in.TemplateID, archived); err != nil {
 		return cur, err
 	}
-	if err := replaceAllocations(ctx, tx, profileID, cur.ID, in.Allocations); err != nil {
-		return cur, err
+	if in.Allocations != nil || !in.keepAllocations {
+		if err := replaceAllocations(ctx, tx, profileID, cur.ID, in.Allocations); err != nil {
+			return cur, err
+		}
 	}
 	return record(ctx, tx, profileID, cur.ID, cur, "budget.update")
 }

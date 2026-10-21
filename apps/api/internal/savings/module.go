@@ -19,6 +19,8 @@ import (
 
 // Register mounts this module's routes on the /api/v1 router.
 func Register(r chi.Router, deps *app.Deps) {
+	syncGoals.Register()
+	syncContributions.Register()
 	db := deps.DB
 	idem := httpx.Idempotent(db)
 	profile := func(r *http.Request, role authz.Role) (fin.Profile, error) {

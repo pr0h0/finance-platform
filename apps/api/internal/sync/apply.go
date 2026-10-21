@@ -207,6 +207,7 @@ func applyPlain(ctx context.Context, tx pgx.Tx, profileID uuid.UUID, op *Operati
 		}
 	}
 	opID := op.OpID
+	ctx = changes.WithOpID(ctx, opID)
 	write := func(data json.RawMessage, create bool) error {
 		err := ent.Upsert(ctx, tx, profileID, op.EntityID, data, create, &opID)
 		if isUniqueViolation(err) {

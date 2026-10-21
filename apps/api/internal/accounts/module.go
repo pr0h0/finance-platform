@@ -21,6 +21,7 @@ import (
 	"github.com/pr0h0/finance-platform/apps/api/internal/httpx"
 	"github.com/pr0h0/finance-platform/apps/api/internal/ledger"
 	"github.com/pr0h0/finance-platform/apps/api/internal/money"
+	"github.com/pr0h0/finance-platform/apps/api/internal/sync"
 )
 
 // Account is the API shape (OpenAPI Account). Balances are computed from postings (never stored);
@@ -197,6 +198,7 @@ type accountType struct {
 // Register mounts this module's routes on the /api/v1 router.
 func Register(r chi.Router, deps *app.Deps) {
 	Entity.Mount(r, deps.DB)
+	sync.RegisterEntity(Entity.Table, Entity.Sync("currency", "creditLimit"))
 	r.Get("/account-types", httpx.H(func(w http.ResponseWriter, r *http.Request) error {
 		if _, err := authz.Require(r.Context()); err != nil {
 			return err

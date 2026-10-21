@@ -217,6 +217,7 @@ type OccurrenceUpdate struct {
 	MatchedTransactionID *uuid.UUID   `json:"matchedTransactionId"`
 	AmountOverride       *money.Money `json:"amountOverride"`
 	DateOverride         *string      `json:"dateOverride"`
+	id                   *uuid.UUID   // client-chosen row id (sync push); only used when the row is new
 }
 
 // SetOccurrence matches / skips / marks paid / overrides one occurrence (identified by its nominal date).
@@ -276,8 +277,8 @@ func SetOccurrence(ctx context.Context, tx pgx.Tx, profileID uuid.UUID, p Plan, 
 		return OccurrenceRow{}, err
 	}
 	if before == nil {
-		_, err = tx.Exec(ctx, `INSERT INTO planned_occurrences (profile_id, planned_transaction_id, occurrence_date, status, amount_override, date_override, matched_transaction_id)
-			VALUES ($1,$2,$3,$4,$5,$6,$7)`, profileID, p.ID, nominal, u.Status, optNumeric(u.AmountOverride), u.DateOverride, u.MatchedTransactionID)
+		_, err = tx.Exec(ctx, `INSERT INTO planned_occurrences (id, profile_id, planned_transaction_id, occurrence_date, status, amount_override, date_override, matched_transaction_id)
+			VALUES (COALESCE($8, gen_random_uuid()),$1,$2,$3,$4,$5,$6,$7)`, profileID, p.ID, nominal, u.Status, optNumeric(u.AmountOverride), u.DateOverride, u.MatchedTransactionID, u.id)
 	} else {
 		_, err = tx.Exec(ctx, `UPDATE planned_occurrences SET status=$3, amount_override=$4, date_override=$5, matched_transaction_id=$6,
 			version = version + 1 WHERE id = $1 AND profile_id = $2`, before.ID, profileID, u.Status, optNumeric(u.AmountOverride), u.DateOverride, u.MatchedTransactionID)

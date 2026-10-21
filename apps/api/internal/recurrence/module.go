@@ -173,6 +173,7 @@ func record(ctx context.Context, tx pgx.Tx, s Schedule, before any, action strin
 
 // Register mounts this module's routes on the /api/v1 router.
 func Register(r chi.Router, deps *app.Deps) {
+	syncEntity.Register()
 	r.Get("/recurrences", httpx.H(func(w http.ResponseWriter, r *http.Request) error {
 		pid, _, err := authz.ProfileFromRequest(r, deps.DB, authz.RoleViewer)
 		if err != nil {
