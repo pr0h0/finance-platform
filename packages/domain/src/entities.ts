@@ -304,6 +304,7 @@ export interface PlannedTransaction extends Syncable {
   installmentStart: number | null;
   reminderDaysBefore: number | null;
   notes: string;
+  supersedesId: Uuid | null; // plan this one replaced (subscription price change)
 }
 
 export interface PlannedOccurrence extends Syncable {
@@ -378,6 +379,12 @@ export interface SavingsContribution extends Syncable {
   contributionDate: IsoDate;
   transactionId: Uuid | null;
   notes: string;
+}
+
+/** A user's dismissal of an unusual-expense flag (rule = anomaly rule name). */
+export interface AnomalyDismissal extends Syncable {
+  transactionId: Uuid;
+  rule: 'large_for_category' | 'new_merchant_large';
 }
 
 export interface CategorizationRule extends Syncable {

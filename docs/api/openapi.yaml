@@ -2201,6 +2201,11 @@ paths:
       operationId: "get_plans"
       parameters:
         - $ref: "#/components/parameters/ProfileHeader"
+        - name: "status"
+          in: "query"
+          schema:
+            type: "string"
+            enum: ["active", "paused", "completed", "cancelled"]
         - $ref: "#/components/parameters/Limit"
         - $ref: "#/components/parameters/Cursor"
       responses:
@@ -2712,6 +2717,11 @@ paths:
             type: "string"
         - $ref: "#/components/parameters/AccountIds"
         - $ref: "#/components/parameters/Currency"
+        - name: "reserve"
+          in: "query"
+          description: "Minimum reserve kept out of safe-to-spend (decimal in the forecast currency); default profile setting forecast.minimumReserve, else 0."
+          schema:
+            $ref: "#/components/schemas/Decimal"
       responses:
         "200":
           description: "OK"
@@ -2726,9 +2736,16 @@ paths:
       tags: ["forecasting"]
       summary: "Safe-to-spend until next income"
       operationId: "get_forecasts_safe_to_spend"
+      description: "Lowest conservative projected balance until the day before the next expected income (at most 31 days) minus the reserve, floored at 0."
       parameters:
         - $ref: "#/components/parameters/ProfileHeader"
         - $ref: "#/components/parameters/Currency"
+        - $ref: "#/components/parameters/AccountIds"
+        - name: "reserve"
+          in: "query"
+          description: "Minimum reserve kept out of safe-to-spend (decimal in the forecast currency); default profile setting forecast.minimumReserve, else 0."
+          schema:
+            $ref: "#/components/schemas/Decimal"
       responses:
         "200":
           description: "OK"
@@ -2741,10 +2758,25 @@ paths:
                     $ref: "#/components/schemas/Money"
                   until:
                     $ref: "#/components/schemas/Date"
+                  reserve:
+                    $ref: "#/components/schemas/Money"
+                  lowest:
+                    type: "object"
+                    properties:
+                      date:
+                        $ref: "#/components/schemas/Date"
+                      amount:
+                        $ref: "#/components/schemas/Money"
                   assumptions:
                     type: "array"
                     items:
                       type: "string"
+                  warnings:
+                    type: "array"
+                    items:
+                      type: "string"
+                  complete:
+                    type: "boolean"
                 additionalProperties: false
         default:
           $ref: "#/components/responses/Error"
@@ -2817,7 +2849,53 @@ paths:
                       - type: "null"
                   onTrack:
                     type: "boolean"
+                  basis:
+                    type: "string"
+                  saved:
+                    $ref: "#/components/schemas/Money"
+                  progress:
+                    $ref: "#/components/schemas/Decimal"
                 additionalProperties: false
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/goals/emergency-fund:
+    get:
+      tags: ["savings"]
+      summary: "Emergency fund coverage (months of essential expenses)"
+      operationId: "get_goals_emergency_fund"
+      parameters:
+        - $ref: "#/components/parameters/ProfileHeader"
+        - $ref: "#/components/parameters/Currency"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmergencyFund"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/analytics/conversion-fees:
+    get:
+      tags: ["analytics"]
+      summary: "Recorded currency-conversion fees by period and pair"
+      operationId: "get_analytics_conversion_fees"
+      parameters:
+        - $ref: "#/components/parameters/ProfileHeader"
+        - $ref: "#/components/parameters/From"
+        - $ref: "#/components/parameters/To"
+        - $ref: "#/components/parameters/Currency"
+        - name: "interval"
+          in: "query"
+          schema:
+            type: "string"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalyticsRows"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/analytics/spending-by-category:
@@ -2937,8 +3015,22 @@ paths:
       tags: ["analytics"]
       summary: "Period comparison"
       operationId: "get_analytics_compare"
+      description: "Compares [from, to] with [compareFrom, compareTo] (default: the preceding period of equal length; mode=year_ago: the same dates a year earlier). groupBy: category (top-level, default), merchant, total."
       parameters:
         - $ref: "#/components/parameters/ProfileHeader"
+        - name: "compareFrom"
+          in: "query"
+          schema:
+            $ref: "#/components/schemas/Date"
+        - name: "compareTo"
+          in: "query"
+          schema:
+            $ref: "#/components/schemas/Date"
+        - name: "mode"
+          in: "query"
+          schema:
+            type: "string"
+            enum: ["previous", "year_ago"]
         - $ref: "#/components/parameters/From"
         - $ref: "#/components/parameters/To"
         - $ref: "#/components/parameters/Currency"
@@ -3155,12 +3247,17 @@ paths:
   /api/v1/analytics/anomalies:
     get:
       tags: ["analytics"]
-      summary: "Unusual expenses"
+      summary: "Unusual expenses (transparent rules, see Anomaly.rule)"
       operationId: "get_analytics_anomalies"
       parameters:
         - $ref: "#/components/parameters/ProfileHeader"
         - $ref: "#/components/parameters/From"
         - $ref: "#/components/parameters/To"
+        - $ref: "#/components/parameters/Currency"
+        - name: "includeDismissed"
+          in: "query"
+          schema:
+            type: "boolean"
       responses:
         "200":
           description: "OK"
@@ -3172,10 +3269,53 @@ paths:
                   items:
                     type: "array"
                     items:
-                      $ref: "#/components/schemas/Transaction"
+                      $ref: "#/components/schemas/Anomaly"
                   nextCursor:
                     type: "string"
                 required: ["items"]
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/analytics/anomalies/{transactionId}/dismiss:
+    post:
+      tags: ["analytics"]
+      summary: "Dismiss an anomaly flag (idempotent)"
+      operationId: "post_analytics_anomalies_dismiss"
+      parameters:
+        - $ref: "#/components/parameters/ProfileHeader"
+        - name: "transactionId"
+          in: "path"
+          required: true
+          schema:
+            $ref: "#/components/schemas/Uuid"
+        - name: "rule"
+          in: "query"
+          required: true
+          schema:
+            type: "string"
+      responses:
+        "204":
+          description: "No content"
+        default:
+          $ref: "#/components/responses/Error"
+    delete:
+      tags: ["analytics"]
+      summary: "Undo a dismissal"
+      operationId: "delete_analytics_anomalies_dismiss"
+      parameters:
+        - $ref: "#/components/parameters/ProfileHeader"
+        - name: "transactionId"
+          in: "path"
+          required: true
+          schema:
+            $ref: "#/components/schemas/Uuid"
+        - name: "rule"
+          in: "query"
+          required: true
+          schema:
+            type: "string"
+      responses:
+        "204":
+          description: "No content"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/reports/{kind}:
@@ -3940,7 +4080,32 @@ paths:
                   $ref: "#/components/schemas/Date"
                 to:
                   $ref: "#/components/schemas/Date"
+                overwrite:
+                  description: "Also change transactions the user categorized (default false)."
+                  type: "boolean"
               additionalProperties: false
+      responses:
+        "200":
+          description: "OK"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RuleApplyResult"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/rules/applications/{applicationId}/undo:
+    post:
+      tags: ["automation"]
+      summary: "Revert a rule application (transactions edited since are reported in failed)"
+      operationId: "post_rules_applications_undo"
+      parameters:
+        - $ref: "#/components/parameters/ProfileHeader"
+        - name: "applicationId"
+          in: "path"
+          required: true
+          schema:
+            $ref: "#/components/schemas/Uuid"
+        - $ref: "#/components/parameters/IdempotencyKey"
       responses:
         "200":
           description: "OK"
@@ -6382,6 +6547,34 @@ components:
                 - type: "null"
             notes:
               type: "string"
+            recurrence:
+              description: "The plan's schedule (also synced on its own as recurrence_schedules); null = one-off. dueDate equals recurrence.startDate."
+              oneOf:
+                - $ref: "#/components/schemas/Recurrence"
+                - type: "null"
+            supersedesId:
+              description: "Plan this one replaced (subscription price change)."
+              oneOf:
+                - $ref: "#/components/schemas/Uuid"
+                - type: "null"
+            installments:
+              description: "Present for installment plans (installmentTotal set)."
+              type: "object"
+              properties:
+                total:
+                  type: "integer"
+                paid:
+                  type: "integer"
+                remaining:
+                  type: "integer"
+                paidAmount:
+                  $ref: "#/components/schemas/Money"
+                outstanding:
+                  $ref: "#/components/schemas/Money"
+                nextDueDate:
+                  oneOf:
+                    - $ref: "#/components/schemas/Date"
+                    - type: "null"
           additionalProperties: false
     PlanInput:
       type: "object"
@@ -6422,6 +6615,7 @@ components:
         dueDate:
           $ref: "#/components/schemas/Date"
         recurrence:
+          description: "startDate defaults to dueDate. PATCH with null turns the plan into a one-off."
           oneOf:
             - $ref: "#/components/schemas/RecurrenceInput"
             - type: "null"
@@ -6432,6 +6626,11 @@ components:
         status:
           type: "string"
         installmentTotal:
+          oneOf:
+            - type: "integer"
+            - type: "null"
+        installmentStart:
+          description: "Number of the first tracked installment (earlier ones already paid). Default 1."
           oneOf:
             - type: "integer"
             - type: "null"
@@ -6457,7 +6656,32 @@ components:
         plannedTransactionId:
           $ref: "#/components/schemas/Uuid"
         date:
+          description: "Effective due date (date override, else weekend-adjusted rule date)."
           $ref: "#/components/schemas/Date"
+        nominalDate:
+          description: "Rule date: the occurrence identity used in PUT /plans/{id}/occurrences/{date}."
+          $ref: "#/components/schemas/Date"
+        kind:
+          type: "string"
+          enum: ["income", "expense", "transfer"]
+        accountId:
+          oneOf:
+            - $ref: "#/components/schemas/Uuid"
+            - type: "null"
+        toAccountId:
+          oneOf:
+            - $ref: "#/components/schemas/Uuid"
+            - type: "null"
+        categoryId:
+          oneOf:
+            - $ref: "#/components/schemas/Uuid"
+            - type: "null"
+        merchantId:
+          oneOf:
+            - $ref: "#/components/schemas/Uuid"
+            - type: "null"
+        overdue:
+          type: "boolean"
         amount:
           $ref: "#/components/schemas/Money"
         status:
@@ -6544,9 +6768,45 @@ components:
             notes:
               type: "string"
             amount:
-              $ref: "#/components/schemas/Money"
+              description: "Current price (linked plan amount); null without a plan."
+              oneOf:
+                - $ref: "#/components/schemas/Money"
+                - type: "null"
+            rrule:
+              oneOf:
+                - type: "string"
+                - type: "null"
             annualized:
-              $ref: "#/components/schemas/Money"
+              description: "amount x occurrences per year (exact fraction, rounded once half-up)."
+              oneOf:
+                - $ref: "#/components/schemas/Money"
+                - type: "null"
+            monthly:
+              oneOf:
+                - $ref: "#/components/schemas/Money"
+                - type: "null"
+            accountId:
+              oneOf:
+                - $ref: "#/components/schemas/Uuid"
+                - type: "null"
+            categoryId:
+              oneOf:
+                - $ref: "#/components/schemas/Uuid"
+                - type: "null"
+            priceHistory:
+              description: "Newest first; each price change ends the previous series."
+              type: "array"
+              items:
+                type: "object"
+                properties:
+                  amount:
+                    $ref: "#/components/schemas/Money"
+                  from:
+                    $ref: "#/components/schemas/Date"
+                  to:
+                    oneOf:
+                      - $ref: "#/components/schemas/Date"
+                      - type: "null"
             nextDate:
               oneOf:
                 - $ref: "#/components/schemas/Date"
@@ -6581,6 +6841,26 @@ components:
           type: "string"
         notes:
           type: "string"
+        amount:
+          description: "Price. On create (without plannedTransactionId) a billing plan is created; on update a different amount is a price change from effectiveDate."
+          $ref: "#/components/schemas/Money"
+        rrule:
+          description: "Billing schedule, default FREQ=MONTHLY."
+          type: "string"
+        nextDate:
+          description: "First billing date on create (default: trialEndsAt for trials, else today)."
+          $ref: "#/components/schemas/Date"
+        accountId:
+          oneOf:
+            - $ref: "#/components/schemas/Uuid"
+            - type: "null"
+        categoryId:
+          oneOf:
+            - $ref: "#/components/schemas/Uuid"
+            - type: "null"
+        effectiveDate:
+          description: "Price change takes effect from the first billing on/after this date (default today)."
+          $ref: "#/components/schemas/Date"
         version:
           type: "integer"
       required: ["name"]
@@ -6684,6 +6964,8 @@ components:
           oneOf:
             - $ref: "#/components/schemas/Uuid"
             - type: "null"
+        isArchived:
+          type: "boolean"
         allocations:
           type: "array"
           items:
@@ -6695,6 +6977,10 @@ components:
                   - type: "null"
               amount:
                 $ref: "#/components/schemas/Money"
+              rolloverPolicy:
+                oneOf:
+                  - $ref: "#/components/schemas/RolloverPolicy"
+                  - type: "null"
             additionalProperties: false
         version:
           type: "integer"
@@ -6709,6 +6995,15 @@ components:
           $ref: "#/components/schemas/Date"
         periodEnd:
           $ref: "#/components/schemas/Date"
+        periodStatus:
+          type: "string"
+          enum: ["open", "closed"]
+        complete:
+          type: "boolean"
+        missingRates:
+          type: "array"
+          items:
+            $ref: "#/components/schemas/MissingRate"
         lines:
           type: "array"
           items:
@@ -6729,7 +7024,15 @@ components:
               remaining:
                 $ref: "#/components/schemas/Money"
               utilization:
-                $ref: "#/components/schemas/Decimal"
+                description: "actual / (limit + rolloverIn), 4 decimals; null when that is <= 0."
+                oneOf:
+                  - $ref: "#/components/schemas/Decimal"
+                  - type: "null"
+              projectedUtilization:
+                description: "(actual + planned) / (limit + rolloverIn)."
+                oneOf:
+                  - $ref: "#/components/schemas/Decimal"
+                  - type: "null"
               alert:
                 oneOf:
                   - $ref: "#/components/schemas/Decimal"
@@ -6797,6 +7100,14 @@ components:
               oneOf:
                 - $ref: "#/components/schemas/Money"
                 - type: "null"
+            progress:
+              description: "saved / targetAmount (4 decimals)."
+              $ref: "#/components/schemas/Decimal"
+            onTrack:
+              type: "boolean"
+            basis:
+              description: "How estimatedCompletion was derived: planned (plans into the goal account), history (6-month average contributions), reached, inactive."
+              type: "string"
           additionalProperties: false
     GoalInput:
       type: "object"
@@ -6879,6 +7190,9 @@ components:
           $ref: "#/components/schemas/Date"
         to:
           $ref: "#/components/schemas/Date"
+        start:
+          description: "Total starting balance (today, all included accounts)."
+          $ref: "#/components/schemas/Money"
         days:
           type: "array"
           items:
@@ -6905,6 +7219,15 @@ components:
                       $ref: "#/components/schemas/Confidence"
                     sourceId:
                       $ref: "#/components/schemas/Uuid"
+                    accountId:
+                      oneOf:
+                        - $ref: "#/components/schemas/Uuid"
+                        - type: "null"
+                    kind:
+                      type: "string"
+                      enum: ["income", "expense", "transfer", "posted", "adjustment"]
+                    inExpected:
+                      type: "boolean"
                   additionalProperties: false
             additionalProperties: false
         lowest:
@@ -6925,12 +7248,39 @@ components:
               amount:
                 $ref: "#/components/schemas/Money"
               accountId:
-                $ref: "#/components/schemas/Uuid"
+                description: "null = all included accounts together"
+                oneOf:
+                  - $ref: "#/components/schemas/Uuid"
+                  - type: "null"
+              until:
+                description: "Last negative day; null = still negative at the end of the range."
+                oneOf:
+                  - $ref: "#/components/schemas/Date"
+                  - type: "null"
+              scenario:
+                type: "string"
+                enum: ["expected", "conservative"]
             additionalProperties: false
         monthEnd:
           $ref: "#/components/schemas/Money"
         safeToSpend:
           $ref: "#/components/schemas/Money"
+        safeToSpendUntil:
+          $ref: "#/components/schemas/Date"
+        reserve:
+          $ref: "#/components/schemas/Money"
+        lowestConservative:
+          type: "object"
+          properties:
+            date:
+              $ref: "#/components/schemas/Date"
+            amount:
+              $ref: "#/components/schemas/Money"
+          additionalProperties: false
+        missingRates:
+          type: "array"
+          items:
+            $ref: "#/components/schemas/MissingRate"
         assumptions:
           type: "array"
           items:
@@ -6953,6 +7303,8 @@ components:
             $ref: "#/components/schemas/Uuid"
         currency:
           type: "string"
+        reserve:
+          $ref: "#/components/schemas/Money"
         adjustments:
           type: "array"
           items:
@@ -6996,6 +7348,29 @@ components:
                 type: "integer"
               period:
                 type: "string"
+              parentKey:
+                type: "string"
+              previous:
+                description: "Comparison value (compare, trends)."
+                $ref: "#/components/schemas/Money"
+              change:
+                description: "(amount - previous) / |previous|"
+                $ref: "#/components/schemas/Decimal"
+              planned:
+                $ref: "#/components/schemas/Money"
+              actual:
+                $ref: "#/components/schemas/Money"
+              variance:
+                $ref: "#/components/schemas/Money"
+              allocated:
+                description: "Smoothed/annual amount (plans/annual, recurring-costs)."
+                $ref: "#/components/schemas/Money"
+              native:
+                description: "Amount in its own currency (currency-exposure, recurring-costs)."
+                $ref: "#/components/schemas/Money"
+              value:
+                description: "Non-money metric (savings rate, share, date) as a string."
+                type: "string"
         total:
           $ref: "#/components/schemas/Money"
         complete:
@@ -7016,6 +7391,145 @@ components:
               date:
                 $ref: "#/components/schemas/Date"
             additionalProperties: false
+      additionalProperties: false
+    MissingRate:
+      type: "object"
+      properties:
+        from:
+          type: "string"
+        to:
+          type: "string"
+        date:
+          $ref: "#/components/schemas/Date"
+      additionalProperties: false
+    RuleCondition:
+      type: "object"
+      description: "All conditions of a rule must match. Text fields: contains|equals|starts_with|regex (RE2, <= 256 chars), case-insensitive unless caseSensitive. amount compares the absolute amount: eq|lt|lte|gt|gte. accountId|merchantId: equals. direction: equals debit|credit."
+      properties:
+        field:
+          type: "string"
+          enum: ["description", "payee", "counterparty", "amount", "accountId", "merchantId", "direction"]
+        op:
+          type: "string"
+          enum: ["contains", "equals", "starts_with", "regex", "eq", "lt", "lte", "gt", "gte"]
+        value:
+          type: "string"
+        caseSensitive:
+          type: "boolean"
+      required: ["field", "op", "value"]
+      additionalProperties: false
+    RuleAction:
+      type: "object"
+      properties:
+        type:
+          type: "string"
+          enum: ["set_category", "set_merchant", "add_tag", "set_description", "apply_split_template", "exclude_from_reports"]
+        categoryId:
+          $ref: "#/components/schemas/Uuid"
+        merchantId:
+          $ref: "#/components/schemas/Uuid"
+        tagId:
+          $ref: "#/components/schemas/Uuid"
+        splitTemplateId:
+          $ref: "#/components/schemas/Uuid"
+        value:
+          type: "string"
+      required: ["type"]
+      additionalProperties: false
+    RuleApplyResult:
+      type: "object"
+      properties:
+        applicationId:
+          description: "Pass to POST /rules/applications/{applicationId}/undo; null when nothing changed."
+          oneOf:
+            - $ref: "#/components/schemas/Uuid"
+            - type: "null"
+        dryRun:
+          type: "boolean"
+        matched:
+          type: "array"
+          items:
+            $ref: "#/components/schemas/Uuid"
+        updated:
+          type: "integer"
+        failed:
+          type: "array"
+          items:
+            type: "object"
+            properties:
+              id:
+                $ref: "#/components/schemas/Uuid"
+              code:
+                type: "string"
+              message:
+                type: "string"
+            additionalProperties: false
+      additionalProperties: false
+    Anomaly:
+      type: "object"
+      properties:
+        transactionId:
+          $ref: "#/components/schemas/Uuid"
+        date:
+          $ref: "#/components/schemas/Date"
+        description:
+          type: "string"
+        amount:
+          $ref: "#/components/schemas/Money"
+        categoryId:
+          oneOf:
+            - $ref: "#/components/schemas/Uuid"
+            - type: "null"
+        merchantId:
+          oneOf:
+            - $ref: "#/components/schemas/Uuid"
+            - type: "null"
+        rule:
+          type: "string"
+          enum: ["large_for_category", "new_merchant_large"]
+        explanation:
+          type: "string"
+        baseline:
+          description: "Median the amount was compared with."
+          $ref: "#/components/schemas/Money"
+        dismissed:
+          type: "boolean"
+      additionalProperties: false
+    EmergencyFund:
+      type: "object"
+      properties:
+        currency:
+          type: "string"
+        reserves:
+          $ref: "#/components/schemas/Money"
+        essentialMonthly:
+          $ref: "#/components/schemas/Money"
+        monthsCovered:
+          oneOf:
+            - $ref: "#/components/schemas/Decimal"
+            - type: "null"
+        targetMonths:
+          type: "integer"
+        target:
+          $ref: "#/components/schemas/Money"
+        shortfall:
+          $ref: "#/components/schemas/Money"
+        reservesBasis:
+          type: "string"
+          enum: ["emergency_fund_goals", "liquid_accounts"]
+        expensesBasis:
+          type: "string"
+          enum: ["essential_plans", "average_spending_6_months"]
+        assumptions:
+          type: "array"
+          items:
+            type: "string"
+        complete:
+          type: "boolean"
+        missingRates:
+          type: "array"
+          items:
+            $ref: "#/components/schemas/MissingRate"
       additionalProperties: false
     Insight:
       type: "object"
@@ -7275,11 +7789,11 @@ components:
             conditions:
               type: "array"
               items:
-                type: "object"
+                $ref: "#/components/schemas/RuleCondition"
             actions:
               type: "array"
               items:
-                type: "object"
+                $ref: "#/components/schemas/RuleAction"
             enabled:
               type: "boolean"
             stopProcessing:
@@ -7303,11 +7817,11 @@ components:
         conditions:
           type: "array"
           items:
-            type: "object"
+            $ref: "#/components/schemas/RuleCondition"
         actions:
           type: "array"
           items:
-            type: "object"
+            $ref: "#/components/schemas/RuleAction"
         enabled:
           type: "boolean"
         stopProcessing:
@@ -7364,6 +7878,11 @@ components:
             $ref: "#/components/schemas/Uuid"
         confidence:
           $ref: "#/components/schemas/Decimal"
+        nextDate:
+          $ref: "#/components/schemas/Date"
+        cadence:
+          type: "string"
+          enum: ["weekly", "biweekly", "monthly", "quarterly", "yearly"]
       additionalProperties: false
     Notification:
       type: "object"

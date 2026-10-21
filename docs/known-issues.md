@@ -29,9 +29,8 @@
 - Go conformance runner (`apps/api/internal/conformance_test`) runs recurrence, subscriptions and fx_lookup;
   aggregation, budgets and forecast fixtures are skipped until the Go modules export pure functions over
   in-memory data.
-- `analytics/fin.Converter` lets a provider EUR/BAM quote newer than the seeded 1999 fixed row override the
-  1.95583 parity (violates invariant 5); `exchangerates.Lookup` is correct. The 3 cases are skipped by name in
-  the Go runner (`finConverterDivergence`) — remove them once fixed.
+- (fixed) `analytics/fin.Converter` now delegates rate selection to `exchangerates.Lookup`; the EUR/BAM fixed-parity
+  conformance cases run in the Go runner.
 - Rule regexes run on the JS engine; only the RE2-compatible subset is guaranteed to behave like Go. Patterns
   are capped at 256 chars (no other ReDoS protection on the client).
 - Budget `utilization` is `null` when the limit is <= 0 (OpenAPI `BudgetStatus` types it as non-null Decimal).
@@ -80,3 +79,23 @@
   e2ee profile is refused server-side. Restore of foreign-key cycles between different tables is not
   supported (none exist in the current schema).
 - Audit `from`/`to` filters are UTC calendar days.
+
+## Planning, budgets, forecasting, analytics, automation, notifications (Go API)
+- No holiday calendar: business-day adjustment only moves Saturday/Sunday.
+- Plan occurrences moved by a date override more than 62 days away from their rule date are not found by
+  range queries (expansion window). `PUT /plans/{id}/occurrences/{date}` keeps working.
+- Forecasts value future amounts at today's rate (constant-rate assumption, listed in `assumptions`).
+- Annual planning returns smoothed monthly amounts; it does not write them into budget allocations.
+- Budget `alert` uses actual spending only; `projectedUtilization` shows actual + planned.
+- Anomaly and recurring detection use fixed thresholds (documented in docs/architecture/planning-analytics.md);
+  no per-profile tuning yet.
+- Notifications are in-app only; the `email`/`push` channels are not delivered. The generator runs every
+  15 minutes when `JOBS_ENABLED`; there is no admin trigger endpoint.
+- `/analytics/import-coverage` uses `import_batches.coverage_start/end`; the imports module's `/imports/coverage`
+  is the richer statement-level view.
+- `automation.ApplyRules` must be called by the transactions/imports modules for new transactions; until
+  they do, rules run only via `POST /rules/{id}/apply`.
+- Shared conformance families `budgets`, `forecast` and `aggregation` still lack Go runners over in-memory data
+  (the Go logic is DB-backed and covered by DB tests; `forecasting.Project` is pure and could host one).
+- PDF reports are plain text (Helvetica/WinAnsi; characters outside Latin-1 print as `?`).
+

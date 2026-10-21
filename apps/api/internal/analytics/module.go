@@ -1,7 +1,7 @@
 // Package analytics: Aggregations, reports, insights, anomalies.
 //
 // Owned routes under /api/v1: /analytics, /reports
-// See docs/api/openapi.yaml for the contract and docs/architecture/analytics.md for definitions.
+// See docs/api/openapi.yaml for the contract and docs/architecture/planning-analytics.md for definitions.
 package analytics
 
 import (

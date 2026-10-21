@@ -10,7 +10,7 @@ import (
 	"github.com/pr0h0/finance-platform/apps/api/internal/money"
 )
 
-// Scenario rules for uncertain events (documented in docs/architecture/forecasting.md):
+// Scenario rules for uncertain events (documented in docs/architecture/planning-analytics.md):
 //
 //	                 income included          expense included              variable amount
 //	expected         certain, expected        certain, expected, possible   planned amount

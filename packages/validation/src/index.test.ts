@@ -1,5 +1,14 @@
 import { expect, test } from 'bun:test';
-import { isoDate, moneySchema, profileInput, registerRequest, transactionCreate } from './index.ts';
+import {
+  contributionCreate,
+  isoDate,
+  moneySchema,
+  profileInput,
+  registerRequest,
+  ruleCreate,
+  subscriptionCreate,
+  transactionCreate,
+} from './index.ts';
 
 const base = {
   kind: 'expense',
@@ -64,4 +73,42 @@ test('profile input validates currency and week start', () => {
   ).toBe(true);
   expect(profileInput.safeParse({ name: '', baseCurrency: 'BAM' }).success).toBe(false);
   expect(profileInput.safeParse({ name: 'X', weekStart: 7 }).success).toBe(false);
+});
+
+test('rules validate conditions and actions', () => {
+  const ok = ruleCreate.safeParse({
+    name: 'Groceries',
+    conditions: [
+      { field: 'description', op: 'contains', value: 'konzum' },
+      { field: 'amount', op: 'gte', value: '5' },
+    ],
+    actions: [{ type: 'set_category', categoryId: '0195f0a0-0000-7000-8000-000000000001' }],
+  });
+  expect(ok.success).toBe(true);
+  expect(
+    ruleCreate.safeParse({
+      name: 'x',
+      conditions: [{ field: 'notes', op: 'contains', value: 'a' }],
+      actions: [{ type: 'exclude_from_reports' }],
+    }).success,
+  ).toBe(false);
+});
+
+test('contributions reject zero and accept withdrawals', () => {
+  const base = { contributionDate: '2026-10-01' };
+  expect(
+    contributionCreate.safeParse({ ...base, amount: { amount: '0.00', currency: 'BAM' } }).success,
+  ).toBe(false);
+  expect(
+    contributionCreate.safeParse({ ...base, amount: { amount: '-50.00', currency: 'BAM' } })
+      .success,
+  ).toBe(true);
+});
+
+test('subscription defaults', () => {
+  const r = subscriptionCreate.parse({
+    name: 'Music',
+    amount: { amount: '9.99', currency: 'EUR' },
+  });
+  expect(r.status).toBe('active');
 });

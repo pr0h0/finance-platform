@@ -17,7 +17,7 @@ import (
 	"github.com/pr0h0/finance-platform/apps/api/internal/recurrence"
 )
 
-// Definitions (docs/architecture/analytics.md):
+// Definitions (docs/architecture/planning-analytics.md):
 //   - spending = expense splits - refund splits (refunds reduce the refunded category);
 //   - income = income splits;
 //   - transfers, fx, opening balances and adjustments are neither (credit-card payments are

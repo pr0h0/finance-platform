@@ -198,6 +198,7 @@ export const plannedTransactionCreate = z.object({
   recurrence: z
     .object({
       rrule: z.string().min(1).max(500),
+      startDate: isoDate.optional(), // defaults to dueDate
       endDate: isoDate.nullable().default(null),
       occurrenceCount: z.number().int().positive().nullable().default(null),
       businessDayAdjustment: z.enum(D.BUSINESS_DAY_ADJUSTMENTS).default('none'),
@@ -206,7 +207,8 @@ export const plannedTransactionCreate = z.object({
     .default(null),
   priority: z.enum(D.PRIORITIES).default('normal'),
   confidence: z.enum(D.CONFIDENCE_LEVELS).default('expected'),
-  installmentTotal: z.number().int().positive().nullable().default(null),
+  installmentTotal: z.number().int().positive().max(1200).nullable().default(null),
+  installmentStart: z.number().int().positive().nullable().default(null),
   reminderDaysBefore: z.number().int().min(0).max(60).nullable().default(null),
   notes: z.string().max(5000).default(''),
 });
@@ -223,7 +225,13 @@ export const budgetCreate = z.object({
   includePlanned: z.boolean().default(true),
   alertThresholds: z.array(decimal).max(5).default(['0.8', '1.0']),
   allocations: z
-    .array(z.object({ categoryId: uuid.nullable(), amount: moneySchema }))
+    .array(
+      z.object({
+        categoryId: uuid.nullable(),
+        amount: moneySchema,
+        rolloverPolicy: z.enum(D.ROLLOVER_POLICIES).nullable().optional(),
+      }),
+    )
     .max(500)
     .default([]),
 });
@@ -238,6 +246,103 @@ export const savingsGoalCreate = z.object({
   accountId: uuid.nullable().default(null),
   emergencyMonths: z.number().int().min(1).max(36).nullable().default(null),
   priority: z.enum(D.PRIORITIES).default('normal'),
+});
+
+export const recurrenceInput = z.object({
+  id: uuid.optional(),
+  rrule: z.string().min(1).max(500),
+  startDate: isoDate,
+  endDate: isoDate.nullable().default(null),
+  occurrenceCount: z.number().int().positive().max(100_000).nullable().default(null),
+  timezone: z.string().max(64).default('UTC'),
+  businessDayAdjustment: z.enum(D.BUSINESS_DAY_ADJUSTMENTS).default('none'),
+});
+
+export const occurrenceUpdate = z.object({
+  status: z.enum(D.OCCURRENCE_STATUSES).default('pending'),
+  matchedTransactionId: uuid.nullable().default(null),
+  amountOverride: positiveMoney.nullable().default(null),
+  dateOverride: isoDate.nullable().default(null),
+});
+
+export const subscriptionCreate = z.object({
+  id: uuid.optional(),
+  plannedTransactionId: uuid.nullable().default(null),
+  merchantId: uuid.nullable().default(null),
+  name: nonEmpty,
+  status: z.enum(D.SUBSCRIPTION_STATUSES).default('active'),
+  trialEndsAt: isoDate.nullable().default(null),
+  cancelledAt: isoDate.nullable().default(null),
+  url: z.string().max(2000).default(''),
+  notes: z.string().max(5000).default(''),
+  amount: positiveMoney.optional(),
+  rrule: z.string().min(1).max(500).optional(),
+  nextDate: isoDate.optional(),
+  accountId: uuid.nullable().default(null),
+  categoryId: uuid.nullable().default(null),
+  effectiveDate: isoDate.optional(),
+});
+
+export const contributionCreate = z.object({
+  id: uuid.optional(),
+  amount: moneySchema.refine((m) => toMinor(m) !== 0n, {
+    message: 'must not be zero (negative = withdrawal)',
+  }),
+  contributionDate: isoDate,
+  transactionId: uuid.nullable().default(null),
+  notes: z.string().max(5000).default(''),
+});
+
+const ruleCondition = z.discriminatedUnion('field', [
+  z.object({
+    field: z.literal('description'),
+    op: z.enum(['contains', 'equals', 'starts_with', 'regex']),
+    value: z.string().min(1).max(256),
+    caseSensitive: z.boolean().optional(),
+  }),
+  z.object({
+    field: z.literal('payee'),
+    op: z.enum(['contains', 'equals', 'starts_with', 'regex']),
+    value: z.string().min(1).max(256),
+    caseSensitive: z.boolean().optional(),
+  }),
+  z.object({
+    field: z.literal('counterparty'),
+    op: z.enum(['contains', 'equals', 'starts_with', 'regex']),
+    value: z.string().min(1).max(256),
+    caseSensitive: z.boolean().optional(),
+  }),
+  z.object({
+    field: z.literal('amount'),
+    op: z.enum(['eq', 'lt', 'lte', 'gt', 'gte']),
+    value: decimal,
+  }),
+  z.object({ field: z.literal('accountId'), op: z.literal('equals'), value: uuid }),
+  z.object({ field: z.literal('merchantId'), op: z.literal('equals'), value: uuid }),
+  z.object({
+    field: z.literal('direction'),
+    op: z.literal('equals'),
+    value: z.enum(['debit', 'credit']),
+  }),
+]);
+
+const ruleAction = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('set_category'), categoryId: uuid }),
+  z.object({ type: z.literal('set_merchant'), merchantId: uuid }),
+  z.object({ type: z.literal('add_tag'), tagId: uuid }),
+  z.object({ type: z.literal('set_description'), value: z.string().min(1).max(500) }),
+  z.object({ type: z.literal('apply_split_template'), splitTemplateId: uuid }),
+  z.object({ type: z.literal('exclude_from_reports') }),
+]);
+
+export const ruleCreate = z.object({
+  id: uuid.optional(),
+  name: nonEmpty,
+  priority: z.number().int().min(0).max(1_000_000).default(100),
+  conditions: z.array(ruleCondition).min(1).max(20),
+  actions: z.array(ruleAction).min(1).max(10),
+  enabled: z.boolean().default(true),
+  stopProcessing: z.boolean().default(false),
 });
 
 export const syncOperation = z.object({

@@ -2,7 +2,7 @@
 //
 // Owned routes under /api/v1: /forecasts
 // See docs/api/openapi.yaml for the contract. Projection rules: engine.go and
-// docs/architecture/forecasting.md. Nothing in this package writes to the database.
+// docs/architecture/planning-analytics.md. Nothing in this package writes to the database.
 package forecasting
 
 import (

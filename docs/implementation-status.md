@@ -68,64 +68,64 @@ Engine-level only; each feature row below stays owned by its API/web module.
 | 21 | Multi-currency accounts | API, Web | 1-2 | TESTED (API) | accounts, ledger | TestCriticalFX… | API: accounts in any currency; `isMultiCurrency` accounts hold postings in several currencies (balances per currency). |
 | 22 | Currency fees | API, Web | 1-2 | TESTED (API) | transactions | `internal/transactions/api_test.go` TestCriticalFX… | API: transfer/fx `fee` -> separate expense (feeCategoryId) linked by relatedTransactionId + currency_conversions.fee_amount; implied bank rate stored for bank_actual conversions (markup vs reference rate derivable). |
 | 23 | Built-in converter | API, Web | 1-2 | TESTED (API) | currency | `internal/transactions/api_test.go` TestCriticalFX… | API: `POST /convert` (date or explicit rate, rounding mode, stale flag). 'Result becomes planned expense' is client + planning. |
-| 24 | Currency analytics | API, Web | 1-2 | NOT_STARTED | currency, exchangerates | — |  |
+| 24 | Currency analytics | API, Web | 1-2 | TESTED (API) | analytics | `internal/analytics/analytics_test.go` TestAggregations (currency exposure, missing rates) | API: `/analytics/currency-exposure` (native + valued holdings and share), `/analytics/conversion-fees` (recorded fees by pair/period); every analytics view values flows at booking-date rates and reports missing rates. Web UI by web agent. |
 | 25 | Exchange-rate updates | API, Web | 1-2 | TESTED (API) | exchangerates | `internal/transactions/api_test.go` TestExchangeRateProviderFetchAndOfflineFallback | API: Frankfurter/ECB http provider (`ecb`, migration 20261021123417), periodic refresh (JOBS_ENABLED, FX_REFRESH_INTERVAL), on-demand historical fetch, DB cache, offline fallback (`stale: true`), admin refresh, json.Number parsing (no floats). |
-| 26 | Planned expenses | API, Web | 1-2 | NOT_STARTED | planning, recurrence | — |  |
-| 27 | Recurring expenses | API, Web | 1-2 | NOT_STARTED | planning, recurrence | — |  |
-| 28 | Recurring income | API, Web | 1-2 | NOT_STARTED | planning, recurrence | — |  |
-| 29 | Subscription manager | API, Web | 1-2 | NOT_STARTED | planning, recurrence | — |  |
-| 30 | Bill calendar | API, Web | 1-2 | NOT_STARTED | planning, recurrence | — |  |
-| 31 | Payment reminders | API, Web | 1-2 | NOT_STARTED | planning, recurrence | — |  |
-| 32 | Planned versus actual | API, Web | 1-2 | NOT_STARTED | planning, recurrence | — |  |
-| 33 | Planned transaction matching | API, Web | 1-2 | NOT_STARTED | planning, recurrence | — |  |
-| 34 | Flexible recurrence | API, Web | 1-2 | NOT_STARTED | planning, recurrence | — |  |
-| 35 | Expense priorities | API, Web | 1-2 | NOT_STARTED | planning, recurrence | — |  |
-| 36 | Confidence levels | API, Web | 1-2 | NOT_STARTED | planning, recurrence | — |  |
-| 37 | Installment payments | API, Web | 1-2 | NOT_STARTED | planning, recurrence | — |  |
-| 38 | Annual planning | API, Web | 1-2 | NOT_STARTED | planning, recurrence | — |  |
-| 39 | Category budgets | API, Web | 1-2 | NOT_STARTED | budgets | — |  |
-| 40 | Monthly budgets | API, Web | 1-2 | NOT_STARTED | budgets | — |  |
-| 41 | Custom budget periods | API, Web | 1-2 | NOT_STARTED | budgets | — |  |
-| 42 | Rollover | API, Web | 1-2 | NOT_STARTED | budgets | — |  |
-| 43 | Budget alerts | API, Web | 1-2 | NOT_STARTED | budgets | — |  |
-| 44 | Actual versus budget | API, Web | 1-2 | NOT_STARTED | budgets | — |  |
-| 45 | Planned spending consideration | API, Web | 1-2 | NOT_STARTED | budgets | — |  |
-| 46 | Budget templates | API, Web | 1-2 | NOT_STARTED | budgets | — |  |
+| 26 | Planned expenses | API, Web | 1-2 | TESTED (API) | planning, recurrence | `internal/planning/planning_test.go` TestPlansOccurrencesAndMatching | API: one-off and recurring plans (`/plans`), expanded occurrences (`/plans/occurrences`), priority/confidence, variable ranges, reminders. Web UI by web agent. |
+| 27 | Recurring expenses | API, Web | 1-2 | TESTED (API) | planning, recurrence | `internal/planning/planning_test.go`, `internal/recurrence/rrule_test.go` | API: recurring expense plans with RRULE schedules; occurrence skip/override/paid via `PUT /plans/{id}/occurrences/{date}`. Web UI by web agent. |
+| 28 | Recurring income | API, Web | 1-2 | TESTED (API) | planning, recurrence | `internal/forecasting/forecasting_test.go` (salary plan) | API: recurring income plans (kind income) feed forecasts, safe-to-spend and annual plan. Web UI by web agent. |
+| 29 | Subscription manager | API, Web | 1-2 | TESTED (API) | planning | `internal/planning/planning_test.go` TestSubscriptionLifecycle, TestAnnualize | API: `/subscriptions` with billing plan, annualized + monthly cost, next date, price changes with history (superseding plans), pause, cancellation ending the series, trials. Web UI by web agent. |
+| 30 | Bill calendar | API, Web | 1-2 | TESTED (API) | planning | `internal/planning/planning_test.go` (occurrences) | API: `/bill-calendar` (unresolved non-income occurrences by day, matched/paid shown). Web UI by web agent. |
+| 31 | Payment reminders | API, Web | 1-2 | TESTED (API) | planning, notifications | `internal/notifications/notifications_test.go` | API: in-app reminders `reminderDaysBefore` (default 3) + overdue, generated by a deduplicated background job. Email/push not sent. Web UI by web agent. |
+| 32 | Planned versus actual | API, Web | 1-2 | TESTED (API) | planning | `internal/planning/planning_test.go` (planned-vs-actual) | API: `/plans/planned-vs-actual` per occurrence (planned, actual, variance; documented rules). Web UI by web agent. |
+| 33 | Planned transaction matching | API, Web | 1-2 | TESTED (API) | planning | `internal/planning/planning_test.go`, `internal/budgets/budgets_test.go`, `internal/forecasting/forecasting_test.go` (PLAN §46 case 13) | API: match suggestions with scored reasons, explicit match (unique per transaction, kind-checked); matched/paid/skipped occurrences never counted again. Web UI by web agent. |
+| 34 | Flexible recurrence | API, Web | 1-2 | TESTED (API) | recurrence | `internal/recurrence/rrule_test.go` (case 11), shared fixture `conformance/recurrence.json` via `internal/conformance_test` | RRULE subset (daily/weekly/monthly/yearly, intervals, BYDAY ordinals, BYMONTHDAY, BYMONTH, COUNT/UNTIL), month-end clamping, weekend shift, calendar-date semantics (DST-proof), exceptions via occurrence overrides. No holiday calendar. `/recurrences` CRUD + preview. Web UI by web agent. |
+| 35 | Expense priorities | API, Web | 1-2 | TESTED (API) | planning | `internal/planning/planning_test.go` | Priorities essential/high/normal/low(=deferrable)/optional on plans and goals; essential plans drive the emergency-fund estimate. Web UI by web agent. |
+| 36 | Confidence levels | API, Web | 1-2 | TESTED (API) | planning, forecasting | `internal/forecasting/forecasting_test.go` TestScenarioRules | Confidence certain/expected/possible/speculative drives expected/conservative/optimistic forecasts. Web UI by web agent. |
+| 37 | Installment payments | API, Web | 1-2 | TESTED (API) | planning | `internal/planning/planning_test.go` TestInstallments | Installment plans: total, start number, paid count/amount, outstanding, next due date, installment number per occurrence. Web UI by web agent. |
+| 38 | Annual planning | API, Web | 1-2 | TESTED (API) | planning | `internal/planning/reports.go` (via planning tests) | `/plans/annual`: per-month scheduled income/expenses + smoothed allocation of non-monthly items. Automatic copy into budget allocations not implemented (smoothed amounts are returned for the UI). Web UI by web agent. |
+| 39 | Category budgets | API, Web | 1-2 | TESTED (API) | budgets | `internal/budgets/budgets_test.go` TestBudgetActualVsPlanned | Category allocations include subcategories. Web UI by web agent. |
+| 40 | Monthly budgets | API, Web | 1-2 | TESTED (API) | budgets | `internal/budgets/budgets_test.go` | Overall limit = allocation with categoryId null. Web UI by web agent. |
+| 41 | Custom budget periods | API, Web | 1-2 | TESTED (API) | budgets | `internal/budgets/budgets_test.go` TestPeriodFor | weekly, monthly/quarterly/yearly with anchor day (salary-day months, clamped), custom ranges. Web UI by web agent. |
+| 42 | Rollover | API, Web | 1-2 | TESTED (API) | budgets | `internal/budgets/budgets_test.go` TestCarry, close period | carry_surplus/carry_deficit/carry_both/none per budget or allocation; applied by `POST /budgets/{id}/periods/close`. Web UI by web agent. |
+| 43 | Budget alerts | API, Web | 1-2 | TESTED (API) | budgets, notifications | `internal/budgets/budgets_test.go` (alerts), notifications tests | Thresholds per budget; alert = highest reached; budget_threshold notifications. Web UI by web agent. |
+| 44 | Actual versus budget | API, Web | 1-2 | TESTED (API) | budgets | `internal/budgets/budgets_test.go` (PLAN §46 case 10) | `/budgets/{id}/status`: actual, planned, remaining, utilization per line and totals; FX via booking-date rates; missing rates reported. Web UI by web agent. |
+| 45 | Planned spending consideration | API, Web | 1-2 | TESTED (API) | budgets | `internal/budgets/budgets_test.go` (cases 10, 13) | actual, committed (planned) and remaining separately; matched/skipped occurrences excluded. Web UI by web agent. |
+| 46 | Budget templates | API, Web | 1-2 | TESTED (API) | budgets | `internal/budgets/budgets_test.go` TestTemplates | Templates (`isTemplate`) + `/budgets/{id}/instantiate`; allocating all income is never required. Web UI by web agent. |
 | 47 | Financial overview | Web (+API) | 2 | NOT_STARTED | analytics (web dashboard) | — |  |
 | 48 | Customizable widgets | Web (+API) | 2 | NOT_STARTED | analytics (web dashboard) | — |  |
 | 49 | Current balance | API, Web | 1-2 | TESTED (API) | ledger | `internal/transactions/api_test.go` TestCriticalExpenseIncome… | API: `GET /balances?accountId=&asOf=` per account/currency + converted values. Dashboard widget by web agent. |
-| 50 | Upcoming expenses | API, Web | 1-2 | NOT_STARTED | analytics (web dashboard) | — |  |
-| 51 | Monthly summary | API, Web | 1-2 | NOT_STARTED | analytics (web dashboard) | — |  |
+| 50 | Upcoming expenses | API, Web | 1-2 | TESTED (API) | planning | `internal/planning/planning_test.go` | API: `/plans/occurrences`, `/bill-calendar` (dashboard widget by web agent). |
+| 51 | Monthly summary | API, Web | 1-2 | TESTED (API) | analytics | `internal/analytics/analytics_test.go` | API: `/analytics/monthly-summary` (income, expenses, net, savings rate, remaining planned bills). Web UI by web agent. |
 | 52 | Account breakdown | API, Web | 1-2 | TESTED (API) | ledger, accounts | `internal/transactions/api_test.go` TestCriticalExpenseIncome… | API: per-account balances with converted value and classification (share = converted / assets, computed client-side). |
 | 53 | Quick actions | Web (+API) | 2 | NOT_STARTED | analytics (web dashboard) | — |  |
-| 54 | Spending by category | API, Web | 1-2 | NOT_STARTED | analytics | — |  |
-| 55 | Income versus expenses | API, Web | 1-2 | NOT_STARTED | analytics | — |  |
-| 56 | Spending trends | API, Web | 1-2 | NOT_STARTED | analytics | — |  |
-| 57 | Period comparisons | API, Web | 1-2 | NOT_STARTED | analytics | — |  |
-| 58 | Merchant analytics | API, Web | 1-2 | NOT_STARTED | analytics | — |  |
-| 59 | Savings rate | API, Web | 1-2 | NOT_STARTED | analytics | — |  |
-| 60 | Recurring cost analysis | API, Web | 1-2 | NOT_STARTED | analytics | — |  |
-| 61 | Net worth | API, Web | 1-2 | IN_PROGRESS | ledger (balance parts), analytics | TestCriticalExpenseIncome… (netWorth/assets/liabilities) | Balance parts done in API: netWorth/assets/liabilities on `/balances` (accounts flagged includeInNetWorth; null + missingRates when a rate is missing). Net-worth history/analytics belongs to analytics. |
-| 62 | Financial reports | API, Web | 1-2 | NOT_STARTED | analytics | — |  |
-| 63 | Report export | API, Web | 1-2 | NOT_STARTED | analytics | — |  |
-| 64 | Automated financial insights | API, Web | 1-2 | NOT_STARTED | analytics | — |  |
-| 65 | Unusual expense detection | API, Web | 1-2 | NOT_STARTED | analytics | — |  |
-| 66 | Future balance forecasting | API, Web | 1-2 | NOT_STARTED | forecasting, savings | — |  |
-| 67 | Daily cash flow | API, Web | 1-2 | NOT_STARTED | forecasting, savings | — |  |
-| 68 | Safe-to-spend | API, Web | 1-2 | NOT_STARTED | forecasting, savings | — |  |
-| 69 | What-if scenarios | API, Web | 1-2 | NOT_STARTED | forecasting, savings | — |  |
-| 70 | Optimistic and conservative forecasts | API, Web | 1-2 | NOT_STARTED | forecasting, savings | — |  |
-| 71 | Long-term projections | API, Web | 1-2 | NOT_STARTED | forecasting, savings | — |  |
-| 72 | Savings goals | API, Web | 1-2 | NOT_STARTED | forecasting, savings | — |  |
-| 73 | Goal contributions | API, Web | 1-2 | NOT_STARTED | forecasting, savings | — |  |
-| 74 | Goal completion estimates | API, Web | 1-2 | NOT_STARTED | forecasting, savings | — |  |
-| 75 | Emergency fund tracking | API, Web | 1-2 | NOT_STARTED | forecasting, savings | — |  |
-| 76 | Categorization rules | API, Web | 1-2 | NOT_STARTED | automation, transactions | — |  |
-| 77 | Transaction suggestions | API, Web | 1-2 | NOT_STARTED | automation, transactions | — |  |
-| 78 | Duplicate detection | API, Web | 1-2 | NOT_STARTED | automation, transactions | — |  |
+| 54 | Spending by category | API, Web | 1-2 | TESTED (API) | analytics | `internal/analytics/analytics_test.go` TestAggregations | Own amounts with parentKey, or `groupBy=parent` rollup; intervals; refunds reduce categories; transfers excluded (cases 3, 4, 7). Web UI by web agent. |
+| 55 | Income versus expenses | API, Web | 1-2 | TESTED (API) | analytics | `internal/analytics/analytics_test.go` | Monthly/quarterly/annual (`interval`). Web UI by web agent. |
+| 56 | Spending trends | API, Web | 1-2 | TESTED (API) | analytics | `internal/analytics/aggregate.go` Trends (shares tested aggregation) | Spending per period with change vs previous; per top-level category with `groupBy=category`. Web UI by web agent. |
+| 57 | Period comparisons | API, Web | 1-2 | TESTED (API) | analytics | `internal/analytics/analytics_test.go` (compare) | Custom ranges, previous period of equal length, or `mode=year_ago`; by category/merchant/total. Web UI by web agent. |
+| 58 | Merchant analytics | API, Web | 1-2 | TESTED (API) | analytics | `internal/analytics/analytics_test.go` | Grouped by merchant id (aliases merged by merchants module) or normalized payee/description. Web UI by web agent. |
+| 59 | Savings rate | API, Web | 1-2 | TESTED (API) | analytics | `internal/analytics/analytics_test.go` | Definition: (income − spending) / income; documented in docs/architecture/planning-analytics.md. Web UI by web agent. |
+| 60 | Recurring cost analysis | API, Web | 1-2 | TESTED (API) | analytics | `internal/analytics/aggregate.go` RecurringCosts (insights test) | Monthly and annual equivalents of active recurring expense plans/subscriptions. Web UI by web agent. |
+| 61 | Net worth | API, Web | 1-2 | TESTED (API) | ledger (balance parts), analytics | TestCriticalExpenseIncome… (netWorth/assets/liabilities); `internal/analytics/analytics_test.go` TestAggregations | Balance parts done in API: netWorth/assets/liabilities on `/balances` (accounts flagged includeInNetWorth; null + missingRates when a rate is missing). History: `/analytics/net-worth` assets vs liabilities per period end at that date's rate. Web UI by web agent. |
+| 62 | Financial reports | API, Web | 1-2 | TESTED (API) | analytics | `internal/analytics/analytics_test.go` (reports) | `/reports/{monthly|quarterly|annual|custom}`: summary, categories, top merchants, cash flow, net worth, completeness. Web UI by web agent. |
+| 63 | Report export | API, Web | 1-2 | TESTED (API) | analytics | `internal/analytics/analytics_test.go` (csv, pdf) | CSV (formula-injection guarded) and PDF (plain text) server-side; image export of charts is a web task. Web UI by web agent. |
+| 64 | Automated financial insights | API, Web | 1-2 | TESTED (API) | analytics | `internal/analytics/analytics_test.go` TestAnomaliesAndInsights | Deterministic rules only (spikes, savings rate, shortfall, bills, recurring total, uncategorized, budget alerts, missing rates). No AI. Web UI by web agent. |
+| 65 | Unusual expense detection | API, Web | 1-2 | TESTED (API) | analytics | `internal/analytics/analytics_test.go` TestAnomaliesAndInsights | Two transparent rules with explanations and baseline; dismiss/undismiss (synced `anomaly_dismissals`). Web UI by web agent. |
+| 66 | Future balance forecasting | API, Web | 1-2 | TESTED (API) | forecasting | `internal/forecasting/forecasting_test.go` | Daily projection from balances, future postings, plans, transfers, installments, planned goal transfers. Web UI by web agent. |
+| 67 | Daily cash flow | API, Web | 1-2 | TESTED (API) | forecasting | `internal/forecasting/forecasting_test.go` (case 12) | Per-day totals, per-account shortfall runs, lowest balance/date. Web UI by web agent. |
+| 68 | Safe-to-spend | API, Web | 1-2 | TESTED (API) | forecasting | `internal/forecasting/forecasting_test.go` | Lowest conservative balance until next income minus reserve (profile setting `forecast.minimumReserve` or `?reserve=`). Web UI by web agent. |
+| 69 | What-if scenarios | API, Web | 1-2 | TESTED (API) | forecasting | `internal/forecasting/forecasting_test.go` (asserts no write) | `POST /forecasts/scenarios`: one-off/recurring adjustments, plan removal; read-only. Web UI by web agent. |
+| 70 | Optimistic and conservative forecasts | API, Web | 1-2 | TESTED (API) | forecasting | `internal/forecasting/forecasting_test.go` TestScenarioRules | Documented scenario table; assumptions listed in every response. Web UI by web agent. |
+| 71 | Long-term projections | API, Web | 1-2 | TESTED (API) | forecasting | `internal/forecasting/forecasting_test.go` (long-term) | `/forecasts/long-term?months=` (≤ 360), month-end points; constant-rate assumption. Web UI by web agent. |
+| 72 | Savings goals | API, Web | 1-2 | TESTED (API) | savings | `internal/savings/savings_test.go` | `/goals` CRUD; account-backed or contribution-based progress. Web UI by web agent. |
+| 73 | Goal contributions | API, Web | 1-2 | TESTED (API) | savings | `internal/savings/savings_test.go` | Contributions/withdrawals; auto-complete at target. Web UI by web agent. |
+| 74 | Goal completion estimates | API, Web | 1-2 | TESTED (API) | savings | `internal/savings/savings_test.go` | requiredMonthly, estimatedCompletion (planned transfers or 6-month history), onTrack; `/goals/{id}/projection`. Web UI by web agent. |
+| 75 | Emergency fund tracking | API, Web | 1-2 | TESTED (API) | savings | `internal/savings/savings_test.go` TestEmergencyFund | `/goals/emergency-fund`: months covered by reserves vs essential plans (fallback: 6-month average spending). Web UI by web agent. |
+| 76 | Categorization rules | API, Web | 1-2 | TESTED (API) | automation | `internal/automation/automation_test.go` TestRulesApplyAndUndo | Merchant/description/payee/counterparty (incl. RE2 regex)/account/amount/direction conditions, priority, stop processing; dry run; undo of an application; `automation.ApplyRules` hook for new transactions (imports/transactions must call it). Web UI by web agent. |
+| 77 | Transaction suggestions | API, Web | 1-2 | TESTED (API) | automation | `internal/automation/automation_test.go` | `/suggestions` from own history (rules, merchant, description, merchant name). Web UI by web agent. |
+| 78 | Duplicate detection | API, Web | 1-2 | TESTED (API) | automation | `internal/automation/automation_test.go` | `/duplicates` scored pairs (account, amount, ≤ 3 days, description, import fingerprint); suggestions only. Web UI by web agent. |
 | 79 | Receipt scanning | API, Web | 1-2 | NOT_STARTED | automation, transactions | — | Web: upload/camera capture + user-verified breakdown. Native camera flows Phase 3. |
-| 80 | Recurring payment detection | API, Web | 1-2 | NOT_STARTED | automation, transactions | — |  |
-| 81 | Smart notifications | API, Web | 1-2 | NOT_STARTED | automation, transactions | — |  |
+| 80 | Recurring payment detection | API, Web | 1-2 | TESTED (API) | automation | `internal/automation/automation_test.go` | `/recurring-candidates`: weekly/biweekly/monthly/quarterly/yearly with RRULE, confidence, next date; skips merchants already planned. Web UI by web agent. |
+| 81 | Smart notifications | API, Web | 1-2 | TESTED (API) | notifications | `internal/notifications/notifications_test.go` | In-app: bills, overdue, budget thresholds, projected negative balance, trial ending, unusual expenses; read/read-all/dismiss. Email/push not sent. Web UI by web agent. |
 | 82 | Global shortcuts | API, Web | 1-2 | NOT_STARTED | automation, transactions | — | Web: in-app keyboard shortcuts. OS-global shortcuts are desktop (Phase 4). |
 | 83 | Bulk editing | API, Web | 1-2 | NOT_STARTED | automation, transactions | — |  |
 | 84 | Undo and history | API, Web | 1-2 | NOT_STARTED | automation, transactions | — |  |

@@ -2,7 +2,7 @@
 // forecasting, analytics, automation and notifications modules: calendar dates, profile context,
 // historical FX valuation and ledger aggregation queries. It never writes.
 //
-// Valuation policy (docs/architecture/valuation-policy.md):
+// Valuation policy (docs/architecture/planning-analytics.md):
 //   - An amount in currency C on local date D is valued in reporting currency R with the rate
 //     exchangerates.Lookup selects for D (historical rates, never today's rate for past flows).
 //   - The product is rounded once, half-up, to R's minor units.
