@@ -98,6 +98,7 @@
   (the Go logic is DB-backed and covered by DB tests; `forecasting.Project` is pure and could host one).
 - PDF reports are plain text (Helvetica/WinAnsi; characters outside Latin-1 print as `?`).
 
+
 ## Imports API (apps/api/internal/imports)
 - One batch = one account. Multi-account statements (several CAMT `Stmt`/MT940 accounts in one file) are
   staged against the chosen account; rows are not split per `accountRef`. Several statements of the same
@@ -146,3 +147,14 @@
 - Recovery code is 52 Crockford-base32 characters instead of the "24 words" of ADR 0005 (same 256-bit entropy).
 - Encrypted backups hold the whole payload in memory (fine for typical personal data; streaming not done).
 - `bs` locale is a skeleton (≈35 keys); missing keys fall back to English.
+
+## Web insight pages (dashboard, planning, budgets, analytics, goals, subscriptions, reports, notifications)
+- All figures are computed client-side from the DataSource (`@finplat/finance-engine` / `@finplat/forecasting`) in both local and connected mode; the server's analytics/forecast endpoints are not called. Connected mode therefore shows what the local sync cache holds, and depends on server sync entities that are not registered yet (see the sync gaps above).
+- `planned_occurrences` and `budget_allocations` are read through the generic `FinanceOps.list` with a cast (they are not in the typed `EntityName` list).
+- Dismissed insights/anomalies and the browser-notification opt-in are stored in local profile settings, which are not synced (not the server's `anomaly_dismissals`).
+- Notifications are generated only while the app is open (dashboard or notifications page); no background job, email or push.
+- Changing a subscription's price updates its plan in place (no superseding plan / price history as in the Go API), so older planned-vs-actual rows use the new price.
+- The forecast values every account at the reporting-currency rate of today (engine rule) and uses only each account's main-currency balance; other currencies held in multi-currency accounts are left out.
+- PDF export is the browser's print-to-PDF with a print stylesheet; there is no generated PDF file. PNG export rasterizes the chart SVG.
+- Drill-down links pass `from,to,kind,categoryId,merchantId,q,accountIds,currency` to `/transactions`; a top-level category filter may not include its subcategories depending on the transactions page filter.
+- No dedicated component tests for the React pages; compute modules have unit tests and every page was smoke-rendered in Chromium (Playwright) with seeded local data.

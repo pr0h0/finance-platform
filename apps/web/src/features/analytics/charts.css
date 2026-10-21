@@ -1,0 +1,41 @@
+/* Categorical chart palette (validated reference palette, fixed order; dark mode has its own
+   steps). Status colors stay the app's pos/neg/warn tokens. */
+:root {
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --series-4: #eda100;
+  --series-5: #e87ba4;
+  --series-6: #008300;
+  --series-7: #6250d6;
+  --series-8: #e34948;
+  --series-other: #8a8f98;
+}
+:root.dark {
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+  --series-4: #c98500;
+  --series-5: #d55181;
+  --series-6: #008300;
+  --series-7: #9085e9;
+  --series-8: #e66767;
+  --series-other: #6b7079;
+}
+
+@media print {
+  .no-print,
+  nav,
+  header,
+  aside {
+    display: none !important;
+  }
+  .print-full {
+    max-width: none !important;
+    padding: 0 !important;
+  }
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+}
