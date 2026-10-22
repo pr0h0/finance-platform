@@ -10,4 +10,5 @@ Critical reminders for Claude Code sessions:
 - Never stop, remove or prune containers/volumes/images/networks that are not `finplat*`. Never touch other
   cloudflared tunnels. Only bind 127.0.0.1 ports 3810–3812 and 5440.
 - Money is `{amount: decimal string, currency}`; never floats. Mutations call `changes.Record` in the same tx.
-- Mobile/desktop are DEFERRED_TO_PHASE; Raiffeisen BiH is BLOCKED_EXTERNAL.
+- Mobile/desktop are DEFERRED_TO_PHASE; bank integrations (102) deferred. `samples/` holds real bank statements:
+  never commit or copy from it.

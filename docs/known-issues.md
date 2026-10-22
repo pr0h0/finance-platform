@@ -1,11 +1,15 @@
 # Known issues and limitations
 
 - Mobile (Phase 3) and desktop/Tauri (Phase 4) not started: DEFERRED_TO_PHASE.
-- `docs/api/openapi.yaml` is hand-maintained; TS types in `packages/domain` are not generated from it, so
-  drift is possible until a CI check is added.
-- OpenAPI lint warnings: operations use a `default` error response instead of explicit 4xx entries; tags lack
-  descriptions.
-- CI workflow has not yet been executed on GitHub.
+- (fixed) `docs/api/openapi.yaml` stays hand-maintained but cannot drift silently: `TestOpenAPICoversEveryRoute`
+  (apps/api/internal/server) walks the chi router and fails on undocumented or stale operations, and
+  `bun run api:check` fails when `packages/api-client/src/schema.gen.ts` (openapi-typescript) is stale.
+  `packages/domain` types are still hand-written next to the generated ones.
+- (fixed) redocly lint (2.67.1) has no warnings: explicit 4xx responses and tag descriptions. One documented
+  exception in `.redocly.lint-ignore.yaml`: `/oauth/authorize` has no 2xx (it only redirects).
+- There is no GitHub remote, so `.github/workflows/ci.yml` has never run on GitHub. `scripts/ci.sh` runs the same
+  steps locally in docker (gofmt, vet, `go test -race` on the dev postgres, bun install/typecheck/lint/test,
+  generated-types check, redocly lint, web build, the three image builds).
 - Dev compose `down -v` also removes the shared `finplat_gomod/gobuild/bun` cache volumes (harmless, just
   slower next run). Use `down` without `-v`; reset the dev DB with `docker volume rm finplat-dev_pgdata`.
 - (fixed) Client IP: the API trusts only `X-Real-IP` (httpx.RealIP), which the gateway overwrites with
@@ -40,7 +44,8 @@
 - QIF: day/month order is inferred per file; all-ambiguous files assume MM/DD (DD.MM for dot dates) with a warning. QIF splits are kept raw only.
 - MT940 `:86:` is used verbatim; bank-specific sub-field parsing (`?20`, `/REMI/` …) is not done.
 - CAMT batched entries (several TxDtls) become one record for the entry total.
-- Web app must call `setPdfWorkerSrc()` (bundled pdf.worker URL) before PDF import in the browser.
+- Web app must call `setPdfWorkerSrc()` (bundled pdf.worker URL) before PDF import in the browser; the server must
+  serve `.mjs` as JavaScript (fixed in `infrastructure/docker/nginx-base.conf`).
 - (fixed) fp1 fingerprint is implemented identically in Go; both pass packages/test-fixtures/imports/fingerprint.json.
 
 ## Shared TS engine (packages/finance-engine, forecasting)
@@ -181,9 +186,8 @@
   signed-in server session in the web app (local-only mode shows a notice). The OAuth `scope` parameter is
   not used to preselect capabilities (defaults are always read-only).
 - Stateless Streamable HTTP: no server-initiated requests/notifications, no resumable SSE streams.
-- `get_attachments` returns content only for files on the local backend without server-side encryption
-  (it reads ATTACHMENTS_DIR directly); S3-stored or ATTACHMENT_ENCRYPTION_KEY-sealed files return metadata
-  with a contentNote until the attachments module exports its blob reader. E2EE attachments: metadata only.
+- (fixed) `get_attachments` reads through `attachments.Content` (local or S3, server-side encryption undone);
+  only E2EE attachments return metadata only (images/PDFs up to 4 MiB).
 - (fixed) `get_income_summary` has a per-income-category breakdown (`byCategory`).
 - Budget status, savings goals, budgets and categorization rules are refused for account-restricted clients
   (they span all accounts). Forecasts include only granted accounts.
@@ -219,7 +223,7 @@
 - Local notifications are generated only while the app is open (dashboard or notifications page). Email/push need connected mode (server job, Settings → Notifications); push in the browser needs the production build (the service worker is not registered under `vite dev`).
 - Changing a subscription's price updates its plan in place (no superseding plan / price history as in the Go API), so older planned-vs-actual rows use the new price.
 - The forecast values every account at the reporting-currency rate of today (engine rule) and uses only each account's main-currency balance; other currencies held in multi-currency accounts are left out.
-- PDF export is the browser's print-to-PDF with a print stylesheet; there is no generated PDF file. PNG export rasterizes the chart SVG.
+- Web PDF export is the browser's print-to-PDF with a print stylesheet; connected profiles can also download the server PDF (`GET /reports/{kind}?format=pdf`, Unicode fonts embedded, E2E-checked), but the web page has no button for it. PNG export rasterizes the chart SVG.
 - Drill-down links pass `from,to,kind,categoryId,merchantId,q,accountIds,currency` to `/transactions`; a top-level category filter may not include its subcategories depending on the transactions page filter.
 - No dedicated component tests for the React pages; compute modules have unit tests and every page was smoke-rendered in Chromium (Playwright) with seeded local data.
 
@@ -247,8 +251,18 @@
 - Connected mode uploads and downloads ledger, planning, budget, goal and rule data (Playwright journey:
   register → sync → second device → offline edit → reconnect). Imports and attachments made while connected
   are still refused by sync (`unsupported_entity`) and listed on /sync; local-to-connected activation with
-  imported data uploads the transactions with `importRecordId = null`. Activation/E2EE were not run in a
-  browser by the integration pass.
+  imported data uploads the transactions with `importRecordId = null`. Activation (with duplicate merge) and
+  E2EE (encrypt on A, unlock with passphrase on B and recovery code on C) run in the E2E suite.
+- E2EE: the server still accepts plaintext REST/MCP/job writes into an end-to-end encrypted profile, and its
+  clients then stop syncing (they accept only envelopes: "expected an encrypted envelope"). Only
+  `POST /categories/defaults` refuses e2ee profiles (409 `e2ee_profile`). Don't use REST writes on e2ee profiles.
+- (fixed) A device that signed in to an e2ee profile pulled before it was unlocked and stored ciphertext as records
+  (transactions page crashed). The engine now refuses envelopes without a key (`ProfileLockedError`); devices that
+  hit the old bug should disconnect and connect again to re-download the profile.
+- (fixed) Safari private windows / WebKit ephemeral sessions refuse Blob values in IndexedDB; attachment and
+  import-source bytes are now stored as ArrayBuffer (older Blob rows still read).
+- WebKitGTK (Playwright's WebKit on Linux) crashes the page in `pushManager.getSubscription()`; the app now only
+  asks when notification permission is granted, so push itself is untested on WebKit.
 - Activation always creates the server profile with the local profile's id (or reuses it); merging a local profile
   into a different existing server profile is not offered because `RemoteDataSource` maps one id to both sides.
   While connected, local profiles that were not activated are hidden; they reappear after disconnecting.
@@ -259,23 +273,37 @@
 - The app lock is an Argon2id verifier in localStorage that hides the UI; it does not encrypt IndexedDB. Clearing
   site data removes both the lock and the data. Biometric unlock is Phase 3/4.
 - The MCP management page is at `/agents` because `/mcp` is the MCP protocol endpoint (proxied by the gateway).
-- Bosnian: every `t(key, english)` call has a translation (`apps/web/src/lib/i18n.test.ts`). Not yet converted to
-  `t()`: `features/{import,budgets,planning,analytics}`, `pages/{import,budgets,planning,analytics}` and `mcp/` (listed
-  as PENDING in that test). The hardcoded-text scan covers JSX text, text attributes and `?:`/`&&` literals in JSX;
-  strings built in `.ts` modules (toasts, option labels, notification texts, enum values such as the transaction
-  kind inside "Linked to …") can still be English.
-- No automated accessibility audit (axe) yet; keyboard flows were checked in the Playwright smoke run only.
+- Bosnian: every `t(key, english)` call in `apps/web/src` has a translation and no JSX text, text attribute
+  (including template-literal attributes such as `aria-label={`Edit ${name}`}`) or `?:`/`&&` literal is
+  hardcoded English (`apps/web/src/lib/i18n.test.ts`, no exclusions left). Still English: strings built outside
+  JSX (toasts in some modules, option-label arrays in `.ts` files, notification titles/bodies, enum values such as
+  account types "Checking" or the transaction kind inside "Linked to …"), and a few sentences translated in pieces
+  around inline values (`{n} {t('…records,')}`), which read acceptably but not perfectly in Bosnian.
+- (fixed) Chromium has no Bosnian ICU data (bs-BA formatted as `-BAM 1,234.50`, `2026 M03 31`); `intlLocale()` in
+  `@finplat/localization` substitutes `sr-Latn-BA` (same BiH conventions: `1.234,56 KM`). Firefox/WebKit use bs.
+- (fixed) Accessibility: `tests/e2e/specs/a11y.spec.ts` runs axe-core (WCAG 2.1 A/AA) on every main page in
+  light and dark mode and on the server pages; serious/critical violations fail the suite. Fixed: accent
+  contrast on tinted surfaces, links inside text now underlined, calendar out-of-month days no longer dimmed
+  with opacity. Moderate/minor axe findings are not gated.
 - `libsodium` (app lock, backups, E2EE) needs `'wasm-unsafe-eval'` in the gateway CSP `script-src` (added).
 
 ## Integration pass (2026-10-22)
-- E2E suite (`tests/e2e`, 8 Playwright journeys) runs in Chromium only; no Firefox/WebKit project.
-- Not covered by E2E: households with two users, admin pages, E2EE activation/unlock, attachments upload,
-  MCP proposal approval (the agent-side write path is covered by Go tests only), app lock.
+- E2E suite (`tests/e2e`, `scripts/e2e.sh`) runs every journey in Chromium, Firefox and WebKit (Playwright
+  1.63 image) against an isolated `finplat-e2e` stack with Mailpit; `admin.spec.ts` runs alone afterwards because
+  it closes registration for a moment. Firefox occasionally stalls downloading the main bundle under load
+  (page.goto never reaches `load`); see the latest run in implementation-status.md.
+- Real bugs found by the new journeys and fixed: pdf.js worker (`.mjs`) served as octet-stream with nosniff, so every
+  PDF import failed in the built app; Bosnian formatting in Chromium; the E2EE fresh-device crash; WebKit Blob
+  storage; the "ready to work offline" prompt covering page buttons until closed.
 - `/api/v1/meta.registrationPolicy` reflects `.env`; the deployed instance uses `first_user`: the first account
   registered on https://fin.pr0h0.me becomes the admin and later sign-ups are refused. Register yourself first.
 - `ALLOWED_ORIGINS` in the deployed `.env` also contains `http://127.0.0.1:3810` so the stack can be used and
   tested directly on the host; remove it if you never browse to the loopback port.
 - The Secure session cookie works on `http://127.0.0.1:3810` only in browsers that treat loopback as a secure
   context (Chromium, Firefox). Non-browser HTTP clients over plain http must use bearer tokens (device login).
-- Fixed during integration: React Query paused every mutation while the browser was offline (network mode
-  `online`), so offline edits silently never saved; now `networkMode: 'always'` (local-first).
+- Deployed 2026-10-22 (`docker compose -p finplat up -d --build`, `.env` unchanged; VAPID keys are generated into
+  the server settings on first use, OAuth tokens are opaque and hashed, so no new env was needed; SMTP is unset so
+  email delivery is off on the live instance). Verified through the tunnel: `/api/health`, `/api/v1/meta`
+  (schema 20261022120001), both `/.well-known/oauth-*` documents, `/mcp` 401 without a token, pdf.js worker
+  served as `text/javascript`.
+- The e2e stack reads the production `.env` (compose `env_file`) and overrides the settings it needs.
