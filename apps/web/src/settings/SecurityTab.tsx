@@ -1,5 +1,5 @@
 // App lock (feature 91) and, in connected mode, the server account: password, recovery codes,
-// sessions, sign-out (sign-out never deletes local data).
+// passkeys, sessions, sign-out (sign-out never deletes local data).
 import type { Schemas } from '@finplat/api-client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { type FormEvent, useState } from 'react';
@@ -9,6 +9,7 @@ import {
   Badge,
   Button,
   Card,
+  ConfirmDialog,
   ErrorBox,
   Field,
   Input,
@@ -19,6 +20,8 @@ import {
 import { toast } from '../components/ui/toast.tsx';
 import { useFormat } from '../lib/format.ts';
 import { useT } from '../lib/i18n.ts';
+import { addPasskey, passkeysSupported } from '../lib/passkeys.ts';
+import { deviceName } from '../onboarding/connect.tsx';
 import { hashSecret } from '../shell/AppLock.tsx';
 
 /** PIN: 4–12 digits. Password: at least 8 characters. Returns an error message or null. */
@@ -147,6 +150,192 @@ function LockCard() {
   );
 }
 
+function PasskeysCard() {
+  const t = useT();
+  const fmt = useFormat();
+  const { api } = useData();
+  const qc = useQueryClient();
+  const [name, setName] = useState(() => deviceName());
+  const [password, setPassword] = useState('');
+  const [editing, setEditing] = useState<{ id: string; name: string } | null>(null);
+  const [removing, setRemoving] = useState<Schemas['Passkey'] | null>(null);
+  const key = ['server', 'passkeys'];
+  const list = useQuery({
+    queryKey: key,
+    queryFn: () =>
+      api
+        ?.request<{ items: Schemas['Passkey'][] }>('GET', '/api/v1/auth/passkeys')
+        .then((r) => r.items) ?? [],
+    enabled: !!api,
+  });
+  const done = () => qc.invalidateQueries({ queryKey: key });
+  const add = useMutation({
+    mutationFn: () =>
+      api ? addPasskey(api, name.trim(), password || undefined) : Promise.reject(),
+    onSuccess: () => {
+      setPassword('');
+      toast(t('passkey.added', 'Passkey added'));
+      done();
+    },
+  });
+  const rename = useMutation({
+    mutationFn: (p: { id: string; name: string }) =>
+      api?.request('PATCH', `/api/v1/auth/passkeys/${p.id}`, { name: p.name }) ?? Promise.resolve(),
+    onSuccess: () => {
+      setEditing(null);
+      done();
+    },
+  });
+  const remove = useMutation({
+    mutationFn: (id: string) =>
+      api?.request('DELETE', `/api/v1/auth/passkeys/${id}`) ?? Promise.resolve(),
+    onSuccess: () => {
+      setRemoving(null);
+      toast(t('passkey.removed', 'Passkey removed'));
+      done();
+    },
+  });
+  const items = list.data ?? [];
+  return (
+    <Card title={t('passkey.title', 'Passkeys')}>
+      <p className="mb-3 text-sm text-muted">
+        {t(
+          'passkey.explain',
+          'Sign in with your fingerprint, face, screen lock or a security key instead of typing your password. Your password keeps working.',
+        )}
+      </p>
+      {items.length > 0 && (
+        <div className="mb-3 overflow-x-auto">
+          <table className={tableClass}>
+            <thead>
+              <tr>
+                <th>{t('passkey.name', 'Passkey name')}</th>
+                <th>{t('passkey.created', 'Added')}</th>
+                <th>{t('passkey.lastUsed', 'Last used')}</th>
+                <th>
+                  <span className="sr-only">{t('common.actions', 'Actions')}</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((k) => (
+                <tr key={k.id}>
+                  <td>
+                    {editing?.id === k.id ? (
+                      <form
+                        className="flex gap-2"
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          rename.mutate(editing);
+                        }}
+                      >
+                        <Input
+                          aria-label={t('passkey.name', 'Passkey name')}
+                          autoFocus
+                          required
+                          maxLength={100}
+                          value={editing.name}
+                          onChange={(e) => setEditing({ id: k.id, name: e.target.value })}
+                        />
+                        <Button type="submit" size="sm" busy={rename.isPending}>
+                          {t('common.save', 'Save')}
+                        </Button>
+                      </form>
+                    ) : (
+                      <>
+                        {k.name}{' '}
+                        {k.backupEligible && <Badge>{t('passkey.synced', 'synced')}</Badge>}
+                      </>
+                    )}
+                  </td>
+                  <td>{fmt.dateTime(k.createdAt)}</td>
+                  <td>{k.lastUsedAt ? fmt.dateTime(k.lastUsedAt) : t('passkey.never', 'Never')}</td>
+                  <td className="whitespace-nowrap text-right">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      aria-label={t('passkey.renameNamed', 'Rename {{name}}', { name: k.name })}
+                      onClick={() => setEditing({ id: k.id, name: k.name })}
+                    >
+                      {t('passkey.rename', 'Rename')}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-neg"
+                      aria-label={t('passkey.removeNamed', 'Remove {{name}}', { name: k.name })}
+                      onClick={() => setRemoving(k)}
+                    >
+                      {t('passkey.remove', 'Remove')}
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {passkeysSupported() ? (
+        <form
+          className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end"
+          onSubmit={(e) => {
+            e.preventDefault();
+            add.mutate();
+          }}
+        >
+          <Field label={t('passkey.newName', 'Name for the new passkey')}>
+            <Input
+              required
+              maxLength={100}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+          </Field>
+          <Field
+            label={t('passkey.password', 'Current password')}
+            hint={t('passkey.passwordHint', 'Needed if you signed in more than 10 minutes ago.')}
+          >
+            <Input
+              type="password"
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          </Field>
+          <Button type="submit" variant="primary" busy={add.isPending}>
+            {t('passkey.add', 'Add passkey')}
+          </Button>
+        </form>
+      ) : (
+        <Notice tone="warn" title={t('passkey.unsupportedTitle', 'Passkeys are not available')}>
+          {t(
+            'passkey.unsupportedHere',
+            'This browser does not support passkeys (WebAuthn). Use a current browser to add one.',
+          )}
+        </Notice>
+      )}
+      <div className="mt-2">
+        <ErrorBox error={list.error ?? add.error ?? rename.error ?? remove.error} />
+      </div>
+      <ConfirmDialog
+        open={!!removing}
+        onOpenChange={(o) => !o && setRemoving(null)}
+        title={t('passkey.removeTitle', 'Remove passkey?')}
+        confirmLabel={t('passkey.remove', 'Remove')}
+        danger
+        busy={remove.isPending}
+        onConfirm={() => removing && remove.mutate(removing.id)}
+      >
+        {t(
+          'passkey.removeText',
+          '“{{name}}” will no longer sign you in. Also delete it from your device or password manager.',
+          { name: removing?.name ?? '' },
+        )}
+      </ConfirmDialog>
+    </Card>
+  );
+}
+
 function AccountCard() {
   const t = useT();
   const fmt = useFormat();
@@ -246,6 +435,7 @@ function AccountCard() {
           <ErrorBox error={pw.error} />
         </div>
       </Card>
+      <PasskeysCard />
       <Card title={t('auth.recovery', 'Account recovery codes')}>
         <p className="text-sm text-muted">
           {t(

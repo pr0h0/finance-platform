@@ -156,6 +156,16 @@ export const en = {
     'Imported amounts and dates are bank evidence; record an adjustment instead.',
   'error.rate_unavailable': 'No exchange rate for that date. Enter the amount actually received.',
   'error.invariant_violation': 'This change would break a financial rule: {{message}}',
+  'error.passkey_failed': 'That passkey could not sign you in. Try again or use your password.',
+  'error.passkey_cancelled': 'The passkey request was cancelled or timed out.',
+  'error.passkey_aborted': 'The passkey request was interrupted. Try again.',
+  'error.passkey_exists': 'This passkey is already registered.',
+  'error.passkey_invalid': 'The passkey could not be verified.',
+  'error.passkey_ceremony_invalid': 'The passkey request expired. Try again.',
+  'error.passkeys_unavailable': 'Passkeys are not configured on this server.',
+  'error.reauth_required': 'Enter your current password to continue.',
+  'error.last_credential':
+    'This is your only way to sign in. Set a password or add another passkey first.',
   'error.unknown': 'Something went wrong.',
 } as const;
 

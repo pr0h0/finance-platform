@@ -197,6 +197,121 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/passkeys": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List my passkeys */
+        get: operations["get_auth_passkeys"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/passkeys/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove a passkey
+         * @description 409 last_credential when the account has no password and this is its only passkey (it would be locked out).
+         */
+        delete: operations["delete_auth_passkeys_id"];
+        options?: never;
+        head?: never;
+        /** Rename a passkey */
+        patch: operations["patch_auth_passkeys_id"];
+        trace?: never;
+    };
+    "/api/v1/auth/passkeys/register/begin": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start adding a passkey (WebAuthn registration options)
+         * @description Signed-in user session. A session younger than 10 minutes may proceed; an older one must send the account password (401 reauth_required otherwise). Resident key required, user verification preferred, no attestation. The ceremony is single use, expires after 5 minutes and is bound to this session.
+         */
+        post: operations["post_auth_passkeys_register_begin"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/passkeys/register/finish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Finish adding a passkey */
+        post: operations["post_auth_passkeys_register_finish"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/passkeys/login/begin": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start a passkey sign-in (WebAuthn assertion options)
+         * @description Usernameless (discoverable credentials; also used for autofill / conditional mediation). With `email`, only that account may finish; unknown emails get the same response. Rate limited like password login.
+         */
+        post: operations["post_auth_passkeys_login_begin"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/passkeys/login/finish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Finish a passkey sign-in; same session as POST /auth/login
+         * @description Single-use ceremony. Verifies origin, RP ID, signature and sign counter (a counter that goes backwards is refused as a possible clone). Failures are 401 passkey_failed and audited as auth.login_failed.
+         */
+        post: operations["post_auth_passkeys_login_finish"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/users/me": {
         parameters: {
             query?: never;
@@ -3104,6 +3219,22 @@ export interface components {
             expiresAt?: components["schemas"]["Instant"];
             current?: boolean;
         };
+        Passkey: {
+            id: components["schemas"]["Uuid"];
+            name: string;
+            transports: string[];
+            backupEligible: boolean;
+            backupState: boolean;
+            createdAt: components["schemas"]["Instant"];
+            lastUsedAt: components["schemas"]["Instant"] | null;
+        };
+        PasskeyCeremony: {
+            ceremonyId: components["schemas"]["Uuid"];
+            /** @description PublicKeyCredentialCreationOptionsJSON or PublicKeyCredentialRequestOptionsJSON (WebAuthn L3) */
+            options: {
+                [key: string]: unknown;
+            };
+        };
         Device: {
             id?: components["schemas"]["Uuid"];
             name?: string;
@@ -4803,6 +4934,211 @@ export interface operations {
             400: components["responses"]["Error"];
             401: components["responses"]["Error"];
             404: components["responses"]["Error"];
+            default: components["responses"]["Error"];
+        };
+    };
+    get_auth_passkeys: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["Passkey"][];
+                        nextCursor?: string;
+                    };
+                };
+            };
+            401: components["responses"]["Error"];
+            default: components["responses"]["Error"];
+        };
+    };
+    delete_auth_passkeys_id: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Error"];
+            404: components["responses"]["Error"];
+            409: components["responses"]["Error"];
+            default: components["responses"]["Error"];
+        };
+    };
+    patch_auth_passkeys_id: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    name: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Passkey"];
+                };
+            };
+            401: components["responses"]["Error"];
+            404: components["responses"]["Error"];
+            422: components["responses"]["Error"];
+            default: components["responses"]["Error"];
+        };
+    };
+    post_auth_passkeys_register_begin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    password?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PasskeyCeremony"];
+                };
+            };
+            401: components["responses"]["Error"];
+            default: components["responses"]["Error"];
+        };
+    };
+    post_auth_passkeys_register_finish: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    ceremonyId: components["schemas"]["Uuid"];
+                    name?: string;
+                    /** @description RegistrationResponseJSON from navigator.credentials.create() */
+                    credential: {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Passkey"];
+                };
+            };
+            400: components["responses"]["Error"];
+            401: components["responses"]["Error"];
+            409: components["responses"]["Error"];
+            default: components["responses"]["Error"];
+        };
+    };
+    post_auth_passkeys_login_begin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    email?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PasskeyCeremony"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    post_auth_passkeys_login_finish: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    ceremonyId: components["schemas"]["Uuid"];
+                    /** @description AuthenticationResponseJSON from navigator.credentials.get() */
+                    credential: {
+                        [key: string]: unknown;
+                    };
+                    device?: components["schemas"]["DeviceRegistration"];
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoginResponse"];
+                };
+            };
+            400: components["responses"]["Error"];
+            401: components["responses"]["Error"];
             default: components["responses"]["Error"];
         };
     };

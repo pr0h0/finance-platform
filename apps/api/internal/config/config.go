@@ -18,6 +18,9 @@ type Config struct {
 	AllowedOrigins []string
 	TrustProxy     bool // trust X-Forwarded-For/-Proto from the gateway
 
+	WebAuthnRPID    string   // WEBAUTHN_RP_ID: passkey relying party id (default: host of PUBLIC_URL)
+	WebAuthnOrigins []string // WEBAUTHN_ORIGINS: origins passkey ceremonies may come from (default: PUBLIC_URL)
+
 	DatabaseURL    string
 	DBMaxConns     int32
 	MigrateOnStart bool
@@ -189,7 +192,9 @@ func Load() (*Config, error) {
 	} else {
 		// Behind a TLS-terminating proxy the public scheme decides cookie security.
 		c.CookieSecure = boolean("COOKIE_SECURE", u.Scheme == "https", &errs)
+		c.WebAuthnRPID = str("WEBAUTHN_RP_ID", u.Hostname())
 	}
+	c.WebAuthnOrigins = list("WEBAUTHN_ORIGINS", c.PublicURL)
 	c.AllowedOrigins = list("ALLOWED_ORIGINS", c.PublicURL)
 	if c.DatabaseURL == "" {
 		errs = append(errs, "DATABASE_URL: required")

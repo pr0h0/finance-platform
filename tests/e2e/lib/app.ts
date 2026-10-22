@@ -130,7 +130,9 @@ export async function onboardConnected(
   await panel.getByLabel('Email').fill(email);
   if (register) await panel.getByLabel('Display name (optional)').fill('E2E user');
   await panel.getByLabel('Password').fill(PASSWORD);
-  await panel.getByRole('button', { name: register ? 'Create account' : 'Sign in' }).click();
+  await panel
+    .getByRole('button', { name: register ? 'Create account' : 'Sign in', exact: true })
+    .click();
   await expect(page.getByRole('heading', { name: 'Choose a profile' })).toBeVisible();
   const rows = page
     .getByRole('listitem')
@@ -211,7 +213,9 @@ export async function startActivation(page: Page, email: string, register = true
   const panel = page.getByRole('tabpanel').last();
   await panel.getByLabel('Email').fill(email);
   await panel.getByLabel('Password').fill(PASSWORD);
-  await panel.getByRole('button', { name: register ? 'Create account' : 'Sign in' }).click();
+  await panel
+    .getByRole('button', { name: register ? 'Create account' : 'Sign in', exact: true })
+    .click();
   await expect(page.getByRole('button', { name: 'Preview upload' })).toBeVisible();
 }
 

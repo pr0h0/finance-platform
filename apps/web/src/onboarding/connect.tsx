@@ -3,7 +3,7 @@
 // explicit trust decision, then sign in or register and enroll this browser as a device.
 import { type ApiClient, normalizeServerUrl } from '@finplat/api-client';
 import type { ServerMeta } from '@finplat/domain';
-import { type FormEvent, useState } from 'react';
+import { type FormEvent, useEffect, useState } from 'react';
 import { makeApi } from '../app/data.tsx';
 import {
   Badge,
@@ -17,6 +17,12 @@ import {
   Tabs,
 } from '../components/ui/index.tsx';
 import { useT } from '../lib/i18n.ts';
+import {
+  cancelPasskeyCeremony,
+  passkeyAutofillSupported,
+  passkeysSupported,
+  signInWithPasskey,
+} from '../lib/passkeys.ts';
 import { fetchServerStatus } from '../lib/server-status.ts';
 
 export interface VerifiedServer {
@@ -210,6 +216,56 @@ export function deviceName(ua = globalThis.navigator?.userAgent ?? ''): string {
   return `${browser}${os ? ` on ${os}` : ''}`;
 }
 
+type LoginResponse = Awaited<ReturnType<ApiClient['login']>>;
+
+/** Browser-side passkey outcomes (dismissed, aborted): not worth an error box for autofill. */
+const browserSide = (e: unknown) =>
+  /^passkey_(aborted|cancelled)$/.test((e as { code?: string })?.code ?? '');
+
+/** "Sign in with passkey" (or a note when this browser has no WebAuthn). */
+export function PasskeySignIn({
+  api,
+  email,
+  onSignedIn,
+}: {
+  api: () => ApiClient;
+  email?: string;
+  onSignedIn: (api: ApiClient, res: LoginResponse) => Promise<void> | void;
+}) {
+  const t = useT();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<unknown>(null);
+  if (!passkeysSupported())
+    return (
+      <p className="text-xs text-muted">
+        {t(
+          'passkey.unsupported',
+          'This browser does not support passkeys. Sign in with your password.',
+        )}
+      </p>
+    );
+  async function go() {
+    setBusy(true);
+    setError(null);
+    const a = api();
+    try {
+      await onSignedIn(a, await signInWithPasskey(a, { email: email || undefined }));
+    } catch (x) {
+      setError(x);
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <div className="flex flex-col gap-2">
+      <Button type="button" busy={busy} onClick={go} className="self-start justify-self-start">
+        {t('passkey.signIn', 'Sign in with passkey')}
+      </Button>
+      <ErrorBox error={error} />
+    </div>
+  );
+}
+
 export function AuthStep({
   server,
   onSignedIn,
@@ -241,13 +297,7 @@ export function AuthStep({
           displayName: displayName || undefined,
           setupToken: setupToken || undefined,
         });
-      const res = await api.login({ email, password });
-      const dev = await api.request<{ id: string }>('POST', '/api/v1/devices', {
-        name: deviceName(),
-        platform: 'web',
-        clientVersion: '0.0.0',
-      });
-      onSignedIn({ api, deviceId: dev.id, email, isAdmin: !!res.user?.isAdmin });
+      await enroll(api, await api.login({ email, password }));
     } catch (x) {
       setError(x);
     } finally {
@@ -255,12 +305,46 @@ export function AuthStep({
     }
   }
 
+  async function enroll(api: ApiClient, res: LoginResponse) {
+    const dev = await api.request<{ id: string }>('POST', '/api/v1/devices', {
+      name: deviceName(),
+      platform: 'web',
+      clientVersion: '0.0.0',
+    });
+    onSignedIn({
+      api,
+      deviceId: dev.id,
+      email: res.user?.email ?? email,
+      isAdmin: !!res.user?.isAdmin,
+    });
+  }
+
+  // Passkey autofill (conditional mediation) while the sign-in form is shown.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: restart only when the form changes
+  useEffect(() => {
+    if (tab !== 'login' || !passkeysSupported()) return;
+    let live = true;
+    passkeyAutofillSupported().then((ok) => {
+      if (!ok || !live) return;
+      const api = makeApi(server.baseUrl);
+      signInWithPasskey(api, { autofill: true })
+        .then((res) => (live ? enroll(api, res) : undefined))
+        .catch((x) => {
+          if (live && !browserSide(x)) setError(x);
+        });
+    });
+    return () => {
+      live = false;
+      cancelPasskeyCeremony();
+    };
+  }, [tab, server.baseUrl]);
+
   const form = (register: boolean) => (
     <form onSubmit={submit} className="flex flex-col gap-3">
       <Field label={t('auth.email', 'Email')}>
         <Input
           type="email"
-          autoComplete="email"
+          autoComplete={register ? 'email' : 'username webauthn'}
           required
           value={email}
           onChange={(e) => setEmail(e.target.value)}
@@ -308,6 +392,9 @@ export function AuthStep({
       <Button type="submit" variant="primary" busy={busy} className="self-start justify-self-start">
         {register ? t('auth.register', 'Create account') : t('auth.signIn', 'Sign in')}
       </Button>
+      {!register && (
+        <PasskeySignIn api={() => makeApi(server.baseUrl)} email={email} onSignedIn={enroll} />
+      )}
     </form>
   );
 

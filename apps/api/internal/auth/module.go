@@ -1,6 +1,6 @@
 // Package auth: Registration, login/logout, sessions, CSRF, account recovery.
 //
-// Owned routes under /api/v1: /auth/*, /sessions
+// Owned routes under /api/v1: /auth/* (including /auth/passkeys*, see passkeys.go), /sessions
 // See docs/api/openapi.yaml for the contract.
 package auth
 
@@ -43,6 +43,7 @@ func Register(r chi.Router, deps *app.Deps) {
 	r.Post("/auth/recovery-codes", httpx.H(h.recoveryCodes))
 	r.Post("/auth/recover", httpx.H(h.recover))
 	r.Get("/sessions", httpx.H(h.listSessions))
+	registerPasskeys(r, h)
 	r.Delete("/sessions/{id}", httpx.H(h.revokeSession))
 }
 
@@ -328,7 +329,13 @@ func (h *handlers) login(w http.ResponseWriter, r *http.Request) error {
 		}
 		return errBadCredentials
 	}
+	return h.startSession(w, r, userID, in.Device, "password")
+}
 
+// startSession signs userID in after a successful password or passkey check: a cookie session
+// (+ csrfToken) for the web, or a bearer token for a native device; audited as auth.login.
+func (h *handlers) startSession(w http.ResponseWriter, r *http.Request, userID uuid.UUID, device *deviceReq, method string) error {
+	ctx := r.Context()
 	tx, err := h.deps.DB.Begin(ctx)
 	if err != nil {
 		return err
@@ -336,8 +343,8 @@ func (h *handlers) login(w http.ResponseWriter, r *http.Request) error {
 	defer tx.Rollback(ctx)
 	var deviceID *uuid.UUID
 	kind := "cookie"
-	if in.Device != nil {
-		d, err := CreateDevice(ctx, tx, userID, *in.Device)
+	if device != nil {
+		d, err := CreateDevice(ctx, tx, userID, *device)
 		if err != nil {
 			return err
 		}
@@ -362,7 +369,7 @@ func (h *handlers) login(w http.ResponseWriter, r *http.Request) error {
 	}
 	actx := authz.WithPrincipal(ctx, authz.Principal{UserID: userID, ActorType: authz.ActorUser, SessionID: sessionID, DeviceID: deviceID})
 	if err := changes.Audit(actx, tx, changes.Entry{Action: "auth.login", EntityType: "sessions", EntityID: &sessionID,
-		IP: ClientIP(r), Metadata: map[string]any{"kind": kind}}); err != nil {
+		IP: ClientIP(r), Metadata: map[string]any{"kind": kind, "method": method}}); err != nil {
 		return err
 	}
 	if err := tx.Commit(ctx); err != nil {

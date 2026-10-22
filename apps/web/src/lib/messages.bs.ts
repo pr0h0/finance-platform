@@ -1808,4 +1808,31 @@ export const bs: Record<string, string> = {
   'engine.forecast.reserveNoRate': 'Minimalna rezerva se zanemaruje: nema kursa {{from}}/{{to}}.',
   'engine.forecast.planNoAccount': 'Plan "{{description}}" nema račun i nije u prognozi.',
   'engine.forecast.transferNoDestination': 'Plan prenosa "{{description}}" nema odredišni račun.',
+  // passkeys
+  'passkey.unsupported': 'Ovaj preglednik ne podržava pristupne ključeve. Prijavite se lozinkom.',
+  'passkey.signIn': 'Prijava pristupnim ključem',
+  'passkey.added': 'Pristupni ključ je dodan',
+  'passkey.removed': 'Pristupni ključ je uklonjen',
+  'passkey.title': 'Pristupni ključevi (passkeys)',
+  'passkey.explain':
+    'Prijavite se otiskom prsta, licem, zaključavanjem ekrana ili sigurnosnim ključem umjesto lozinke. Lozinka i dalje radi.',
+  'passkey.name': 'Naziv pristupnog ključa',
+  'passkey.created': 'Dodan',
+  'passkey.lastUsed': 'Posljednja upotreba',
+  'passkey.synced': 'sinhronizovan',
+  'passkey.never': 'Nikad',
+  'passkey.renameNamed': 'Preimenuj {{name}}',
+  'passkey.rename': 'Preimenuj',
+  'passkey.removeNamed': 'Ukloni {{name}}',
+  'passkey.remove': 'Ukloni',
+  'passkey.newName': 'Naziv novog pristupnog ključa',
+  'passkey.password': 'Trenutna lozinka',
+  'passkey.passwordHint': 'Potrebna ako ste se prijavili prije više od 10 minuta.',
+  'passkey.add': 'Dodaj pristupni ključ',
+  'passkey.unsupportedTitle': 'Pristupni ključevi nisu dostupni',
+  'passkey.unsupportedHere':
+    'Ovaj preglednik ne podržava pristupne ključeve (WebAuthn). Koristite noviji preglednik da biste ga dodali.',
+  'passkey.removeTitle': 'Ukloniti pristupni ključ?',
+  'passkey.removeText':
+    '„{{name}}“ vas više neće prijavljivati. Obrišite ga i sa uređaja ili iz upravitelja lozinki.',
 };

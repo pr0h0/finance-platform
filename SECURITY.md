@@ -7,6 +7,10 @@ Do not open public issues for security problems. Expect an acknowledgement withi
 ## Scope and design
 - Passwords: Argon2id. Sessions: random tokens stored as SHA-256 hashes; HttpOnly, SameSite=Lax, Secure
   cookies behind TLS; CSRF token required on cookie-authenticated mutations.
+- Passkeys (WebAuthn): public keys only on the server; single-use ceremonies (5 min) bound to the session
+  (registration) or ceremony id (login); RP ID and origins from WEBAUTHN_RP_ID / WEBAUTHN_ORIGINS; a sign
+  counter that goes backwards is refused; adding one needs a fresh session or the password; passkey login
+  shares password login's rate limits and audit log; the last credential cannot be removed.
 - Object-level authorization on every financial resource (`authz.RequireProfile` + `profile_id` filters).
 - Parameterized SQL only; no arbitrary SQL via MCP; declarative import templates are never executed as code.
 - Uploads: size/type/content validation, no path traversal, decompression and parser limits.

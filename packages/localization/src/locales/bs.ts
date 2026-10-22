@@ -161,5 +161,16 @@ export const bs = {
     'Uvezeni iznosi i datumi su dokaz iz banke; umjesto toga evidentirajte korekciju.',
   'error.rate_unavailable': 'Nema kursa za taj datum. Unesite stvarno primljeni iznos.',
   'error.invariant_violation': 'Ova promjena bi prekršila finansijsko pravilo: {{message}}',
+  'error.passkey_failed':
+    'Prijava tim pristupnim ključem nije uspjela. Pokušajte ponovo ili koristite lozinku.',
+  'error.passkey_cancelled': 'Zahtjev za pristupni ključ je otkazan ili je istekao.',
+  'error.passkey_aborted': 'Zahtjev za pristupni ključ je prekinut. Pokušajte ponovo.',
+  'error.passkey_exists': 'Ovaj pristupni ključ je već registrovan.',
+  'error.passkey_invalid': 'Pristupni ključ nije moguće provjeriti.',
+  'error.passkey_ceremony_invalid': 'Zahtjev za pristupni ključ je istekao. Pokušajte ponovo.',
+  'error.passkeys_unavailable': 'Pristupni ključevi nisu podešeni na ovom serveru.',
+  'error.reauth_required': 'Unesite trenutnu lozinku za nastavak.',
+  'error.last_credential':
+    'Ovo je vaš jedini način prijave. Prvo postavite lozinku ili dodajte drugi pristupni ključ.',
   'error.unknown': 'Nešto nije u redu.',
 } satisfies Record<MessageKey, string> & Catalog;

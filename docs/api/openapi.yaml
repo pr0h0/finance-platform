@@ -307,6 +307,211 @@ paths:
           $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
+  /api/v1/auth/passkeys:
+    get:
+      tags: ["auth"]
+      summary: "List my passkeys"
+      operationId: "get_auth_passkeys"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            application/json:
+              schema:
+                type: "object"
+                properties:
+                  items:
+                    type: "array"
+                    items:
+                      $ref: "#/components/schemas/Passkey"
+                  nextCursor:
+                    type: "string"
+                required: ["items"]
+        "401":
+          $ref: "#/components/responses/Error"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/auth/passkeys/{id}:
+    patch:
+      tags: ["auth"]
+      summary: "Rename a passkey"
+      operationId: "patch_auth_passkeys_id"
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: "object"
+              properties:
+                name:
+                  type: "string"
+                  minLength: 1
+                  maxLength: 100
+              required: ["name"]
+              additionalProperties: false
+      responses:
+        "200":
+          description: "OK"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Passkey"
+        "401":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+        "422":
+          $ref: "#/components/responses/Error"
+        default:
+          $ref: "#/components/responses/Error"
+    delete:
+      tags: ["auth"]
+      summary: "Remove a passkey"
+      description: "409 last_credential when the account has no password and this is its only passkey (it would be locked out)."
+      operationId: "delete_auth_passkeys_id"
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: "No content"
+        "401":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/auth/passkeys/register/begin:
+    post:
+      tags: ["auth"]
+      summary: "Start adding a passkey (WebAuthn registration options)"
+      description: "Signed-in user session. A session younger than 10 minutes may proceed; an older one must send the account password (401 reauth_required otherwise). Resident key required, user verification preferred, no attestation. The ceremony is single use, expires after 5 minutes and is bound to this session."
+      operationId: "post_auth_passkeys_register_begin"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: "object"
+              properties:
+                password:
+                  type: "string"
+              additionalProperties: false
+      responses:
+        "200":
+          description: "OK"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PasskeyCeremony"
+        "401":
+          $ref: "#/components/responses/Error"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/auth/passkeys/register/finish:
+    post:
+      tags: ["auth"]
+      summary: "Finish adding a passkey"
+      operationId: "post_auth_passkeys_register_finish"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: "object"
+              properties:
+                ceremonyId:
+                  $ref: "#/components/schemas/Uuid"
+                name:
+                  type: "string"
+                  maxLength: 100
+                credential:
+                  type: "object"
+                  description: "RegistrationResponseJSON from navigator.credentials.create()"
+                  additionalProperties: true
+              required: ["ceremonyId", "credential"]
+              additionalProperties: false
+      responses:
+        "201":
+          description: "Created"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Passkey"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/auth/passkeys/login/begin:
+    post:
+      tags: ["auth"]
+      summary: "Start a passkey sign-in (WebAuthn assertion options)"
+      description: "Usernameless (discoverable credentials; also used for autofill / conditional mediation). With `email`, only that account may finish; unknown emails get the same response. Rate limited like password login."
+      operationId: "post_auth_passkeys_login_begin"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: "object"
+              properties:
+                email:
+                  type: "string"
+              additionalProperties: false
+      responses:
+        "200":
+          description: "OK"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PasskeyCeremony"
+        default:
+          $ref: "#/components/responses/Error"
+      security: []
+  /api/v1/auth/passkeys/login/finish:
+    post:
+      tags: ["auth"]
+      summary: "Finish a passkey sign-in; same session as POST /auth/login"
+      description: "Single-use ceremony. Verifies origin, RP ID, signature and sign counter (a counter that goes backwards is refused as a possible clone). Failures are 401 passkey_failed and audited as auth.login_failed."
+      operationId: "post_auth_passkeys_login_finish"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: "object"
+              properties:
+                ceremonyId:
+                  $ref: "#/components/schemas/Uuid"
+                credential:
+                  type: "object"
+                  description: "AuthenticationResponseJSON from navigator.credentials.get()"
+                  additionalProperties: true
+                device:
+                  $ref: "#/components/schemas/DeviceRegistration"
+              required: ["ceremonyId", "credential"]
+              additionalProperties: false
+      responses:
+        "200":
+          description: "OK"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        default:
+          $ref: "#/components/responses/Error"
+      security: []
   /api/v1/users/me:
     get:
       tags: ["users"]
@@ -7344,6 +7549,40 @@ components:
           $ref: "#/components/schemas/Instant"
         current:
           type: "boolean"
+      additionalProperties: false
+    Passkey:
+      type: "object"
+      properties:
+        id:
+          $ref: "#/components/schemas/Uuid"
+        name:
+          type: "string"
+        transports:
+          type: "array"
+          items:
+            type: "string"
+        backupEligible:
+          type: "boolean"
+        backupState:
+          type: "boolean"
+        createdAt:
+          $ref: "#/components/schemas/Instant"
+        lastUsedAt:
+          oneOf:
+            - $ref: "#/components/schemas/Instant"
+            - type: "null"
+      required: ["id", "name", "transports", "backupEligible", "backupState", "createdAt", "lastUsedAt"]
+      additionalProperties: false
+    PasskeyCeremony:
+      type: "object"
+      properties:
+        ceremonyId:
+          $ref: "#/components/schemas/Uuid"
+        options:
+          type: "object"
+          description: "PublicKeyCredentialCreationOptionsJSON or PublicKeyCredentialRequestOptionsJSON (WebAuthn L3)"
+          additionalProperties: true
+      required: ["ceremonyId", "options"]
       additionalProperties: false
     Device:
       type: "object"

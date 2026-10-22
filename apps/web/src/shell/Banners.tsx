@@ -8,6 +8,7 @@ import { useData } from '../app/data.tsx';
 import { useApp } from '../app/store.ts';
 import { Button, Dialog, ErrorBox, Field, Input } from '../components/ui/index.tsx';
 import { useT } from '../lib/i18n.ts';
+import { PasskeySignIn } from '../onboarding/connect.tsx';
 import { useOnline } from './useOnline.ts';
 
 export function backupDue(
@@ -146,6 +147,16 @@ function ReLogin({ onClose }: { onClose: () => void }) {
         <Button type="submit" variant="primary" busy={busy} disabled={!password}>
           {t('auth.signIn', 'Sign in')}
         </Button>
+        {api && (
+          <PasskeySignIn
+            api={() => api}
+            email={email}
+            onSignedIn={() => {
+              reload();
+              onClose();
+            }}
+          />
+        )}
       </form>
     </Dialog>
   );

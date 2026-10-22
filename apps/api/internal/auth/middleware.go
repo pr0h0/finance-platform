@@ -36,6 +36,7 @@ func credentialFrom(ctx context.Context) (credential, bool) {
 // csrfExempt: endpoints that do not act on the current session (they authenticate by body).
 var csrfExempt = map[string]bool{
 	"/api/v1/auth/login": true, "/api/v1/auth/register": true, "/api/v1/auth/recover": true,
+	"/api/v1/auth/passkeys/login/begin": true, "/api/v1/auth/passkeys/login/finish": true,
 }
 
 func unsafeMethod(m string) bool {
