@@ -1,6 +1,5 @@
 # Known issues and limitations
 
-- Raiffeisen Bank BiH importer: BLOCKED_EXTERNAL (no statement sample).
 - Mobile (Phase 3) and desktop/Tauri (Phase 4) not started: DEFERRED_TO_PHASE.
 - `docs/api/openapi.yaml` is hand-maintained; TS types in `packages/domain` are not generated from it, so
   drift is possible until a CI check is added.
@@ -34,7 +33,8 @@
   entering another server address offers a link to that server's own web app. Connecting one client to
   arbitrary servers is for the desktop/mobile apps (Phase 3/4).
 - XML (CAMT/OFX), JSON, XLSX/XLS and PDF are parsed whole-file (capped by `maxBytes`); only CSV/TSV/QIF/MT940 stream.
-- PDF text import rebuilds rows from text positions; multi-line descriptions keep only their first line.
+- Generic PDF text import (template) rebuilds rows from text positions; multi-line descriptions keep only their first line. The Raiffeisen BiH importer has its own layout parser and keeps them whole.
+- Raiffeisen BiH: only the "IZVOD - OBAVIJEST" PDF layout is supported (seen on current-account/card statements in KM); other products or currencies are untested. PDF parsing runs only in the web client, so MCP/connected uploads must send the client-parsed result.
 - QIF: day/month order is inferred per file; all-ambiguous files assume MM/DD (DD.MM for dot dates) with a warning. QIF splits are kept raw only.
 - MT940 `:86:` is used verbatim; bank-specific sub-field parsing (`?20`, `/REMI/` …) is not done.
 - CAMT batched entries (several TxDtls) become one record for the entry total.

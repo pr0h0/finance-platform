@@ -68,7 +68,7 @@ Normalized records are kept in memory for the preview.
    (Feature 130) compares versions.
 6. Run `scripts/bun.sh test packages/bank-importers packages/importer-sdk` and `scripts/bun.sh run lint`.
 
-Raiffeisen Bank BiH is **BLOCKED_EXTERNAL**: see `packages/bank-importers/src/banks/raiffeisen-bih/README.md`.
+Raiffeisen Bank BiH (PDF statement) is implemented as a code adapter: see `docs/importing/banks/raiffeisen-bih.md`.
 
 ## Commands
 ```sh

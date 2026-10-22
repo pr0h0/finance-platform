@@ -78,11 +78,11 @@ func (h *handlers) importers(w http.ResponseWriter, r *http.Request) error {
 	if _, err := authz.Require(r.Context()); err != nil {
 		return err
 	}
-	items := make([]Manifest, 0, len(Registry)+len(Blocked))
+	items := make([]Manifest, 0, len(Registry)+len(ClientOnly))
 	for _, i := range Registry {
 		items = append(items, i.Manifest)
 	}
-	items = append(items, Blocked...)
+	items = append(items, ClientOnly...)
 	httpx.WriteJSON(w, http.StatusOK, httpx.List[Manifest]{Items: items})
 	return nil
 }
@@ -324,8 +324,8 @@ func (h *handlers) create(w http.ResponseWriter, r *http.Request) error {
 		if len(errs) > 0 {
 			return httpx.Validation(errs)
 		}
-		if isBlocked(in.ImporterID) {
-			return blockedErr(in.ImporterID)
+		if findImporter(in.ImporterID) == nil && !isClientOnly(in.ImporterID) {
+			return httpx.Validation(map[string]string{"importerId": "unknown importer"})
 		}
 		if in.ReprocessedFromBatchID != nil {
 			if _, err := getBatch(r.Context(), h.deps.DB, pid, *in.ReprocessedFromBatchID, false); err != nil {

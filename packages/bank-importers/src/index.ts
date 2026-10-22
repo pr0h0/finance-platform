@@ -1,4 +1,4 @@
-import { type BankImporter, type ImporterManifest, ImporterRegistry } from '@finplat/importer-sdk';
+import { type BankImporter, ImporterRegistry } from '@finplat/importer-sdk';
 import { raiffeisenBih } from './banks/raiffeisen-bih/index.ts';
 import { camtImporter } from './formats/camt.ts';
 import { jsonImporter } from './formats/json.ts';
@@ -8,7 +8,11 @@ import { type OcrOptions, ocrImporter, pdfTextImporter } from './formats/pdf.ts'
 import { qifImporter } from './formats/qif.ts';
 import { delimitedImporter, spreadsheetImporter } from './formats/tabular.ts';
 
-export { raiffeisenBih } from './banks/raiffeisen-bih/index.ts';
+export {
+  isRaiffeisenStatement,
+  parseRaiffeisenItems,
+  raiffeisenBih,
+} from './banks/raiffeisen-bih/index.ts';
 export { camtImporter } from './formats/camt.ts';
 export { jsonImporter } from './formats/json.ts';
 export { decodeEntities, parseMarkup } from './formats/markup.ts';
@@ -52,11 +56,6 @@ export const importers: BankImporter[] = [
   ocrImporter(),
   raiffeisenBih,
 ];
-
-/** Importers whose real format is unknown (Raiffeisen BiH, Feature 121). */
-export const blockedImporters: ImporterManifest[] = importers
-  .map((i) => i.manifest)
-  .filter((m) => m.status === 'blocked_external');
 
 /** ocr: self-hosted tesseract paths for the OCR importer (see OcrOptions). */
 export function createRegistry(o: { ocr?: OcrOptions } = {}): ImporterRegistry {

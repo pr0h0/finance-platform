@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import {
   type BankImporter,
+  checkRunningBalances,
   checkStatementBalance,
   coverageSources,
   type ImportContext,
@@ -10,7 +11,6 @@ import {
 } from '@finplat/importer-sdk';
 import { importFixture } from '@finplat/test-fixtures';
 import {
-  blockedImporters,
   camtImporter,
   createRegistry,
   delimitedImporter,
@@ -58,14 +58,66 @@ describe('registry', () => {
       expect([path, found[0]?.importer.id]).toEqual([path, id]);
     }
   });
-  test('Raiffeisen BiH is BLOCKED_EXTERNAL and never parses', async () => {
-    expect(blockedImporters.map((m) => m.id)).toEqual(['raiffeisen-bih']);
-    expect(raiffeisenBih.manifest.formats).toEqual([]);
+});
+
+describe('Raiffeisen BiH PDF (synthetic layout fixture)', () => {
+  const pdf = 'raiffeisen-bih/izvod-synthetic.pdf';
+  test('registry ranks the bank importer above the generic PDF one; others are not claimed', async () => {
+    const found = await createRegistry().detect(file(pdf));
+    expect(found.map((c) => c.importer.id).slice(0, 2)).toEqual([
+      'raiffeisen-bih',
+      'generic-pdf-text',
+    ]);
+    expect((await raiffeisenBih.detect(file('pdf/statement.pdf'))).confidence).toBe(0);
     expect((await raiffeisenBih.detect(file('csv/signed-utf8.csv'))).confidence).toBe(0);
-    await expect(raiffeisenBih.parse(file('csv/signed-utf8.csv'), {})).rejects.toThrow(
-      'BLOCKED_EXTERNAL',
-    );
-    expect(() => createRegistry().require('raiffeisen-bih')).toThrow('not available');
+    await expect(parse(raiffeisenBih, 'pdf/statement.pdf')).rejects.toThrow('not a Raiffeisen');
+  });
+  test('header, rows, wrapped descriptions, foreign amounts and reconciliation', async () => {
+    const r = await parse(raiffeisenBih, pdf);
+    expect(r.errors).toEqual([]);
+    expect(r.statements).toEqual([
+      {
+        ref: '0700000000001:2025-03-01..2025-03-31',
+        accountRef: 'BA391290079401028494',
+        periodStart: '2025-03-01',
+        periodEnd: '2025-03-31',
+        openingBalance: '1250.00',
+        closingBalance: '58.16',
+        currency: 'BAM',
+      },
+    ]);
+    expect(brief(r)).toEqual([
+      ['2025-03-03', 'debit', '4.50', 'BAM'],
+      ['2025-03-03', 'debit', '0.12', 'BAM'],
+      ['2025-03-03', 'debit', '29.34', 'BAM'],
+      ['2025-03-05', 'credit', '2345.67', 'BAM'],
+      ['2025-03-06', 'debit', '3500.00', 'BAM'],
+      ['2025-03-07', 'debit', '75.20', 'BAM'],
+      ['2025-03-10', 'debit', '17.85', 'BAM'],
+      ['2025-03-12', 'credit', '100.00', 'BAM'],
+      ['2025-03-12', 'debit', '4.50', 'BAM'],
+      ['2025-03-12', 'debit', '4.50', 'BAM'],
+      ['2025-03-31', 'debit', '1.50', 'BAM'],
+    ]);
+    const [, , eur, salary, transfer, shop, usd] = r.records;
+    expect(salary?.description).toBe('PLATA PRIMJER FIRMA D.O.O. SARAJEVO');
+    expect(transfer?.description).toBe('PRENOS SA IVANA TESTIC NA MARKO TESTIC STEDNI RACUN');
+    expect(transfer?.runningBalance).toBe('61.71');
+    expect(shop?.description).toBe('ŠOPING CENTAR šž');
+    expect(r.records[0]?.valueDate).toBe('2025-03-01');
+    expect([eur?.originalAmount, eur?.originalCurrency]).toEqual(['15.00', 'EUR']);
+    expect([usd?.originalAmount, usd?.originalCurrency]).toEqual(['9.99', 'USD']);
+    expect(r.records[1]?.originalCurrency).toBeUndefined();
+    expect(checkStatementBalance(r.statements[0] as never, r.records).status).toBe('balanced');
+    expect(checkRunningBalances(r.records).breaks).toEqual([]);
+    expect(coverageSources(r)).toEqual([
+      { start: '2025-03-01', end: '2025-03-31', balance: 'balanced', label: r.statements[0]?.ref },
+    ]);
+    // Two identical bakery rows on the same day stay two records (occurrence ordinal).
+    expect(r.records[8]?.fingerprint).not.toBe(r.records[9]?.fingerprint);
+    // A tampered closing balance is reported as a mismatch, not silently accepted.
+    const st = { ...(r.statements[0] as object), closingBalance: '58.17' };
+    expect(checkStatementBalance(st, r.records).status).toBe('mismatch');
   });
 });
 

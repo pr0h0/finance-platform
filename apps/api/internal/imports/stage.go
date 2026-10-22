@@ -26,11 +26,6 @@ type ParseRequest struct {
 	ReprocessedFrom              *uuid.UUID
 }
 
-func blockedErr(id string) error {
-	return &httpx.Error{Status: 422, Code: "importer_blocked_external",
-		Message: "importer " + id + " is not available yet: its statement format has not been provided (BLOCKED_EXTERNAL)"}
-}
-
 // ParseAndStage runs a bundled parser and stages the result (connected mode, MCP, reprocessing).
 func ParseAndStage(ctx context.Context, db *pgxpool.Pool, req ParseRequest, maxBytes int64) (Batch, error) {
 	if int64(len(req.Bytes)) > maxBytes {
@@ -58,8 +53,9 @@ func ParseAndStage(ctx context.Context, db *pgxpool.Pool, req ParseRequest, maxB
 			importerID = t.ImporterID
 		}
 	}
-	if isBlocked(importerID) {
-		return Batch{}, blockedErr(importerID)
+	if isClientOnly(importerID) {
+		return Batch{}, &httpx.Error{Status: 422, Code: "client_parse_required",
+			Message: "importer " + importerID + " runs in the web client; parse the file there and stage its result"}
 	}
 	var imp *Importer
 	if importerID != "" {

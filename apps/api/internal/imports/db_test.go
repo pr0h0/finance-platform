@@ -280,9 +280,9 @@ func TestHTTP(t *testing.T) {
 		r.ServeHTTP(w, req)
 		return w
 	}
-	// Registry lists the blocked Raiffeisen placeholder.
+	// Registry lists server importers and client-only ones (Raiffeisen BiH PDF, spreadsheets).
 	w := do("GET", "/importers", nil, "")
-	if w.Code != 200 || !bytes.Contains(w.Body.Bytes(), []byte(`"raiffeisen-bih"`)) || !bytes.Contains(w.Body.Bytes(), []byte(`"blocked_external"`)) {
+	if w.Code != 200 || !bytes.Contains(w.Body.Bytes(), []byte(`"raiffeisen-bih"`)) || !bytes.Contains(w.Body.Bytes(), []byte(`"generic-xlsx"`)) || bytes.Contains(w.Body.Bytes(), []byte(`"blocked_external"`)) {
 		t.Fatalf("importers %d %s", w.Code, w.Body)
 	}
 	// Template CRUD + multipart CSV upload using it.
@@ -339,10 +339,27 @@ func TestHTTP(t *testing.T) {
 	if w = do("POST", "/imports", bytes.NewReader(body), "application/json"); w.Code != 422 {
 		t.Fatalf("sha mismatch must be rejected, got %d", w.Code)
 	}
-	body, _ = json.Marshal(map[string]any{"importerId": "raiffeisen-bih", "importerVersion": "0.0.0", "accountId": e.acc, "fileName": "r.csv",
+	body, _ = json.Marshal(map[string]any{"importerId": "no-such-importer", "importerVersion": "1.0.0", "accountId": e.acc, "fileName": "r.csv",
 		"fileSha256": hex.EncodeToString(sum[:]), "source": base64.StdEncoding.EncodeToString(src), "result": Result{}})
-	if w = do("POST", "/imports", bytes.NewReader(body), "application/json"); w.Code != 422 || !bytes.Contains(w.Body.Bytes(), []byte("blocked_external")) {
-		t.Fatalf("blocked importer must be refused, got %d %s", w.Code, w.Body)
+	if w = do("POST", "/imports", bytes.NewReader(body), "application/json"); w.Code != 422 || !bytes.Contains(w.Body.Bytes(), []byte("unknown importer")) {
+		t.Fatalf("unknown importer must be refused, got %d %s", w.Code, w.Body)
+	}
+	// Client-only importer: its normalized result is accepted; the server never parses the PDF itself.
+	body, _ = json.Marshal(map[string]any{"importerId": "raiffeisen-bih", "importerVersion": "1.0.0", "accountId": e.acc, "fileName": "izvod.pdf",
+		"fileSha256": hex.EncodeToString(sum[:]), "source": base64.StdEncoding.EncodeToString(src),
+		"result": Result{Records: []Record{{RowNumber: 1, PostingDate: "2025-03-03", Description: "PEKARA ŽITO 12", Direction: "debit", Amount: "4.50", Currency: "BAM", Raw: map[string]string{"iznos": "-4.50"}}}}})
+	if w = do("POST", "/imports", bytes.NewReader(body), "application/json"); w.Code != 201 {
+		t.Fatalf("client-only stage %d %s", w.Code, w.Body)
+	}
+	var cbuf bytes.Buffer
+	cmw := multipart.NewWriter(&cbuf)
+	_ = cmw.WriteField("accountId", e.acc.String())
+	_ = cmw.WriteField("importerId", "raiffeisen-bih")
+	cfw, _ := cmw.CreateFormFile("file", "izvod.pdf")
+	_, _ = cfw.Write(src)
+	_ = cmw.Close()
+	if w = do("POST", "/imports", &cbuf, cmw.FormDataContentType()); w.Code != 422 || !bytes.Contains(w.Body.Bytes(), []byte("client_parse_required")) {
+		t.Fatalf("server must refuse to parse a client-only format, got %d %s", w.Code, w.Body)
 	}
 	// Other profile's batch is invisible.
 	_, other := testdb.SeedUserProfile(t, e.pool)

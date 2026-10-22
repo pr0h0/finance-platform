@@ -13,7 +13,7 @@
 | `generic-json` | json | stable | no | finplat interchange shape below |
 | `generic-pdf-text` | pdf | beta | no (30 MB) | text-layer PDFs only; needs a template; multi-line descriptions keep their first line |
 | `generic-ocr` | pdf_ocr | beta | no (20 MB) | optional tesseract.js, lazy loaded (language data downloaded on first use); scanned PDFs need a browser (OffscreenCanvas); every record confidence ≤ 0.6 and `requiresApproval` — the user must confirm values. Not exercised by automated tests (needs network + images) |
-| `raiffeisen-bih` | — | **blocked_external** | — | format unknown; detect = 0, parse throws |
+| `raiffeisen-bih` | pdf | beta | client only | Raiffeisen BiH "IZVOD - OBAVIJEST" PDF; wrapped descriptions kept whole; see banks/raiffeisen-bih.md |
 
 Encodings (text formats): UTF-8 (with/without BOM), UTF-16 with BOM, Windows-1250, ISO-8859-2.
 Detection: BOM → valid UTF-8 → bytes 0x80–0x9F mean Windows-1250 → Š/Ž/š/ž positions of ISO-8859-2 →

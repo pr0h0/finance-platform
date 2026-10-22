@@ -136,21 +136,15 @@ var Registry = []Importer{
 }
 
 // ClientOnly lists importers that exist only in the web client (TS) because they need browser
-// libraries (spreadsheets, PDF text, OCR). The server accepts their normalized output.
+// libraries (spreadsheets, PDF text, OCR, the Raiffeisen BiH PDF statement). The server accepts their normalized output.
 var ClientOnly = []Manifest{
 	{ID: "generic-xlsx", Version: "1.0.0", SDKVersion: 1, Name: "Excel XLSX (template)", Formats: []string{"xlsx"}, Status: "stable", RequiresTemplate: true},
 	{ID: "generic-xls", Version: "1.0.0", SDKVersion: 1, Name: "Excel 97-2003 XLS (template)", Formats: []string{"xls"}, Status: "stable", RequiresTemplate: true},
 	{ID: "generic-pdf-text", Version: "1.0.0", SDKVersion: 1, Name: "Text PDF (template)", Formats: []string{"pdf"}, Status: "beta", RequiresTemplate: true},
 	{ID: "generic-ocr", Version: "1.0.0", SDKVersion: 1, Name: "Scanned PDF / image (OCR, approval required)", Formats: []string{"pdf_ocr"}, Status: "beta", RequiresTemplate: true},
-}
-
-// Blocked lists importers whose real format is unknown. Raiffeisen Bank BiH (Feature 121) is
-// BLOCKED_EXTERNAL until a sanitized sample statement is provided: never guess its format.
-// When it arrives, add a parser to Registry with this id and synthetic fixtures; nothing else changes.
-var Blocked = []Manifest{
-	{ID: "raiffeisen-bih", Version: "0.0.0", SDKVersion: 1, Name: "Raiffeisen Bank BiH",
-		Bank: map[string]string{"name": "Raiffeisen Bank d.d. Bosna i Hercegovina", "country": "BA"}, Formats: []string{}, Status: "blocked_external",
-		Limitations: []string{"Waiting for a real (sanitized) statement sample. Use a CSV template, CAMT.053 or MT940 meanwhile."}},
+	{ID: "raiffeisen-bih", Version: "1.0.0", SDKVersion: 1, Name: "Raiffeisen Bank BiH (PDF izvod)",
+		Bank: map[string]string{"name": "Raiffeisen Bank d.d. Bosna i Hercegovina", "country": "BA"}, Formats: []string{"pdf"}, Status: "beta",
+		Limitations: []string{"PDF statements are parsed by the web client (packages/bank-importers/src/banks/raiffeisen-bih); the server stages its normalized output."}},
 }
 
 func findImporter(id string) *Importer {
@@ -162,9 +156,9 @@ func findImporter(id string) *Importer {
 	return nil
 }
 
-func isBlocked(id string) bool {
-	for _, b := range Blocked {
-		if b.ID == id {
+func isClientOnly(id string) bool {
+	for _, c := range ClientOnly {
+		if c.ID == id {
 			return true
 		}
 	}
