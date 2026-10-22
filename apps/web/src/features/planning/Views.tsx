@@ -30,11 +30,12 @@ const tone = (r: OccRow) =>
         : '';
 
 function Badge({ r }: { r: OccRow }) {
+  const t = useT();
   const label = r.overdue
-    ? 'overdue'
+    ? t('planning.occurrenceDialog.overdue', 'overdue')
     : r.status === 'pending'
-      ? CONFIDENCE_LABEL[r.plan.confidence]
-      : r.status.replace('_', ' ');
+      ? t(`planning.confidence.${r.plan.confidence}`, CONFIDENCE_LABEL[r.plan.confidence])
+      : t(`planning.occurrenceStatus.${r.status}`, r.status);
   return <span className="rounded bg-surface-2 px-1.5 py-0.5 text-[10px] text-muted">{label}</span>;
 }
 
@@ -179,8 +180,8 @@ export function ListView({
                   )}
                 </button>
               </td>
-              <td className="capitalize">{r.plan.kind}</td>
-              <td>{PRIORITY_LABEL[r.plan.priority]}</td>
+              <td>{t(`transaction.kind.${r.plan.kind}`, r.plan.kind)}</td>
+              <td>{t(`planning.priority.${r.plan.priority}`, PRIORITY_LABEL[r.plan.priority])}</td>
               <td>
                 <Badge r={r} />
               </td>
@@ -313,8 +314,16 @@ export function AnnualPlanCard({ snap }: { snap: Snapshot }) {
             money: { income: m.income, expense: m.expense },
           }))}
           series={[
-            { key: 'income', label: 'Planned income', color: SERIES[0] as string },
-            { key: 'expense', label: 'Planned expenses', color: SERIES[1] as string },
+            {
+              key: 'income',
+              label: t('planning.views.plannedIncome', 'Planned income'),
+              color: SERIES[0] as string,
+            },
+            {
+              key: 'expense',
+              label: t('planning.views.plannedExpenses', 'Planned expenses'),
+              color: SERIES[1] as string,
+            },
           ]}
         />
       </ChartFrame>
@@ -464,7 +473,9 @@ export function PlannedVsActualCard({ snap }: { snap: Snapshot }) {
                 >
                   <td className="py-1">{f.date(r.occurrence.occurrenceDate)}</td>
                   <td>{r.plan.description}</td>
-                  <td className="text-xs text-muted">{r.occurrence.status.replace('_', ' ')}</td>
+                  <td className="text-xs text-muted">
+                    {t(`planning.occurrenceStatus.${r.occurrence.status}`, r.occurrence.status)}
+                  </td>
                   <td className="text-right">
                     <Amount value={r.planned} />
                   </td>

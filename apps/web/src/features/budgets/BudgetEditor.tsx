@@ -124,7 +124,7 @@ export function BudgetEditor({
         >
           {BUDGET_PERIOD_TYPES.map((p) => (
             <option key={p} value={p}>
-              {p}
+              {t(`budget.period.${p}`, p)}
             </option>
           ))}
         </Select>
@@ -176,7 +176,7 @@ export function BudgetEditor({
         <Select value={rollover} onChange={(e) => setRollover(e.target.value as typeof rollover)}>
           {ROLLOVER_POLICIES.map((r) => (
             <option key={r} value={r}>
-              {ROLLOVER_LABEL[r]}
+              {t(`budget.rollover.${r}`, ROLLOVER_LABEL[r])}
             </option>
           ))}
         </Select>

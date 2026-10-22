@@ -96,14 +96,16 @@ export function Filters({
         </label>
         {sel(
           'accountIds',
-          'Account',
+          t('transactions.transactionTable.account', 'Account'),
           refs.accounts.map((a) => ({
             id: a.id,
-            label: a.name + (a.isArchived ? ' (archived)' : ''),
+            label:
+              a.name +
+              (a.isArchived ? ` (${t('account.archived', 'Archived').toLowerCase()})` : ''),
           })),
         )}
-        {sel('categoryId', 'Category', [
-          { id: '__none', label: 'Uncategorized' },
+        {sel('categoryId', t('transaction.category', 'Category'), [
+          { id: '__none', label: t('transaction.uncategorized', 'Uncategorized') },
           ...refs.categoryOptions,
         ])}
         {active > 0 && (
@@ -121,37 +123,37 @@ export function Filters({
         <div className="mt-2 flex flex-wrap items-end gap-2">
           {sel(
             'merchantId',
-            'Merchant',
+            t('transaction.merchant', 'Merchant'),
             refs.merchants.map((m) => ({ id: m.id, label: m.name })),
           )}
           {sel(
             'currency',
-            'Currency',
+            t('account.currency', 'Currency'),
             currencies.map((c) => ({ id: c, label: c })),
           )}
           {sel(
             'tagId',
-            'Tag',
-            refs.tags.map((t) => ({ id: t.id, label: t.name })),
+            t('common.tag', 'Tag'),
+            refs.tags.map((x) => ({ id: x.id, label: x.name })),
           )}
           {sel(
             'kind',
-            'Type',
-            TRANSACTION_KINDS.map((k) => ({ id: k, label: k.replace('_', ' ') })),
+            t('account.type', 'Type'),
+            TRANSACTION_KINDS.map((k) => ({ id: k, label: t(`transaction.kind.${k}`, k) })),
           )}
           {sel(
             'status',
-            'Status',
-            TRANSACTION_STATUSES.map((k) => ({ id: k, label: k })),
+            t('common.status', 'Status'),
+            TRANSACTION_STATUSES.map((k) => ({ id: k, label: t(`transaction.status.${k}`, k) })),
           )}
           {sel(
             'source',
-            'Source',
-            TRANSACTION_SOURCES.map((k) => ({ id: k, label: k.replace('_', ' ') })),
+            t('currency.converter.source', 'Source'),
+            TRANSACTION_SOURCES.map((k) => ({ id: k, label: t(`transaction.source.${k}`, k) })),
           )}
           {sel(
             'importBatchId',
-            'Import batch',
+            t('transactions.filters.importBatch', 'Import batch'),
             batches.map((b) => ({
               id: b.id,
               label: `${b.fileName} (${b.coverageStart ?? '?'} – ${b.coverageEnd ?? '?'})`,

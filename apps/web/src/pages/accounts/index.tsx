@@ -135,7 +135,8 @@ export default function AccountsPage() {
                           )}
                         </span>
                         <span className="text-xs text-muted">
-                          {TYPE_LABEL[a.accountType]} · {a.currency}
+                          {t(`accountType.${a.accountType}`, TYPE_LABEL[a.accountType])} ·{' '}
+                          {a.currency}
                           {a.institution && ` · ${a.institution}`}
                         </span>
                       </span>

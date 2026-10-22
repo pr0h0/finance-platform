@@ -13,6 +13,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"regexp"
 
 	"github.com/go-chi/chi/v5/middleware"
@@ -21,6 +22,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/pr0h0/finance-platform/apps/api/internal/authz"
+	"github.com/pr0h0/finance-platform/apps/api/internal/httpx"
 )
 
 type Op string
@@ -42,6 +44,10 @@ type Change struct {
 	OpID       *uuid.UUID // client op id when the change came from a sync push
 	Metadata   map[string]any
 }
+
+// ErrE2EEProfile refuses a plaintext write into an end-to-end encrypted profile.
+var ErrE2EEProfile = httpx.NewError(http.StatusConflict, "e2ee_profile",
+	"this profile is end-to-end encrypted: change its data on your devices, the server only stores ciphertext")
 
 var ident = regexp.MustCompile(`^[a-z_][a-z0-9_]*$`)
 
@@ -65,9 +71,15 @@ func Record(ctx context.Context, tx pgx.Tx, c Change) (int64, error) {
 		c.OpID = &id
 	}
 	var v int64
-	if err := tx.QueryRow(ctx, `UPDATE profiles SET sync_version = sync_version + 1 WHERE id = $1 RETURNING sync_version`,
-		c.ProfileID).Scan(&v); err != nil {
+	var mode string
+	if err := tx.QueryRow(ctx, `UPDATE profiles SET sync_version = sync_version + 1 WHERE id = $1 RETURNING sync_version, privacy_mode`,
+		c.ProfileID).Scan(&v, &mode); err != nil {
 		return 0, fmt.Errorf("changes: allocate version: %w", err)
+	}
+	// Plaintext rows in an e2ee profile stop its devices syncing ("expected an encrypted envelope"); envelopes
+	// are recorded by the sync module without Record. This refuses every REST, MCP, import and job write.
+	if mode == "e2ee" {
+		return 0, ErrE2EEProfile
 	}
 	tag, err := tx.Exec(ctx, fmt.Sprintf(`UPDATE %s SET server_version = $1 WHERE id = $2 AND profile_id = $3`,
 		pgx.Identifier{c.EntityType}.Sanitize()), v, c.EntityID, c.ProfileID)

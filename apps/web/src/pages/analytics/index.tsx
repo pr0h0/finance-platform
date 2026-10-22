@@ -50,6 +50,7 @@ import {
   Select,
   Stat,
 } from '../../features/analytics/ui.tsx';
+import { insightText } from '../../features/dashboard/compute.ts';
 import { buildForecast } from '../../features/planning/forecast.ts';
 import { useFormat } from '../../lib/format.ts';
 import { useT } from '../../lib/i18n.ts';
@@ -427,8 +428,16 @@ function IncomeExpenseSection({ s, f }: P) {
               if (pr) nav(transactionsLink({ ...pr, accountIds: f.accountIds }));
             }}
             series={[
-              { key: 'income', label: 'Income', color: SERIES[0] as string },
-              { key: 'expense', label: 'Expenses', color: SERIES[1] as string },
+              {
+                key: 'income',
+                label: t('transaction.kind.income', 'Income'),
+                color: SERIES[0] as string,
+              },
+              {
+                key: 'expense',
+                label: t('reports.page.expenses', 'Expenses'),
+                color: SERIES[1] as string,
+              },
             ]}
           />
           <h3 className="mt-4 mb-1 text-xs font-medium text-muted">
@@ -702,9 +711,24 @@ function NetWorthSection({ s, f }: P) {
           )}
           rows={rows}
           series={[
-            { key: 'netWorth', label: 'Net worth', color: SERIES[0] as string, kind: 'line' },
-            { key: 'assets', label: 'Assets', color: SERIES[2] as string, kind: 'line' },
-            { key: 'liabilities', label: 'Liabilities', color: SERIES[1] as string, kind: 'line' },
+            {
+              key: 'netWorth',
+              label: t('reports.page.netWorth', 'Net worth'),
+              color: SERIES[0] as string,
+              kind: 'line',
+            },
+            {
+              key: 'assets',
+              label: t('reports.page.assets', 'Assets'),
+              color: SERIES[2] as string,
+              kind: 'line',
+            },
+            {
+              key: 'liabilities',
+              label: t('reports.page.liabilities', 'Liabilities'),
+              color: SERIES[1] as string,
+              kind: 'line',
+            },
           ]}
         />
       </ChartFrame>
@@ -752,14 +776,24 @@ function ForecastEvolution({ s }: { s: Snapshot }) {
           )}
           rows={rows}
           series={[
-            { key: 'expected', label: 'Expected', color: SERIES[0] as string, kind: 'line' },
+            {
+              key: 'expected',
+              label: t('planning.forecastPanel.expected', 'Expected'),
+              color: SERIES[0] as string,
+              kind: 'line',
+            },
             {
               key: 'conservative',
-              label: 'Conservative',
+              label: t('planning.forecastPanel.conservative', 'Conservative'),
               color: SERIES[1] as string,
               kind: 'line',
             },
-            { key: 'optimistic', label: 'Optimistic', color: SERIES[2] as string, kind: 'line' },
+            {
+              key: 'optimistic',
+              label: t('planning.forecastPanel.optimistic', 'Optimistic'),
+              color: SERIES[2] as string,
+              kind: 'line',
+            },
           ]}
         />
       </ChartFrame>
@@ -1042,7 +1076,9 @@ function AnomalySection({ s, f }: P) {
           <Button size="sm" variant="ghost" onClick={() => setShowDismissed(!showDismissed)}>
             {showDismissed
               ? t('analytics.page.hideDismissed', 'Hide dismissed')
-              : `Show dismissed (${dismissed.length})`}
+              : t('analytics.page.showDismissed', 'Show dismissed ({{n}})', {
+                  n: dismissed.length,
+                })}
           </Button>
         )
       }
@@ -1056,14 +1092,14 @@ function AnomalySection({ s, f }: P) {
             return (
               <li key={a.id} className={isDismissed ? 'opacity-60' : ''}>
                 <p className="font-medium">
-                  {txn?.description || txn?.payee || a.title}
+                  {txn?.description || txn?.payee || insightText(t, fmt, a).title}
                   {txn && (
                     <span className="ml-2 text-xs font-normal text-muted">
                       {fmt.date(txn.bookingDate)}
                     </span>
                   )}
                 </p>
-                <p className="text-muted">{a.body}</p>
+                <p className="text-muted">{insightText(t, fmt, a).body}</p>
                 <p className="text-xs text-muted">
                   {t('analytics.page.rule', 'Rule:')}{' '}
                   {a.data.rule === 'large_vs_category'
@@ -1118,6 +1154,7 @@ function AnomalySection({ s, f }: P) {
 
 function InsightSection({ s, f }: P) {
   const t = useT();
+  const fmt = useFormat();
   const dismissed = new Set((s.settings['insights.dismissed'] as string[] | undefined) ?? []);
   const save = useOpsMutation((ops, ids: string[]) => ops.setSetting('insights.dismissed', ids));
   const list = monthlyInsights(s.ledger, {
@@ -1139,9 +1176,9 @@ function InsightSection({ s, f }: P) {
           {list.map((i) => (
             <li key={i.id}>
               <p className={i.severity === 'info' ? 'font-medium' : 'font-medium text-warn'}>
-                {i.title}
+                {insightText(t, fmt, i).title}
               </p>
-              <p className="text-muted">{i.body}</p>
+              <p className="text-muted">{insightText(t, fmt, i).body}</p>
               <Button size="sm" variant="ghost" onClick={() => save.mutate([...dismissed, i.id])}>
                 {t('sync.discard', 'Dismiss')}
               </Button>

@@ -55,7 +55,14 @@ export default function ReportsPage() {
         dir * ({ monthly: 1, quarterly: 3, annual: 12, custom: 0 } as const)[kind],
       ),
     );
-  const title = `${{ monthly: 'Monthly', quarterly: 'Quarterly', annual: 'Annual', custom: 'Custom' }[kind]} report ${f.date(r.from)} – ${f.date(r.to)}`;
+  const title = t(
+    `reports.title.${kind}`,
+    `${{ monthly: 'Monthly', quarterly: 'Quarterly', annual: 'Annual', custom: 'Custom' }[kind]} report {{from}} – {{to}}`,
+    {
+      from: f.date(r.from),
+      to: f.date(r.to),
+    },
+  );
   const fileBase = `report-${r.from}-${r.to}`;
   const rows: ChartRow[] = r.periods.map((p) => ({
     x: p.period,
@@ -173,8 +180,16 @@ export default function ReportsPage() {
                 )}
                 rows={rows}
                 series={[
-                  { key: 'income', label: 'Income', color: SERIES[0] as string },
-                  { key: 'expense', label: 'Expenses', color: SERIES[1] as string },
+                  {
+                    key: 'income',
+                    label: t('transaction.kind.income', 'Income'),
+                    color: SERIES[0] as string,
+                  },
+                  {
+                    key: 'expense',
+                    label: t('reports.page.expenses', 'Expenses'),
+                    color: SERIES[1] as string,
+                  },
                 ]}
               />
             </ChartFrame>

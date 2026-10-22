@@ -73,7 +73,11 @@ export default function GoalsPage() {
           <Stat
             label={t('goals.page.monthsCovered', 'Months covered')}
             value={ef.months ?? '—'}
-            hint={ef.target ? `Target ${ef.target} months` : undefined}
+            hint={
+              ef.target
+                ? t('goals.page.targetMonths', 'Target {{n}} months', { n: ef.target })
+                : undefined
+            }
           />
           <Stat
             label={t('goals.page.reserve', 'Reserve')}
@@ -126,7 +130,9 @@ export default function GoalsPage() {
               <span className="text-fg">
                 {g.name}{' '}
                 <span className="text-xs font-normal text-muted">
-                  {KIND_LABEL[g.kind]} · {PRIORITY_LABEL[g.priority]} · {g.status}
+                  {t(`goal.kind.${g.kind}`, KIND_LABEL[g.kind])} ·{' '}
+                  {t(`planning.priority.${g.priority}`, PRIORITY_LABEL[g.priority])} ·{' '}
+                  {t(`goal.status.${g.status}`, g.status)}
                 </span>
               </span>
             }
@@ -171,7 +177,9 @@ export default function GoalsPage() {
                 </dt>
                 <dd>
                   {p.estimatedCompletionDate ? f.date(p.estimatedCompletionDate) : '—'}
-                  <span className="block text-xs text-muted">{BASIS[p.basis]}</span>
+                  <span className="block text-xs text-muted">
+                    {t(`goal.basis.${p.basis}`, BASIS[p.basis])}
+                  </span>
                 </dd>
                 {g.targetDate && (
                   <>
@@ -234,7 +242,14 @@ export default function GoalsPage() {
                           <Button
                             variant="ghost"
                             aria-label={t('goals.page.deleteContribution', 'Delete contribution')}
-                            onClick={() => confirm('Delete this contribution?') && del.mutate(c.id)}
+                            onClick={() =>
+                              confirm(
+                                t(
+                                  'goals.page.confirmDeleteContribution',
+                                  'Delete this contribution?',
+                                ),
+                              ) && del.mutate(c.id)
+                            }
                           >
                             <Trash2 aria-hidden className="size-3.5" />
                           </Button>
@@ -337,7 +352,7 @@ function GoalForm({
         <Select value={kind} onChange={(e) => setKind(e.target.value as typeof kind)}>
           {GOAL_KINDS.map((k) => (
             <option key={k} value={k}>
-              {KIND_LABEL[k]}
+              {t(`goal.kind.${k}`, KIND_LABEL[k])}
             </option>
           ))}
         </Select>
@@ -394,7 +409,7 @@ function GoalForm({
         <Select value={priority} onChange={(e) => setPriority(e.target.value as typeof priority)}>
           {PRIORITIES.map((p) => (
             <option key={p} value={p}>
-              {PRIORITY_LABEL[p]}
+              {t(`planning.priority.${p}`, PRIORITY_LABEL[p])}
             </option>
           ))}
         </Select>
@@ -403,7 +418,9 @@ function GoalForm({
         <Field label={t('sync.status', 'Status')}>
           <Select value={status} onChange={(e) => setStatus(e.target.value as typeof status)}>
             {GOAL_STATUSES.map((p) => (
-              <option key={p}>{p}</option>
+              <option key={p} value={p}>
+                {t(`goal.status.${p}`, p)}
+              </option>
             ))}
           </Select>
         </Field>
@@ -416,7 +433,7 @@ function GoalForm({
           <Button
             variant="danger"
             onClick={() =>
-              confirm('Delete this goal?') &&
+              confirm(t('goals.page.confirmDeleteGoal', 'Delete this goal?')) &&
               remove.mutate(undefined, { onSuccess: onDone, onError: setErr })
             }
           >

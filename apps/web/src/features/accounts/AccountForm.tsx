@@ -61,12 +61,16 @@ export function AccountForm({
     let creditLimit: D.Money | null = null;
     if (f.creditLimit) {
       creditLimit = toMoney(f.creditLimit, cur, locale);
-      if (!creditLimit) return setErr('Invalid credit limit.');
+      if (!creditLimit)
+        return setErr(t('accounts.form.invalidCreditLimit', 'Invalid credit limit.'));
     }
     let openingBalance: D.Money | undefined;
     if (!account && f.openingBalance) {
       const m = toMoney(f.openingBalance, cur, locale);
-      if (!m) return setErr(`Invalid opening balance for ${cur}.`);
+      if (!m)
+        return setErr(
+          t('accounts.form.invalidOpening', 'Invalid opening balance for {{cur}}.', { cur }),
+        );
       openingBalance = m;
     }
     try {
@@ -113,9 +117,9 @@ export function AccountForm({
               value={f.accountType}
               onChange={(e) => up({ accountType: e.target.value as D.AccountType })}
             >
-              {ACCOUNT_TYPES.map((t) => (
-                <option key={t} value={t}>
-                  {TYPE_LABEL[t]}
+              {ACCOUNT_TYPES.map((x) => (
+                <option key={x} value={x}>
+                  {t(`accountType.${x}`, TYPE_LABEL[x])}
                 </option>
               ))}
             </select>

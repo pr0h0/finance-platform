@@ -474,3 +474,19 @@ func TestPlanningBudgetGoalRuleWrites(t *testing.T) {
 		t.Fatalf("negative plan accepted %v", r)
 	}
 }
+
+// The server only holds ciphertext for an e2ee profile: grants on it are refused, and a grant made
+// before the profile switched to e2ee no longer reads or writes anything.
+func TestE2EEProfilesAreNotExposed(t *testing.T) {
+	e := newEnv(t)
+	cid, tok := e.newClient(map[string]any{"scope": "read_transactions"})
+	e.exec(`UPDATE profiles SET privacy_mode = 'e2ee' WHERE id = $1`, e.profile)
+	if r, isErr := e.call(tok, "list_transactions", map[string]any{}); !isErr || errCode(r) != "e2ee_profile" {
+		t.Fatalf("read on e2ee profile: %v", r)
+	}
+	st, b := e.http("PUT", "/api/v1/mcp/clients/"+cid+"/grants", e.human, map[string]any{"grants": []any{
+		map[string]any{"scope": "edit_categories", "profileId": e.profile}}})
+	if st != 422 || !strings.Contains(fmt.Sprint(b), "end-to-end encrypted") {
+		t.Fatalf("grant on e2ee profile: %d %v", st, b)
+	}
+}

@@ -297,6 +297,14 @@ func (h *handlers) validateGrants(ctx context.Context, grants []Grant) error {
 			fe[key("profileId")] = "you need " + string(min) + " access to grant " + g.Scope
 			continue
 		}
+		var mode string
+		if err := h.deps.DB.QueryRow(ctx, `SELECT privacy_mode FROM profiles WHERE id = $1`, g.ProfileID).Scan(&mode); err != nil {
+			return err
+		}
+		if mode == "e2ee" { // the server holds only ciphertext: reads would be empty, writes would break its devices
+			fe[key("profileId")] = "end-to-end encrypted profiles cannot be shared with AI agents"
+			continue
+		}
 		switch g.Approval {
 		case "":
 			grants[i].Approval = "required"

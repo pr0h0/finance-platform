@@ -100,7 +100,7 @@ function Detail({
           </p>
         </div>
         <div className="flex flex-wrap gap-1">
-          <Badge tone="blue">{tx.kind.replace('_', ' ')}</Badge>
+          <Badge tone="blue">{t(`transaction.kind.${tx.kind}`, tx.kind)}</Badge>
           <Badge
             tone={tx.status === 'void' ? 'red' : tx.status === 'pending' ? 'amber' : 'neutral'}
           >
@@ -240,7 +240,8 @@ function EditFields({ tx, refs }: { tx: D.Transaction; refs: Refs }) {
     if (f.tagIds.join() !== tx.tagIds.join()) patch.tagIds = f.tagIds;
     if (editableAmount && amt && f.amount !== absMoney(amt).amount) {
       const m = toMoney(f.amount, amt.currency, locale);
-      if (!m || toMinor(m) <= 0n) return setErr('Invalid amount.');
+      if (!m || toMinor(m) <= 0n)
+        return setErr(t('transactions.detailDrawer.invalidAmount', 'Invalid amount.'));
       patch.amount =
         tx.kind === 'opening_balance' || tx.kind === 'adjustment'
           ? amt.amount.startsWith('-')
@@ -592,7 +593,13 @@ function Attachments({ tx }: { tx: D.Transaction }) {
               aria-label={t('transactions.detailDrawer.remove', 'Remove {{fileName}}', {
                 fileName: a.fileName,
               })}
-              onClick={() => window.confirm(`Remove ${a.fileName}?`) && del.mutate(a.id)}
+              onClick={() =>
+                window.confirm(
+                  t('transactions.detailDrawer.confirmRemove', 'Remove {{name}}?', {
+                    name: a.fileName,
+                  }),
+                ) && del.mutate(a.id)
+              }
             >
               <Trash2 size={14} aria-hidden />
             </Button>
@@ -680,8 +687,15 @@ function Refunds({ tx, all, refs }: { tx: D.Transaction; all: D.Transaction[]; r
   const submit = async () => {
     setErr(null);
     const m = toMoney(amount, total.currency, locale);
-    if (!m || toMinor(m) <= 0n) return setErr('Enter a positive amount.');
-    if (toMinor(m) > left) return setErr('A refund cannot exceed what is left to refund.');
+    if (!m || toMinor(m) <= 0n)
+      return setErr(t('transactions.detailDrawer.positiveAmount', 'Enter a positive amount.'));
+    if (toMinor(m) > left)
+      return setErr(
+        t(
+          'transactions.detailDrawer.refundTooLarge',
+          'A refund cannot exceed what is left to refund.',
+        ),
+      );
     try {
       await create.mutateAsync({
         amount: m,
@@ -1046,7 +1060,10 @@ function ReceiptScan({
         patch.bookingDate = vals.date;
       }
       if (use.total && amountEditable && amt) patch.amount = money(vals.total, amt.currency);
-      if (Object.keys(patch).length === 1) return setErr('Select at least one value to apply.');
+      if (Object.keys(patch).length === 1)
+        return setErr(
+          t('transactions.detailDrawer.selectValue', 'Select at least one value to apply.'),
+        );
       await save.mutateAsync(patch);
       onDone();
     } catch (e) {
@@ -1077,7 +1094,9 @@ function ReceiptScan({
       <span className="text-xs text-muted">
         {conf[k] === null
           ? t('transactions.detailDrawer.notFound', 'not found')
-          : `${Math.round((conf[k] as number) * 100)}% OCR confidence`}
+          : t('transactions.detailDrawer.ocrConfidence', '{{pct}}% OCR confidence', {
+              pct: Math.round((conf[k] as number) * 100),
+            })}
       </span>
     </div>
   );
@@ -1107,7 +1126,7 @@ function ReceiptScan({
               'OCR misreads digits. Check each value and tick the ones to apply.',
             )}
           </p>
-          {row('total', 'Total', !amountEditable)}
+          {row('total', t('analytics.page.total', 'Total'), !amountEditable)}
           {!amountEditable && (
             <p className="text-xs text-muted">
               {t(
@@ -1116,8 +1135,8 @@ function ReceiptScan({
               )}
             </p>
           )}
-          {row('date', 'Date')}
-          {row('merchant', 'Payee')}
+          {row('date', t('transaction.date', 'Date'))}
+          {row('merchant', t('transactions.detailDrawer.payee', 'Payee'))}
           <div className="flex gap-2">
             <Button size="sm" variant="primary" disabled={save.isPending} onClick={apply}>
               {t('transactions.detailDrawer.applySelected', 'Apply selected')}

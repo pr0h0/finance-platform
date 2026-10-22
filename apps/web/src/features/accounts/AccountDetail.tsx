@@ -284,23 +284,34 @@ function Reconcile({ account, txs }: { account: D.Account; txs: D.Transaction[] 
       accountId: account.id,
       amount: d.amount.startsWith('-') ? { ...d, amount: d.amount.slice(1) } : d,
       bookingDate: date,
-      description: 'Opening balance (reconciliation)',
+      description: t('accounts.detail.openingReconciliation', 'Opening balance (reconciliation)'),
     });
   });
 
   const submit = async () => {
     setErr(null);
     setDone(null);
-    if (!diff) return setErr('Enter the statement balance.');
+    if (!diff)
+      return setErr(t('accounts.detail.enterStatementBalance', 'Enter the statement balance.'));
     if (toMinor(diff) === 0n)
-      return setDone('The ledger matches the statement. Nothing to adjust.');
+      return setDone(
+        t('accounts.detail.ledgerMatches', 'The ledger matches the statement. Nothing to adjust.'),
+      );
     if (!target && toMinor(diff) < 0n)
       return setErr(
-        'The account has no transactions yet; record a negative opening balance via a new liability account or add transactions first.',
+        t(
+          'accounts.detail.noTransactionsYet',
+          'The account has no transactions yet; record a negative opening balance via a new liability account or add transactions first.',
+        ),
       );
     try {
       await book.mutateAsync(diff);
-      setDone('Adjustment recorded; the balance now matches the statement.');
+      setDone(
+        t(
+          'accounts.detail.adjustmentRecorded',
+          'Adjustment recorded; the balance now matches the statement.',
+        ),
+      );
     } catch (e) {
       setErr(describeError(e));
     }

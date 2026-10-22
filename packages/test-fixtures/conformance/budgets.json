@@ -1263,6 +1263,228 @@
           }
         }
       }
+    },
+    {
+      "name": "backdated start: months before the first spending carry nothing (same result as starting in August)",
+      "op": "status",
+      "budget": {
+        "id": "b6",
+        "periodType": "monthly",
+        "periodAnchorDay": 1,
+        "startDate": "2026-03-01",
+        "endDate": null,
+        "currency": "BAM",
+        "rolloverPolicy": "carry_surplus",
+        "includePlanned": true,
+        "alertThresholds": ["0.8", "1.0"]
+      },
+      "allocations": [
+        {
+          "budgetPeriodId": null,
+          "categoryId": "groceries",
+          "amount": {
+            "amount": "300.00",
+            "currency": "BAM"
+          },
+          "rolloverPolicy": null
+        },
+        {
+          "budgetPeriodId": null,
+          "categoryId": "restaurants",
+          "amount": {
+            "amount": "100.00",
+            "currency": "BAM"
+          },
+          "rolloverPolicy": "carry_both"
+        },
+        {
+          "budgetPeriodId": null,
+          "categoryId": null,
+          "amount": {
+            "amount": "1000.00",
+            "currency": "BAM"
+          },
+          "rolloverPolicy": "none"
+        }
+      ],
+      "date": "2026-10-15",
+      "expected": {
+        "budgetId": "b6",
+        "periodStart": "2026-10-01",
+        "periodEnd": "2026-10-31",
+        "lines": [
+          {
+            "categoryId": "groceries",
+            "limit": {
+              "amount": "360.00",
+              "currency": "BAM"
+            },
+            "rolloverIn": {
+              "amount": "60.00",
+              "currency": "BAM"
+            },
+            "actual": {
+              "amount": "219.56",
+              "currency": "BAM"
+            },
+            "planned": {
+              "amount": "60.00",
+              "currency": "BAM"
+            },
+            "remaining": {
+              "amount": "80.44",
+              "currency": "BAM"
+            },
+            "utilization": "0.7766",
+            "alert": null
+          },
+          {
+            "categoryId": "restaurants",
+            "limit": {
+              "amount": "120.00",
+              "currency": "BAM"
+            },
+            "rolloverIn": {
+              "amount": "20.00",
+              "currency": "BAM"
+            },
+            "actual": {
+              "amount": "90.00",
+              "currency": "BAM"
+            },
+            "planned": {
+              "amount": "0.00",
+              "currency": "BAM"
+            },
+            "remaining": {
+              "amount": "30.00",
+              "currency": "BAM"
+            },
+            "utilization": "0.7500",
+            "alert": null
+          },
+          {
+            "categoryId": null,
+            "limit": {
+              "amount": "1000.00",
+              "currency": "BAM"
+            },
+            "rolloverIn": {
+              "amount": "0.00",
+              "currency": "BAM"
+            },
+            "actual": {
+              "amount": "349.56",
+              "currency": "BAM"
+            },
+            "planned": {
+              "amount": "90.00",
+              "currency": "BAM"
+            },
+            "remaining": {
+              "amount": "560.44",
+              "currency": "BAM"
+            },
+            "utilization": "0.4396",
+            "alert": null
+          }
+        ],
+        "totals": {
+          "limit": {
+            "amount": "1000.00",
+            "currency": "BAM"
+          },
+          "actual": {
+            "amount": "349.56",
+            "currency": "BAM"
+          },
+          "planned": {
+            "amount": "90.00",
+            "currency": "BAM"
+          },
+          "remaining": {
+            "amount": "560.44",
+            "currency": "BAM"
+          }
+        }
+      }
+    },
+    {
+      "name": "backdated carry_both budget with no spending yet: limit is the allocation, nothing rolled in",
+      "op": "status",
+      "budget": {
+        "id": "b7",
+        "periodType": "monthly",
+        "periodAnchorDay": 1,
+        "startDate": "2026-01-01",
+        "endDate": null,
+        "currency": "BAM",
+        "rolloverPolicy": "carry_both",
+        "includePlanned": true,
+        "alertThresholds": ["0.8", "1.0"]
+      },
+      "allocations": [
+        {
+          "budgetPeriodId": null,
+          "categoryId": "groceries",
+          "amount": {
+            "amount": "300.00",
+            "currency": "BAM"
+          },
+          "rolloverPolicy": null
+        }
+      ],
+      "date": "2026-07-15",
+      "expected": {
+        "budgetId": "b7",
+        "periodStart": "2026-07-01",
+        "periodEnd": "2026-07-31",
+        "lines": [
+          {
+            "categoryId": "groceries",
+            "limit": {
+              "amount": "300.00",
+              "currency": "BAM"
+            },
+            "rolloverIn": {
+              "amount": "0.00",
+              "currency": "BAM"
+            },
+            "actual": {
+              "amount": "0.00",
+              "currency": "BAM"
+            },
+            "planned": {
+              "amount": "0.00",
+              "currency": "BAM"
+            },
+            "remaining": {
+              "amount": "300.00",
+              "currency": "BAM"
+            },
+            "utilization": "0.0000",
+            "alert": null
+          }
+        ],
+        "totals": {
+          "limit": {
+            "amount": "300.00",
+            "currency": "BAM"
+          },
+          "actual": {
+            "amount": "0.00",
+            "currency": "BAM"
+          },
+          "planned": {
+            "amount": "0.00",
+            "currency": "BAM"
+          },
+          "remaining": {
+            "amount": "300.00",
+            "currency": "BAM"
+          }
+        }
+      }
     }
   ]
 }

@@ -102,6 +102,7 @@ function GrantsDialog({ client, onClose }: { client: Client; onClose: () => void
   const [accountIds, setAccountIds] = useState<string[]>(first?.accountIds ?? []);
   const [dateFrom, setDateFrom] = useState(first?.dateFrom ?? '');
   const [dateTo, setDateTo] = useState(first?.dateTo ?? '');
+  const e2ee = profile.privacyMode === 'e2ee';
   const save = useMutation({
     mutationFn: () =>
       api?.request('PUT', `/api/v1/mcp/clients/${client.id}/grants`, {
@@ -167,6 +168,14 @@ function GrantsDialog({ client, onClose }: { client: Client; onClose: () => void
         'Nothing is allowed unless checked. Write capabilities create proposals you review, unless marked automatic.',
       )}
     >
+      {e2ee && (
+        <Notice tone="warn" title={t('mcp.e2eeTitle', 'End-to-end encrypted profile')}>
+          {t(
+            'mcp.e2eeText',
+            'The server only stores ciphertext for this profile, so AI agents cannot read it or propose changes to it.',
+          )}
+        </Notice>
+      )}
       <fieldset>
         <legend className="text-sm font-semibold">{t('mcp.read', 'Read')}</legend>
         {read.map(row)}
@@ -214,7 +223,12 @@ function GrantsDialog({ client, onClose }: { client: Client; onClose: () => void
       <ErrorBox error={save.error} />
       <div className="mt-4 flex justify-end gap-2">
         <Button onClick={onClose}>{t('common.cancel', 'Cancel')}</Button>
-        <Button variant="primary" busy={save.isPending} onClick={() => save.mutate()}>
+        <Button
+          variant="primary"
+          disabled={e2ee && Object.values(drafts).some((d) => d.enabled)}
+          busy={save.isPending}
+          onClick={() => save.mutate()}
+        >
           {t('common.save', 'Save')}
         </Button>
       </div>
@@ -720,7 +734,11 @@ function OAuthConsent() {
   const { api, profiles } = useData();
   const current = useProfile();
   const search = useLocation().search;
-  const [profileId, setProfileId] = useState(current.id);
+  // the server holds only ciphertext for e2ee profiles, so they cannot be shared with an agent
+  const eligible = profiles.filter((p) => p.privacyMode !== 'e2ee');
+  const [profileId, setProfileId] = useState(
+    eligible.some((p) => p.id === current.id) ? current.id : (eligible[0]?.id ?? ''),
+  );
   const info = useQuery({
     queryKey: ['server', 'mcp-oauth', search],
     enabled: !!api,
@@ -740,13 +758,22 @@ function OAuthConsent() {
     );
   if (info.isLoading) return null;
   if (!info.data) return <ErrorBox error={info.error} />;
+  if (!eligible.length)
+    return (
+      <Notice tone="warn" title={t('mcp.e2eeTitle', 'End-to-end encrypted profile')}>
+        {t(
+          'mcp.oauthE2ee',
+          'All your profiles are end-to-end encrypted. The server only stores their ciphertext, so an AI agent cannot be connected to them.',
+        )}
+      </Notice>
+    );
   return (
     <ConsentForm
       key={profileId}
       req={info.data}
       search={search}
       profileId={profileId}
-      profiles={profiles.map((p) => ({ id: p.id, name: p.name }))}
+      profiles={eligible.map((p) => ({ id: p.id, name: p.name }))}
       onProfile={setProfileId}
     />
   );

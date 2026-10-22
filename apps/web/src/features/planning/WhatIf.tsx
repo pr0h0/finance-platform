@@ -61,22 +61,39 @@ export function WhatIf({ snap }: { snap: Snapshot }) {
     setErr(null);
     if (d.type === 'remove') {
       const p = snap.plans.find((x) => x.id === d.planId);
-      if (!p) return setErr(new Error('Choose a plan'));
+      if (!p) return setErr(new Error(t('planning.whatIf.choosePlan', 'Choose a plan')));
       setItems([
         ...items,
-        { removePlannedTransactionId: p.id, description: `Without ${p.description}` },
+        {
+          removePlannedTransactionId: p.id,
+          description: t('planning.whatIf.without', 'Without {{name}}', { name: p.description }),
+        },
       ]);
-      setLabels([...labels, `Remove plan: ${p.description}`]);
+      setLabels([
+        ...labels,
+        t('planning.whatIf.removePlan', 'Remove plan: {{name}}', { name: p.description }),
+      ]);
       return setD(blank);
     }
     const acc = accounts.find((a) => a.id === d.accountId);
     if (!acc) return setErr(new Error('Choose an account'));
     const m = parseMoneyInput(d.amount, acc.currency, f.parseDecimal);
-    if (!m || toMinor(m) <= 0n) return setErr(new Error(`Enter a positive ${acc.currency} amount`));
+    if (!m || toMinor(m) <= 0n)
+      return setErr(
+        new Error(
+          t('planning.whatIf.positiveAmount', 'Enter a positive {{cur}} amount', {
+            cur: acc.currency,
+          }),
+        ),
+      );
     const signed: Money = d.type === 'income' ? m : fromMinor(-toMinor(m), m.currency);
     const desc =
       d.description ||
-      { purchase: 'Purchase', income: 'Extra income', expense_change: 'New expense' }[d.type];
+      {
+        purchase: t('planning.whatIf.purchase', 'Purchase'),
+        income: t('planning.whatIf.extraIncome', 'Extra income'),
+        expense_change: t('planning.whatIf.newExpense', 'New expense'),
+      }[d.type];
     setItems([
       ...items,
       {
@@ -295,8 +312,18 @@ export function WhatIf({ snap }: { snap: Snapshot }) {
               )}
               rows={rows.filter((_, i) => i % step === 0)}
               series={[
-                { key: 'baseline', label: 'Baseline', color: SERIES[0] as string, kind: 'line' },
-                { key: 'scenario', label: 'Scenario', color: SERIES[1] as string, kind: 'line' },
+                {
+                  key: 'baseline',
+                  label: t('planning.whatIf.baseline', 'Baseline'),
+                  color: SERIES[0] as string,
+                  kind: 'line',
+                },
+                {
+                  key: 'scenario',
+                  label: t('planning.whatIf.scenario', 'Scenario'),
+                  color: SERIES[1] as string,
+                  kind: 'line',
+                },
               ]}
             />
           </>

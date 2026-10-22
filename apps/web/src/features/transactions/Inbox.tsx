@@ -116,7 +116,8 @@ export function Inbox({ refs, onOpen }: { refs: Refs; onOpen: (t: D.Transaction)
     return (
       <Empty title={t('transactions.inbox.inboxZero', 'Inbox zero')}>
         {t('transactions.inbox.everyTransactionHasA', 'Every transaction has a category.')}
-        {skipped.size > 0 && ` ${skipped.size} skipped this session.`}
+        {skipped.size > 0 &&
+          ` ${t('transactions.inbox.skipped', '{{n}} skipped this session.', { n: skipped.size })}`}
       </Empty>
     );
 

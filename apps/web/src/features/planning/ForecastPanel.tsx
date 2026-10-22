@@ -176,16 +176,26 @@ export function ForecastPanel({ snap }: { snap: Snapshot }) {
             )}
             rows={rows}
             height={260}
-            band={{ label: 'Range', color: SERIES[0] as string }}
+            band={{ label: t('planning.forecastPanel.range', 'Range'), color: SERIES[0] as string }}
             series={[
-              { key: 'expected', label: 'Expected', color: SERIES[0] as string, kind: 'line' },
+              {
+                key: 'expected',
+                label: t('planning.forecastPanel.expected', 'Expected'),
+                color: SERIES[0] as string,
+                kind: 'line',
+              },
               {
                 key: 'conservative',
-                label: 'Conservative',
+                label: t('planning.forecastPanel.conservative', 'Conservative'),
                 color: SERIES[1] as string,
                 kind: 'line',
               },
-              { key: 'optimistic', label: 'Optimistic', color: SERIES[2] as string, kind: 'line' },
+              {
+                key: 'optimistic',
+                label: t('planning.forecastPanel.optimistic', 'Optimistic'),
+                color: SERIES[2] as string,
+                kind: 'line',
+              },
             ]}
           />
         </ChartFrame>
@@ -219,7 +229,43 @@ export function ForecastPanel({ snap }: { snap: Snapshot }) {
             {t('planning.forecastPanel.assumptions', 'Assumptions')}
           </summary>
           <ul className="mt-1 list-disc pl-5">
-            {fc.assumptions.map((a) => (
+            {/* the engine's fc.assumptions in the UI language (keep in sync with @finplat/forecasting) */}
+            {[
+              t(
+                'planning.assumption.start',
+                'Starting balances are current ledger balances before any event on the start date.',
+              ),
+              t(
+                'planning.assumption.expected',
+                'Expected: certain and expected events at their planned amounts.',
+              ),
+              t(
+                'planning.assumption.conservative',
+                'Conservative: only certain income (at its minimum); every expense, including possible and speculative ones, at its maximum.',
+              ),
+              t(
+                'planning.assumption.optimistic',
+                'Optimistic: all income at its maximum; only certain and expected expenses at their minimum.',
+              ),
+              t(
+                'planning.assumption.fx',
+                'Foreign-currency balances are converted to {{currency}} at the {{date}} rate for the whole period.',
+                { currency: fc.currency, date: fc.from },
+              ),
+              t(
+                'planning.assumption.matched',
+                'Planned occurrences already matched, skipped or paid are not counted again.',
+              ),
+              t(
+                'planning.assumption.safeToSpend',
+                'Safe-to-spend = lowest conservative balance of safe-to-spend accounts through {{until}} (the day before the next expected income, at most 31 days) minus the reserve.',
+                { until: fc.safeToSpendUntil },
+              ),
+              t(
+                'planning.assumption.estimates',
+                'Forecasts are estimates, not guaranteed outcomes.',
+              ),
+            ].map((a) => (
               <li key={a}>{a}</li>
             ))}
             <li>

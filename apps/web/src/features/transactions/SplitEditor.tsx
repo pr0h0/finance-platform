@@ -71,7 +71,7 @@ export function SplitEditor({ tx, refs }: { tx: D.Transaction; refs: Refs }) {
         })),
       });
       setSaved(true);
-      toast('Splits saved'); // the editor re-mounts with the new version, so also announce it
+      toast(t('transactions.splitEditor.saved', 'Splits saved')); // the editor re-mounts with the new version, so also announce it
     } catch (e) {
       setErr(describeError(e));
     }
@@ -90,7 +90,7 @@ export function SplitEditor({ tx, refs }: { tx: D.Transaction; refs: Refs }) {
   const asTemplate = async () => {
     setErr(null);
     const name = window.prompt(
-      'Split template name',
+      t('transactions.splitEditor.templateName', 'Split template name'),
       refs.merchantName(tx.merchantId) || tx.description || 'Split',
     );
     if (!name) return;

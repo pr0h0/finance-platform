@@ -97,7 +97,13 @@ export function Adapters() {
                 <Button
                   size="sm"
                   variant="danger"
-                  onClick={() => window.confirm(`Delete adapter ${a.name}?`) && remove(a.id)}
+                  onClick={() =>
+                    window.confirm(
+                      t('import.adapters.confirmDelete', 'Delete adapter {{name}}?', {
+                        name: a.name,
+                      }),
+                    ) && remove(a.id)
+                  }
                 >
                   {t('common.delete', 'Delete')}
                 </Button>

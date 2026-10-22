@@ -39,7 +39,8 @@ export function BulkEdit({
     if (removeTag) set.removeTagIds = [removeTag];
     if (status) set.status = status as 'pending' | 'cleared' | 'void';
     if (exclude) set.excludeFromReports = exclude === 'yes';
-    if (Object.keys(set).length === 0) return setErr('Choose at least one change.');
+    if (Object.keys(set).length === 0)
+      return setErr(t('transactions.bulkEdit.chooseChange', 'Choose at least one change.'));
     try {
       const ids = rows.map((r) => r.id);
       let updated = 0;
@@ -94,37 +95,37 @@ export function BulkEdit({
         {t('transactions.bulkEdit.stayUnchanged', 'stay unchanged.')}
       </p>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {sel('Category', category, setCategory, refs.categoryOptions, {
+        {sel(t('transaction.category', 'Category'), category, setCategory, refs.categoryOptions, {
           id: '__clear',
-          label: 'Clear (uncategorized)',
+          label: t('transactions.bulkEdit.clearCategory', 'Clear (uncategorized)'),
         })}
         {sel(
-          'Merchant',
+          t('transaction.merchant', 'Merchant'),
           merchant,
           setMerchant,
           refs.merchants.map((m) => ({ id: m.id, label: m.name })),
-          { id: '__clear', label: 'Clear merchant' },
+          { id: '__clear', label: t('transactions.bulkEdit.clearMerchant', 'Clear merchant') },
         )}
         {sel(
-          'Add tag',
+          t('rules.ruleEditor.addTag', 'Add tag'),
           addTag,
           setAddTag,
-          refs.tags.map((t) => ({ id: t.id, label: t.name })),
+          refs.tags.map((x) => ({ id: x.id, label: x.name })),
         )}
         {sel(
-          'Remove tag',
+          t('transactions.bulkEdit.removeTag', 'Remove tag'),
           removeTag,
           setRemoveTag,
-          refs.tags.map((t) => ({ id: t.id, label: t.name })),
+          refs.tags.map((x) => ({ id: x.id, label: x.name })),
         )}
-        {sel('Status', status, setStatus, [
-          { id: 'cleared', label: 'Cleared' },
-          { id: 'pending', label: 'Pending' },
-          { id: 'void', label: 'Void (archive)' },
+        {sel(t('common.status', 'Status'), status, setStatus, [
+          { id: 'cleared', label: t('transaction.status.cleared', 'Cleared') },
+          { id: 'pending', label: t('transaction.status.pending', 'Pending') },
+          { id: 'void', label: t('transactions.bulkEdit.voidArchive', 'Void (archive)') },
         ])}
-        {sel('Reports', exclude, setExclude, [
-          { id: 'yes', label: 'Exclude from reports' },
-          { id: 'no', label: 'Include in reports' },
+        {sel(t('transactions.bulkEdit.reports', 'Reports'), exclude, setExclude, [
+          { id: 'yes', label: t('rules.ruleEditor.excludeFromReports', 'Exclude from reports') },
+          { id: 'no', label: t('transactions.bulkEdit.includeInReports', 'Include in reports') },
         ])}
       </div>
       <p className="text-xs text-muted">

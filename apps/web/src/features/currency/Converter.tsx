@@ -47,29 +47,38 @@ export function Converter() {
     setErr(null);
     setRes(null);
     const f = from.trim().toUpperCase();
-    const t = to.trim().toUpperCase();
+    const q = to.trim().toUpperCase();
     const m = toMoney(amount, f, locale);
-    if (!m) return setErr(`Enter a valid amount in ${f}.`);
+    if (!m)
+      return setErr(
+        t('currency.converter.invalidAmount', 'Enter a valid amount in {{cur}}.', { cur: f }),
+      );
     const rate = manual.replace(',', '.').trim();
     if (rate && !/^\d+(\.\d+)?$/.test(rate))
-      return setErr('The manual rate must be a positive decimal.');
+      return setErr(
+        t('currency.converter.invalidRate', 'The manual rate must be a positive decimal.'),
+      );
     try {
       const local = convertMoney(
         createRateBook(rates.data ?? []),
         m,
-        t,
+        q,
         date,
         rate ? { rate } : {},
       );
       if (local) return setRes({ ...local, origin: rate ? 'manual' : 'local' });
       if (!api)
         return setErr(
-          `No ${f}/${t} rate on or before ${date}. Add the rate below (e.g. from your bank) to convert offline.`,
+          t(
+            'currency.converter.noRate',
+            'No {{from}}/{{to}} rate on or before {{date}}. Add the rate below (e.g. from your bank) to convert offline.',
+            { from: f, to: q, date },
+          ),
         );
       setBusy(true);
       const r = await api.request<ConvertResult & { stale?: boolean }>('POST', '/api/v1/convert', {
         amount: m,
-        to: t,
+        to: q,
         date,
       });
       setRes({ ...r, origin: 'server' });

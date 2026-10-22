@@ -24,6 +24,7 @@ import {
   goalProgress,
   importCoverage,
   insights,
+  insightText,
   largestExpenses,
   monthEndProjection,
   monthSummary,
@@ -383,8 +384,12 @@ function Trend({ snap }: { snap: Snapshot }) {
       rows={rows}
       height={200}
       series={[
-        { key: 'income', label: 'Income', color: SERIES[0] as string },
-        { key: 'expense', label: 'Spending', color: SERIES[1] as string },
+        {
+          key: 'income',
+          label: t('transaction.kind.income', 'Income'),
+          color: SERIES[0] as string,
+        },
+        { key: 'expense', label: t('common.spending', 'Spending'), color: SERIES[1] as string },
       ]}
     />
   );
@@ -541,6 +546,7 @@ function Goals({ snap }: { snap: Snapshot }) {
 
 function Insights({ snap }: { snap: Snapshot }) {
   const t = useT();
+  const fmt = useFormat();
   const list = insights(snap);
   if (!list.length)
     return (
@@ -548,14 +554,17 @@ function Insights({ snap }: { snap: Snapshot }) {
     );
   return (
     <ul className="space-y-2 text-sm">
-      {list.slice(0, 4).map((i) => (
-        <li key={i.id}>
-          <p className={i.severity === 'info' ? 'font-medium' : 'font-medium text-warn'}>
-            {i.title}
-          </p>
-          <p className="text-muted">{i.body}</p>
-        </li>
-      ))}
+      {list.slice(0, 4).map((i) => {
+        const x = insightText(t, fmt, i);
+        return (
+          <li key={i.id}>
+            <p className={i.severity === 'info' ? 'font-medium' : 'font-medium text-warn'}>
+              {x.title}
+            </p>
+            <p className="text-muted">{x.body}</p>
+          </li>
+        );
+      })}
       <li className="text-xs">
         <Link className="text-accent underline" to="/analytics#insights">
           {t('dashboard.widgets.allInsights', 'All insights')}

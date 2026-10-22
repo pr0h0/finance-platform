@@ -166,6 +166,13 @@ func (s *session) view(ctx context.Context, profileID *uuid.UUID, scopes []strin
 		return v, toolErr("profile_not_granted", "the client's user no longer has access to this profile")
 	}
 	v.Role = role
+	var mode string
+	if err := s.db.QueryRow(ctx, `SELECT privacy_mode FROM profiles WHERE id = $1`, pid).Scan(&mode); err != nil {
+		return v, err
+	}
+	if mode == "e2ee" { // grants made before the profile switched to e2ee
+		return v, toolErr("e2ee_profile", "this profile is end-to-end encrypted: the server cannot read or write its data")
+	}
 	if v.P, err = fin.LoadProfile(ctx, s.db, pid); err != nil {
 		return v, err
 	}

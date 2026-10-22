@@ -23,10 +23,10 @@ export function QuickActions({ snap }: { snap: Snapshot }) {
   const t = useT();
   const [open, setOpen] = useState<Kind | 'planned' | null>(null);
   const items = [
-    { k: 'expense', label: 'Expense', Icon: ArrowUpRight },
-    { k: 'income', label: 'Income', Icon: ArrowDownLeft },
-    { k: 'transfer', label: 'Transfer', Icon: ArrowLeftRight },
-    { k: 'planned', label: 'Planned', Icon: CalendarPlus },
+    { k: 'expense', label: t('transaction.kind.expense', 'Expense'), Icon: ArrowUpRight },
+    { k: 'income', label: t('transaction.kind.income', 'Income'), Icon: ArrowDownLeft },
+    { k: 'transfer', label: t('transaction.kind.transfer', 'Transfer'), Icon: ArrowLeftRight },
+    { k: 'planned', label: t('dashboard.quickActions.planned', 'Planned'), Icon: CalendarPlus },
   ] as const;
   return (
     <>

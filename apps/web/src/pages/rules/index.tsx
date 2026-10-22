@@ -74,7 +74,13 @@ export default function RulesPage() {
                   .mutateAsync(undefined)
                   .then((r) =>
                     setMsg(
-                      `Rules categorized ${r.matched} uncategorized or imported transactions.`,
+                      t(
+                        'rules.page.categorized',
+                        'Rules categorized {{n}} uncategorized or imported transactions.',
+                        {
+                          n: r.matched,
+                        },
+                      ),
                     ),
                   )
                   .catch((e) => setErr(describeError(e)))
@@ -124,7 +130,10 @@ export default function RulesPage() {
                 {t('rules.page.matchcountMatches', '{{matchCount}} matches', {
                   matchCount: r.matchCount,
                 })}
-                {r.lastMatchedAt && `, last ${r.lastMatchedAt.slice(0, 10)}`}
+                {r.lastMatchedAt &&
+                  t('rules.page.lastMatched', ', last {{date}}', {
+                    date: r.lastMatchedAt.slice(0, 10),
+                  })}
               </p>
             </div>
             <div className="flex gap-1">
@@ -141,8 +150,9 @@ export default function RulesPage() {
                 size="sm"
                 variant="danger"
                 onClick={() =>
-                  window.confirm(`Delete rule ${r.name}?`) &&
-                  del.mutateAsync(r).catch((e) => setErr(describeError(e)))
+                  window.confirm(
+                    t('rules.page.confirmDelete', 'Delete rule {{name}}?', { name: r.name }),
+                  ) && del.mutateAsync(r).catch((e) => setErr(describeError(e)))
                 }
               >
                 {t('common.delete', 'Delete')}

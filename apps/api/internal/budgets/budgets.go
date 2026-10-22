@@ -489,7 +489,8 @@ func RolloverAmount(policy string, leftover money.Money) money.Money {
 //	limit = allocation + rolloverIn; remaining = limit - actual - (includePlanned ? planned : 0);
 //	utilization = (actual + (includePlanned ? planned : 0)) / limit, 4 decimals half-up, null when
 //	limit <= 0; alert = highest threshold <= utilization.
-//	Rollover is chained from the first period, actual only: rolloverIn(p) = RolloverAmount(policy,
+//	Rollover is chained from the first period with any spending (earlier periods carry nothing, so a
+//	backdated budget does not inherit unused allocations of months without data), actual only: rolloverIn(p) = RolloverAmount(policy,
 //	limit(p-1) - actual(p-1)), except that a period with a stored period allocation (written when the
 //	previous period was closed) uses that row's amount and frozen rolloverAmount. Policy = the period
 //	row's, else the default allocation's, else the budget's.
@@ -544,10 +545,14 @@ func Compute(in StatusInput) (Status, bool) {
 	for i := range actual {
 		actual[i] = map[string]*fin.Accumulator{}
 	}
+	chainFrom := len(periods) // first period with any spending; earlier periods carry nothing
 	for _, s := range in.Spent {
 		i := periodOf(s.Date)
 		if i < 0 {
 			continue
+		}
+		if i < chainFrom && s.Amount.Sign() != 0 {
+			chainFrom = i
 		}
 		for _, k := range keys {
 			if match(k, s.CategoryID) {
@@ -618,6 +623,9 @@ func Compute(in StatusInput) (Status, bool) {
 			}
 			left, _ := limit.Sub(act)
 			carry = RolloverAmount(policy, left)
+			if i < chainFrom {
+				carry = fin.Zero(cur)
+			}
 		}
 		plan := sum(planned, ck)
 		spent := act

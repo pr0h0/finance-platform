@@ -117,13 +117,25 @@ export function EntryForm({
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     setErr(null);
-    if (!src) return setErr('Choose an account.');
+    if (!src) return setErr(t('transactions.entryForm.chooseAccount', 'Choose an account.'));
     if (!amount || amount.amount.startsWith('-') || /^0+(\.0+)?$/.test(amount.amount))
-      return setErr(`Enter a positive amount in ${d.currency} (at most the currency's decimals).`);
-    if (d.kind === 'transfer' && !dst) return setErr('Choose the destination account.');
-    if (toAmount === null) return setErr('Enter a valid received amount or rate.');
+      return setErr(
+        t(
+          'transactions.entryForm.positiveAmount',
+          "Enter a positive amount in {{cur}} (at most the currency's decimals).",
+          { cur: d.currency },
+        ),
+      );
+    if (d.kind === 'transfer' && !dst)
+      return setErr(
+        t('transactions.entryForm.chooseDestination', 'Choose the destination account.'),
+      );
+    if (toAmount === null)
+      return setErr(
+        t('transactions.entryForm.invalidReceived', 'Enter a valid received amount or rate.'),
+      );
     const fee = d.fee ? toMoney(d.fee, d.currency, locale) : undefined;
-    if (d.fee && !fee) return setErr('Invalid fee.');
+    if (d.fee && !fee) return setErr(t('transactions.entryForm.invalidFee', 'Invalid fee.'));
     try {
       const t = await create.mutateAsync({
         kind: d.kind,
@@ -160,7 +172,10 @@ export function EntryForm({
 
   const saveAsTemplate = async () => {
     setErr(null);
-    const name = window.prompt('Template name', d.description || d.payee || 'Template');
+    const name = window.prompt(
+      t('transactions.entryForm.templateName', 'Template name'),
+      d.description || d.payee || t('transactions.entryForm.template', 'Template'),
+    );
     if (!name) return;
     try {
       await saveTpl.mutateAsync({
@@ -556,7 +571,11 @@ export function EntryForm({
           {t('transactions.entryForm.saveAsTemplate', 'Save as template')}
         </Button>
         <Button type="submit" variant="primary" disabled={create.isPending}>
-          {create.isPending ? t('transactions.entryForm.saving', 'Saving…') : `Add ${d.kind}`}
+          {create.isPending
+            ? t('transactions.entryForm.saving', 'Saving…')
+            : t('transactions.entryForm.add', 'Add {{kind}}', {
+                kind: t(`transaction.kind.${d.kind}`, d.kind).toLowerCase(),
+              })}
         </Button>
       </div>
     </form>

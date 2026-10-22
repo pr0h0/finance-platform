@@ -4,7 +4,7 @@ import type * as D from '@finplat/domain';
 import { evaluateRules } from '@finplat/finance-engine';
 import { Plus, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { useT } from '../../lib/i18n.ts';
+import { type TFn, useT } from '../../lib/i18n.ts';
 import {
   describeError,
   type Refs,
@@ -28,15 +28,15 @@ const FIELDS = [
   'accountId',
   'merchantId',
 ] as const;
-const FIELD_LABEL: Record<(typeof FIELDS)[number], string> = {
-  description: 'Description',
-  payee: 'Payee',
-  counterparty: 'Counterparty',
-  amount: 'Amount (absolute)',
-  direction: 'Direction',
-  accountId: 'Account',
-  merchantId: 'Merchant',
-};
+const fieldLabel = (t: TFn): Record<(typeof FIELDS)[number], string> => ({
+  description: t('transaction.description', 'Description'),
+  payee: t('transactions.detailDrawer.payee', 'Payee'),
+  counterparty: t('common.counterparty', 'Counterparty'),
+  amount: t('rules.ruleEditor.amountAbsolute', 'Amount (absolute)'),
+  direction: t('rules.ruleEditor.direction', 'Direction'),
+  accountId: t('transactions.transactionTable.account', 'Account'),
+  merchantId: t('transaction.merchant', 'Merchant'),
+});
 const TEXT_OPS = ['contains', 'equals', 'starts_with', 'regex'] as const;
 const AMOUNT_OPS = ['eq', 'lt', 'lte', 'gt', 'gte'] as const;
 const ACTIONS = [
@@ -47,14 +47,21 @@ const ACTIONS = [
   'apply_split_template',
   'exclude_from_reports',
 ] as const;
-const ACTION_LABEL: Record<(typeof ACTIONS)[number], string> = {
-  set_category: 'Set category',
-  set_merchant: 'Set merchant',
-  add_tag: 'Add tag',
-  set_description: 'Set description',
-  apply_split_template: 'Apply split template',
-  exclude_from_reports: 'Exclude from reports',
-};
+const actionLabel = (t: TFn): Record<(typeof ACTIONS)[number], string> => ({
+  set_category: t('rules.ruleEditor.setCategory', 'Set category'),
+  set_merchant: t('rules.ruleEditor.setMerchant', 'Set merchant'),
+  add_tag: t('rules.ruleEditor.addTag', 'Add tag'),
+  set_description: t('rules.ruleEditor.setDescription', 'Set description'),
+  apply_split_template: t('rules.ruleEditor.applySplitTemplate', 'Apply split template'),
+  exclude_from_reports: t('rules.ruleEditor.excludeFromReports', 'Exclude from reports'),
+});
+const opLabel = (t: TFn, op: string): string =>
+  ({
+    contains: t('rules.op.contains', 'contains'),
+    equals: t('rules.op.equals', 'equals'),
+    starts_with: t('rules.op.startsWith', 'starts with'),
+    regex: t('rules.op.regex', 'regex'),
+  })[op] ?? op;
 
 const newCond = (field: (typeof FIELDS)[number]): Cond => {
   if (field === 'amount') return { field, op: 'gte', value: '' };
@@ -153,7 +160,13 @@ export function RuleEditor({
         let n = 0;
         for (let i = 0; i < ids.length; i += 500)
           n += (await apply.mutateAsync(ids.slice(i, i + 500))).matched;
-        return onDone(`Rule saved and applied: ${n} transactions changed.`);
+        return onDone(
+          t(
+            'rules.ruleEditor.savedApplied',
+            'Rule saved and applied: {{n}} transactions changed.',
+            { n },
+          ),
+        );
       }
       onDone();
     } catch (e) {
@@ -240,7 +253,7 @@ export function RuleEditor({
             >
               {FIELDS.map((f) => (
                 <option key={f} value={f}>
-                  {FIELD_LABEL[f]}
+                  {fieldLabel(t)[f]}
                 </option>
               ))}
             </select>
@@ -256,7 +269,7 @@ export function RuleEditor({
                 >
                   {TEXT_OPS.map((o) => (
                     <option key={o} value={o}>
-                      {o.replace('_', ' ')}
+                      {opLabel(t, o)}
                     </option>
                   ))}
                 </select>
@@ -319,14 +332,14 @@ export function RuleEditor({
             )}
             {c.field === 'accountId' &&
               sel(
-                'Account',
+                t('transactions.transactionTable.account', 'Account'),
                 c.value,
                 (v) => setC(i, { ...c, value: v }),
                 refs.accounts.map((a) => ({ id: a.id, label: a.name })),
               )}
             {c.field === 'merchantId' &&
               sel(
-                'Merchant',
+                t('transaction.merchant', 'Merchant'),
                 c.value,
                 (v) => setC(i, { ...c, value: v }),
                 refs.merchants.map((m) => ({ id: m.id, label: m.name })),
@@ -364,36 +377,36 @@ export function RuleEditor({
               value={a.type}
               onChange={(e) => setA(i, newAct(e.target.value as (typeof ACTIONS)[number]))}
             >
-              {ACTIONS.map((t) => (
-                <option key={t} value={t}>
-                  {ACTION_LABEL[t]}
+              {ACTIONS.map((x) => (
+                <option key={x} value={x}>
+                  {actionLabel(t)[x]}
                 </option>
               ))}
             </select>
             {a.type === 'set_category' &&
               sel(
-                'Category',
+                t('transaction.category', 'Category'),
                 a.categoryId,
                 (v) => setA(i, { ...a, categoryId: v }),
                 refs.categoryOptions,
               )}
             {a.type === 'set_merchant' &&
               sel(
-                'Merchant',
+                t('transaction.merchant', 'Merchant'),
                 a.merchantId,
                 (v) => setA(i, { ...a, merchantId: v }),
                 refs.merchants.map((m) => ({ id: m.id, label: m.name })),
               )}
             {a.type === 'add_tag' &&
               sel(
-                'Tag',
+                t('common.tag', 'Tag'),
                 a.tagId,
                 (v) => setA(i, { ...a, tagId: v }),
                 refs.tags.map((t) => ({ id: t.id, label: t.name })),
               )}
             {a.type === 'apply_split_template' &&
               sel(
-                'Split template',
+                t('rules.ruleEditor.splitTemplate', 'Split template'),
                 a.splitTemplateId,
                 (v) => setA(i, { ...a, splitTemplateId: v }),
                 (splitTemplates.data ?? []).map((t) => ({ id: t.id, label: t.name })),
@@ -441,7 +454,10 @@ export function RuleEditor({
         <p className="text-sm" role="status">
           {txs.isLoading
             ? t('rules.ruleEditor.loadingTransactions', 'Loading transactions…')
-            : `Matches ${matches.length} transactions (${matches.filter(isUncategorized).length} uncategorized).`}
+            : t('rules.ruleEditor.matches', 'Matches {{n}} transactions ({{u}} uncategorized).', {
+                n: matches.length,
+                u: matches.filter(isUncategorized).length,
+              })}
         </p>
         <ul className="mt-2 max-h-48 overflow-auto text-sm">
           {matches.slice(0, 50).map((t) => (

@@ -208,7 +208,8 @@ function BudgetCard({
         <span className="text-fg">
           {budget.name}{' '}
           <span className="text-xs font-normal text-muted">
-            {budget.periodType} · {ROLLOVER_LABEL[budget.rolloverPolicy]}
+            {t(`budget.period.${budget.periodType}`, budget.periodType)} ·{' '}
+            {t(`budget.rollover.${budget.rolloverPolicy}`, ROLLOVER_LABEL[budget.rolloverPolicy])}
           </span>
         </span>
       }
@@ -251,7 +252,10 @@ function BudgetCard({
           <Button
             variant="ghost"
             aria-label={t('budgets.page.archive', 'Archive {{name}}', { name: budget.name })}
-            onClick={() => confirm('Archive this budget?') && archive.mutate(undefined)}
+            onClick={() =>
+              confirm(t('budgets.page.confirmArchive', 'Archive this budget?')) &&
+              archive.mutate(undefined)
+            }
           >
             <Archive aria-hidden className="size-4" />
           </Button>
@@ -302,7 +306,9 @@ function BudgetCard({
                           >
                             {over
                               ? t('budgets.page.over', 'over')
-                              : `${Math.round(Number(l.alert) * 100)}% reached`}
+                              : t('budgets.page.reached', '{{pct}}% reached', {
+                                  pct: Math.round(Number(l.alert) * 100),
+                                })}
                           </span>
                         )}
                       </td>

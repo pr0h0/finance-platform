@@ -10,28 +10,28 @@ import {
 } from '@finplat/importer-sdk';
 import { Download, Plus, Trash2, Upload } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { useT } from '../../lib/i18n.ts';
+import { type TFn, useT } from '../../lib/i18n.ts';
 import { describeError, useLedgerEnv } from '../transactions/data.ts';
 import { Button, download, ErrorText, Field, inputCls, MoneyText } from '../transactions/ui.tsx';
 import { useDeleteTemplate, useImportSettings, useSaveTemplate } from './store.ts';
 import { callWorker } from './worker-types.ts';
 
 type Col = keyof ImportTemplateInput['columns'];
-const COLS: { key: Col; label: string; required?: boolean }[] = [
-  { key: 'postingDate', label: 'Booking date', required: true },
-  { key: 'valueDate', label: 'Value date' },
-  { key: 'description', label: 'Description', required: true },
-  { key: 'amount', label: 'Amount (signed)' },
-  { key: 'debit', label: 'Debit (money out)' },
-  { key: 'credit', label: 'Credit (money in)' },
-  { key: 'direction', label: 'Direction (D/C column)' },
-  { key: 'currency', label: 'Currency' },
-  { key: 'reference', label: 'Reference' },
-  { key: 'runningBalance', label: 'Running balance' },
-  { key: 'counterparty', label: 'Counterparty' },
-  { key: 'accountRef', label: 'Account number' },
-  { key: 'originalAmount', label: 'Original amount' },
-  { key: 'originalCurrency', label: 'Original currency' },
+const cols = (t: TFn): { key: Col; label: string; required?: boolean }[] => [
+  { key: 'postingDate', label: t('import.col.postingDate', 'Booking date'), required: true },
+  { key: 'valueDate', label: t('import.col.valueDate', 'Value date') },
+  { key: 'description', label: t('transaction.description', 'Description'), required: true },
+  { key: 'amount', label: t('import.col.amount', 'Amount (signed)') },
+  { key: 'debit', label: t('import.col.debit', 'Debit (money out)') },
+  { key: 'credit', label: t('import.col.credit', 'Credit (money in)') },
+  { key: 'direction', label: t('import.col.direction', 'Direction (D/C column)') },
+  { key: 'currency', label: t('account.currency', 'Currency') },
+  { key: 'reference', label: t('transactions.detailDrawer.reference', 'Reference') },
+  { key: 'runningBalance', label: t('import.col.runningBalance', 'Running balance') },
+  { key: 'counterparty', label: t('common.counterparty', 'Counterparty') },
+  { key: 'accountRef', label: t('import.col.accountRef', 'Account number') },
+  { key: 'originalAmount', label: t('import.col.originalAmount', 'Original amount') },
+  { key: 'originalCurrency', label: t('import.col.originalCurrency', 'Original currency') },
 ];
 
 const blank = (): ImportTemplateInput => ({
@@ -145,8 +145,10 @@ export function MappingEditor() {
   const runTest = async () => {
     setErr(null);
     setTest(null);
-    if (!sample) return setErr('Choose a sample file first.');
-    if (!valid.ok) return setErr('Fix the template issues first.');
+    if (!sample)
+      return setErr(t('import.mappingEditor.chooseSample', 'Choose a sample file first.'));
+    if (!valid.ok)
+      return setErr(t('import.mappingEditor.fixIssues', 'Fix the template issues first.'));
     try {
       const imp =
         draft.format === 'pdf'
@@ -176,12 +178,21 @@ export function MappingEditor() {
     const clash = (settings.data?.templates ?? []).some(
       (x) => x.id === draft.id && x.id !== editingId,
     );
-    if (clash) return setErr(`A template with id ${draft.id} exists; change the name or id.`);
+    if (clash)
+      return setErr(
+        t(
+          'import.mappingEditor.idClash',
+          'A template with id {{id}} exists; change the name or id.',
+          {
+            id: draft.id,
+          },
+        ),
+      );
     try {
       if (editingId && editingId !== draft.id) await del.mutateAsync(editingId);
       await save.mutateAsync(draft);
       setEditingId(draft.id);
-      setMsg('Template saved. Pick it in the Import tab.');
+      setMsg(t('import.mappingEditor.saved', 'Template saved. Pick it in the Import tab.'));
     } catch (e) {
       setErr(describeError(e));
     }
@@ -192,7 +203,9 @@ export function MappingEditor() {
     const v = validateTemplate(text);
     if (!v.ok)
       return setErr(
-        `Invalid template: ${v.issues.map((i) => `${i.path}: ${i.message}`).join('; ')}`,
+        t('import.mappingEditor.invalid', 'Invalid template: {{issues}}', {
+          issues: v.issues.map((i) => `${i.path}: ${i.message}`).join('; '),
+        }),
       );
     setT(JSON.parse(text) as ImportTemplateInput);
     setEditingId(null);
@@ -256,7 +269,13 @@ export function MappingEditor() {
                     aria-label={t('import.mappingEditor.delete', 'Delete {{name}}', {
                       name: x.name,
                     })}
-                    onClick={() => window.confirm(`Delete template ${x.name}?`) && del.mutate(x.id)}
+                    onClick={() =>
+                      window.confirm(
+                        t('import.mappingEditor.confirmDelete', 'Delete template {{name}}?', {
+                          name: x.name,
+                        }),
+                      ) && del.mutate(x.id)
+                    }
                   >
                     <Trash2 size={12} aria-hidden />
                   </Button>
@@ -499,7 +518,7 @@ export function MappingEditor() {
           <legend className="mb-1 text-sm font-semibold">
             {t('import.mappingEditor.columns', 'Columns')}
           </legend>
-          {COLS.map((c) => {
+          {cols(t).map((c) => {
             const cur = tpl.columns[c.key];
             const v = Array.isArray(cur) ? cur[0] : cur;
             return (
@@ -797,7 +816,7 @@ export function MappingEditor() {
             {[...test.errors, ...test.warnings].slice(0, 10).map((e, i) => (
               // biome-ignore lint/suspicious/noArrayIndexKey: issues have no id
               <p key={i} className="text-xs text-warn">
-                {e.row !== undefined && `row ${e.row}: `}
+                {e.row !== undefined && t('import.issueRow', 'row {{row}}: ', { row: e.row })}
                 {e.message}
               </p>
             ))}

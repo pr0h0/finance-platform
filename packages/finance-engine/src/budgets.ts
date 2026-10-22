@@ -16,6 +16,8 @@
 //   alert = highest alert threshold <= utilization, else null
 // Rollover (per line, chained from the first period, actual only): leftover = prev limit - prev actual;
 //   none -> 0, carry_surplus -> max(leftover, 0), carry_deficit -> min(leftover, 0), carry_both -> leftover.
+//   The chain starts at the first period with any spending (any line): earlier periods carry nothing, so
+//   a budget backdated over months without ledger data does not inherit their unused allocations.
 //   A period with a stored period allocation (server period close; matched by `periodStart`, or by
 //   `budgetPeriodId` through `periodIds`) uses that row's amount and its frozen rolloverAmount instead.
 //   Policy = the period row's, else the default allocation's, else the budget's.
@@ -196,6 +198,8 @@ export function budgetStatus(input: BudgetStatusInput): BudgetStatus {
   const actual = periods.map(() => new Map<string | null, bigint>());
   let pi = 0;
   const sorted = fs.filter((f) => f.kind === 'spending').sort((x, y) => (x.date < y.date ? -1 : 1));
+  const firstSpend = sorted.find((f) => toMinor(f.amount) !== 0n)?.date;
+  const chainFrom = firstSpend ? periods.findIndex((p) => firstSpend <= p.end) : periods.length;
   for (const f of sorted) {
     while (pi < periods.length && (periods[pi] as Period).end < f.date) pi++;
     if (pi >= periods.length) break;
@@ -232,10 +236,13 @@ export function budgetStatus(input: BudgetStatusInput): BudgetStatus {
       limit = (a ? toMinor(a.amount) : 0n) + carry;
       act = (actual[i] as Map<string | null, bigint>).get(k) ?? 0n;
       if (p === target) break;
-      carry = rolloverAmount(
-        stored?.rolloverPolicy ?? def?.rolloverPolicy ?? b.rolloverPolicy,
-        limit - act,
-      );
+      carry =
+        i < chainFrom
+          ? 0n
+          : rolloverAmount(
+              stored?.rolloverPolicy ?? def?.rolloverPolicy ?? b.rolloverPolicy,
+              limit - act,
+            );
     }
     const plan = planned.get(k) ?? 0n;
     const spent = act + (b.includePlanned ? plan : 0n);

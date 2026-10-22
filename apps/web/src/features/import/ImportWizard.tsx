@@ -128,7 +128,10 @@ export function ImportWizard({
 
   const parseAll = async () => {
     setErr(null);
-    if (!account) return setErr('Choose the account these statements belong to.');
+    if (!account)
+      return setErr(
+        t('import.wizard.chooseAccount', 'Choose the account these statements belong to.'),
+      );
     setBusy(true);
     for (const j of jobs.filter((x) => x.status === 'queued' || x.status === 'error')) {
       update(j.key, { status: 'parsing', progress: 0, error: undefined });
@@ -274,7 +277,7 @@ export function ImportWizard({
       accountId,
       amount: m,
       bookingDate: openingDate(jobs),
-      description: 'Opening balance (from statement)',
+      description: t('import.wizard.openingFromStatement', 'Opening balance (from statement)'),
     }),
   );
 
@@ -669,7 +672,7 @@ function ParseSummary({ j, locale }: { j: Job; locale: string }) {
               .map((e, i) => (
                 // biome-ignore lint/suspicious/noArrayIndexKey: issues have no id
                 <li key={i} className={e.sev === 'error' ? 'text-neg' : ''}>
-                  {e.row !== undefined && `row ${e.row}: `}
+                  {e.row !== undefined && t('import.issueRow', 'row {{row}}: ', { row: e.row })}
                   {e.field && `${e.field}: `}
                   {e.message}
                 </li>

@@ -56,7 +56,8 @@ monthly / yearly+BYMONTH), `BYMONTHDAY` (negative = from month end), `BYMONTH`, 
   Totals = the overall (null-category) line when present, else the sum of the category lines.
   Budgets never require allocating all income.
 - **Rollover** (PLAN §42, optional per budget or allocation): deterministic and chained from the first
-  period, actual spending only. rolloverIn(p) = policy(limit(p−1) − actual(p−1)) with `none` → 0,
+  period with any spending (any line; earlier periods carry nothing, so a budget backdated over months
+  without ledger data does not inherit their unused allocations), actual spending only. rolloverIn(p) = policy(limit(p−1) − actual(p−1)) with `none` → 0,
   `carry_surplus` → max(leftover, 0), `carry_deficit` → min(leftover, 0), `carry_both` → leftover.
   Policy = the period row's, else the allocation's, else the budget's. No period close is needed;
   `POST /budgets/{id}/periods/close` freezes the carry: it stores the next period's allocation row

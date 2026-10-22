@@ -10,21 +10,14 @@ import { useRefs } from '../../features/transactions/data.ts';
 import { Badge, PageHeader, Tabs } from '../../features/transactions/ui.tsx';
 import { useT } from '../../lib/i18n.ts';
 
-const TABS = [
-  { id: 'import', label: 'Import' },
-  { id: 'history', label: 'History' },
-  { id: 'coverage', label: 'Coverage' },
-  { id: 'mapping', label: 'Mapping editor' },
-  { id: 'importers', label: 'Importers' },
-  { id: 'adapters', label: 'Custom adapters' },
-] as const;
-type Tab = (typeof TABS)[number]['id'];
+const TABS = ['import', 'history', 'coverage', 'mapping', 'importers', 'adapters'] as const;
+type Tab = (typeof TABS)[number];
 
 export default function ImportPage() {
   const t = useT();
   const refs = useRefs();
   const [params, setParams] = useSearchParams();
-  const tab = (TABS.find((x) => x.id === params.get('tab'))?.id ?? 'import') as Tab;
+  const tab = (TABS.find((x) => x === params.get('tab')) ?? 'import') as Tab;
   const labels: Record<Tab, string> = {
     import: t('import.tabs.import', 'Import'),
     history: t('import.tabs.history', 'History'),
@@ -54,7 +47,7 @@ export default function ImportPage() {
         label={t('import.page.importCenter', 'Import center')}
         value={tab}
         onChange={setTab}
-        tabs={TABS.map((x) => ({ ...x, label: labels[x.id] }))}
+        tabs={TABS.map((id) => ({ id, label: labels[id] }))}
       />
       {tab === 'import' && !refs.loading && (
         <ImportWizard
@@ -100,7 +93,7 @@ export default function ImportPage() {
               </p>
               {m.limitations?.map((l) => (
                 <p key={l} className="text-xs text-muted">
-                  {l}
+                  {t(`importer.limitation:${l}`, l)}
                 </p>
               ))}
             </li>

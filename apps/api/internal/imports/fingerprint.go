@@ -94,3 +94,32 @@ func fillFingerprints(records []Record) {
 		records[i].Fingerprint = fp
 	}
 }
+
+// descriptionWords splits NFKC-lowercased text into runs of letters or of digits ("KONZUM123 d.o.o."
+// -> konzum 123 d o o). Same as descriptionWords in @finplat/importer-sdk.
+func descriptionWords(s string) []string {
+	var out []string
+	var b strings.Builder
+	kind := 0 // 1 letter, 2 digit
+	for _, r := range strings.ToLower(norm.NFKC.String(s)) {
+		k := 0
+		switch {
+		case unicode.IsLetter(r):
+			k = 1
+		case unicode.IsNumber(r):
+			k = 2
+		}
+		if k != kind && b.Len() > 0 {
+			out = append(out, b.String())
+			b.Reset()
+		}
+		kind = k
+		if k != 0 {
+			b.WriteRune(r)
+		}
+	}
+	if b.Len() > 0 {
+		out = append(out, b.String())
+	}
+	return out
+}

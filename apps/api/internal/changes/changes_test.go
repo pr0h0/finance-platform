@@ -2,6 +2,7 @@ package changes_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/google/uuid"
@@ -94,5 +95,33 @@ func TestImmutabilityTriggers(t *testing.T) {
 	_ = pool.QueryRow(ctx, `SELECT booking_date::text FROM transactions WHERE id=$1`, txID).Scan(&d)
 	if d != "2026-01-31" {
 		t.Fatalf("date shifted: %s", d)
+	}
+}
+
+// Every plaintext write path (REST, MCP, imports, jobs) records through Record; an e2ee profile's
+// devices accept only envelopes, so Record refuses and the write rolls back.
+func TestRecordRefusesE2EEProfiles(t *testing.T) {
+	pool := testdb.New(t)
+	userID, profileID := testdb.SeedUserProfile(t, pool)
+	ctx := authz.WithPrincipal(context.Background(), authz.Principal{UserID: userID, ActorType: authz.ActorUser})
+	if _, err := pool.Exec(ctx, `UPDATE profiles SET privacy_mode = 'e2ee' WHERE id = $1`, profileID); err != nil {
+		t.Fatal(err)
+	}
+	tagID := uuid.New()
+	err := pgx.BeginFunc(ctx, pool, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, `INSERT INTO tags (id, profile_id, name) VALUES ($1,$2,'groceries')`, tagID, profileID); err != nil {
+			return err
+		}
+		_, err := changes.Record(ctx, tx, changes.Change{ProfileID: profileID, EntityType: "tags", EntityID: tagID, Op: changes.OpUpsert,
+			Data: map[string]any{"id": tagID, "name": "groceries"}})
+		return err
+	})
+	if !errors.Is(err, changes.ErrE2EEProfile) {
+		t.Fatalf("want ErrE2EEProfile, got %v", err)
+	}
+	var n int
+	_ = pool.QueryRow(ctx, `SELECT (SELECT count(*) FROM tags WHERE profile_id = $1) + (SELECT count(*) FROM sync_changes WHERE profile_id = $1)`, profileID).Scan(&n)
+	if n != 0 {
+		t.Fatalf("%d plaintext rows left in the e2ee profile", n)
 	}
 }

@@ -1,8 +1,23 @@
-// Merchant templates (Feature 125): a merchant whose name or alias occurs in a bank description
-// proposes itself, its default category and its most recent split template. Same matching as Go
-// imports.loadSuggestions (canonical fp1 description, longest name first). Suggestions only: the
-// caller applies them after the user approves (import preview, uncategorized inbox).
-import { canonicalDescription } from './fingerprint.ts';
+// Merchant templates (Feature 125): a merchant whose name or alias occurs as whole words in a bank
+// description proposes itself, its default category and its most recent split template. Same matching
+// as Go imports.loadSuggestions (shared vectors: test-fixtures/imports/merchant-templates.json).
+// Suggestions only: the caller applies them after the user approves (import preview, inbox).
+
+/** NFKC-lowercased runs of letters or of digits ("KONZUM123 d.o.o." -> konzum 123 d o o). */
+export function descriptionWords(s: string): string[] {
+  return (
+    s
+      .normalize('NFKC')
+      .toLowerCase()
+      .match(/\p{L}+|\p{N}+/gu) ?? []
+  );
+}
+
+const containsWords = (desc: string[], words: string[]) => {
+  for (let i = 0; i + words.length <= desc.length; i++)
+    if (words.every((w, j) => desc[i + j] === w)) return true;
+  return false;
+};
 
 export interface TemplateMerchant {
   id: string;
@@ -38,19 +53,21 @@ export function merchantMatcher(
     if (!cur || t.updatedAt > cur.updatedAt || (t.updatedAt === cur.updatedAt && t.id < cur.id))
       latest.set(t.merchantId, t);
   }
-  const names: { key: string; m: TemplateMerchant }[] = [];
+  // At least 3 letters/digits; longest first ("shell oil" beats "shell"), counted in code points.
+  const names: { words: string[]; size: number; m: TemplateMerchant }[] = [];
   for (const m of merchants) {
     if (m.deletedAt) continue;
     for (const n of [m.normalizedName, ...(m.aliases ?? [])]) {
-      const key = canonicalDescription(n);
-      if (key.length >= 3) names.push({ key, m });
+      const words = descriptionWords(n);
+      const size = [...words.join('')].length;
+      if (size >= 3) names.push({ words, size, m });
     }
   }
-  names.sort((a, b) => b.key.length - a.key.length || (a.m.id < b.m.id ? -1 : 1));
+  names.sort((a, b) => b.size - a.size || (a.m.id < b.m.id ? -1 : 1));
   return (description) => {
-    const d = canonicalDescription(description);
-    if (!d) return null;
-    const hit = names.find((n) => d.includes(n.key));
+    const d = descriptionWords(description);
+    if (!d.length) return null;
+    const hit = names.find((n) => containsWords(d, n.words));
     if (!hit) return null;
     return {
       merchantId: hit.m.id,

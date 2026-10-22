@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/google/uuid"
 )
 
 func fixture(t *testing.T, name string) []byte {
@@ -227,3 +229,39 @@ func TestFingerprintVectors(t *testing.T) {
 }
 
 func itoa(n int) string { b, _ := json.Marshal(n); return string(b) }
+
+// Shared merchant-template vectors with the TS SDK (merchantMatcher): whole-word matching, names under
+// 3 letters/digits ignored, longest name first counted in runes.
+func TestMerchantTemplateVectors(t *testing.T) {
+	b, err := os.ReadFile("../../../../packages/test-fixtures/imports/merchant-templates.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var vec struct {
+		Merchants []struct {
+			ID      uuid.UUID `json:"id"`
+			Name    string    `json:"name"`
+			Aliases []string  `json:"aliases"`
+		} `json:"merchants"`
+		Cases []struct {
+			Description string     `json:"description"`
+			MerchantID  *uuid.UUID `json:"merchantId"`
+		} `json:"cases"`
+	}
+	if err := json.Unmarshal(b, &vec); err != nil || len(vec.Cases) == 0 {
+		t.Fatalf("merchant-templates.json: %v", err)
+	}
+	var ms []merchantTemplate
+	for _, m := range vec.Merchants {
+		for _, n := range append([]string{m.Name}, m.Aliases...) {
+			ms = append(ms, merchantTemplate{id: m.ID, name: n})
+		}
+	}
+	s := &suggestions{byDesc: map[string]uuid.UUID{}, merchants: prepareMerchants(ms)}
+	for _, c := range vec.Cases {
+		got := s.suggest(c.Description).MerchantID
+		if (got == nil) != (c.MerchantID == nil) || got != nil && *got != *c.MerchantID {
+			t.Errorf("%q: got %v want %v", c.Description, got, c.MerchantID)
+		}
+	}
+}

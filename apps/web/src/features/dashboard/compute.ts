@@ -17,6 +17,7 @@ import {
   toMinor,
 } from '@finplat/finance-engine';
 import { projectGoal } from '@finplat/forecasting';
+import type { TFn } from '../../lib/i18n.ts';
 import type { Snapshot } from '../analytics/snapshot.ts';
 import { buildForecast } from '../planning/forecast.ts';
 
@@ -237,3 +238,87 @@ export const sumMoney = (xs: Money[], cur: string) =>
     xs.reduce((a, m) => a + toMinor(m), 0n),
     cur,
   );
+
+type InsightLike = { kind: string; title: string; body: string; data: Record<string, unknown> };
+
+/**
+ * Title and body of an engine insight in the UI language, rebuilt from its data (the engine's own
+ * title/body are English; they stay the fallback for kinds this list does not know).
+ */
+export function insightText(
+  t: TFn,
+  fmt: { money: (m: Money) => string; percent: (f: string) => string },
+  i: InsightLike,
+) {
+  const d = i.data;
+  const m = (k: string) => fmt.money(d[k] as Money);
+  switch (i.kind) {
+    case 'unusual_expense':
+      return {
+        title: t('insights.unusual.title', 'Unusually large expense'),
+        body:
+          d.rule === 'large_vs_category'
+            ? t(
+                'insights.unusual.category',
+                '{{amount}} is {{ratio}}× the usual {{median}} for this category.',
+                {
+                  amount: m('amount'),
+                  ratio: String(d.ratio),
+                  median: m('median'),
+                },
+              )
+            : t(
+                'insights.unusual.merchant',
+                '{{amount}} is {{ratio}}× the usual {{median}} for this merchant.',
+                {
+                  amount: m('amount'),
+                  ratio: String(d.ratio),
+                  median: m('median'),
+                },
+              ),
+      };
+    case 'category_spike':
+      return {
+        title: t('insights.categorySpike.title', 'Category spending is up'),
+        body: t(
+          'insights.categorySpike.body',
+          'Spending in this category is {{amount}} this month vs a 3-month average of {{average}}.',
+          { amount: m('amount'), average: m('average') },
+        ),
+      };
+    case 'spending_change': {
+      const up = toMinor(d.amount as Money) > toMinor(d.previous as Money);
+      return {
+        title: up
+          ? t('insights.spendingChange.up', 'Spending increased')
+          : t('insights.spendingChange.down', 'Spending decreased'),
+        body: t(
+          'insights.spendingChange.body',
+          'Total spending is {{amount}} vs {{previous}} last month.',
+          {
+            amount: m('amount'),
+            previous: m('previous'),
+          },
+        ),
+      };
+    }
+    case 'savings_rate':
+      return {
+        title: t('insights.savingsRate.title', 'Savings rate'),
+        body: t(
+          'insights.savingsRate.body',
+          "You kept {{pct}} of this month's income ({{amount}}).",
+          {
+            pct: fmt.percent(String(d.savingsRate)),
+            amount: fmt.money(
+              fromMinor(
+                toMinor(d.income as Money) - toMinor(d.spending as Money),
+                (d.income as Money).currency,
+              ),
+            ),
+          },
+        ),
+      };
+  }
+  return { title: i.title, body: i.body };
+}

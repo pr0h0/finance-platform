@@ -2,8 +2,23 @@
 import { expect, test } from 'bun:test';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
+import { createRegistry } from '@finplat/bank-importers';
+import {
+  ACCOUNT_TYPES,
+  BUDGET_PERIOD_TYPES,
+  CONFIDENCE_LEVELS,
+  GOAL_KINDS,
+  GOAL_STATUSES,
+  OCCURRENCE_STATUSES,
+  PRIORITIES,
+  ROLLOVER_POLICIES,
+  TRANSACTION_KINDS,
+  TRANSACTION_SOURCES,
+  TRANSACTION_STATUSES,
+} from '@finplat/domain';
 import { bs as pkgBs } from '@finplat/localization';
 import ts from 'typescript';
+import { WIDGETS } from '../features/dashboard/layout.ts';
 import { bs } from './messages.bs.ts';
 
 const SRC = join(import.meta.dir, '..');
@@ -135,6 +150,7 @@ test('no hardcoded English UI text outside the catalogs', () => {
         else if (ts.isJsxExpression(i) && i.expression && ts.isTemplateExpression(i.expression))
           flag(rel, sf, n, templateText(i.expression));
       } else if (isStr(n) && uiLiteral(n)) flag(rel, sf, n, n.text);
+      else if (ts.isTemplateExpression(n) && uiLiteral(n)) flag(rel, sf, n, templateText(n));
       else if (
         ts.isJsxExpression(n) &&
         isStr(n.expression) &&
@@ -144,4 +160,78 @@ test('no hardcoded English UI text outside the catalogs', () => {
     });
   }
   expect(found).toEqual([]);
+});
+
+// Words-only English ("Import batch", "Total balance"): what labels look like, unlike keys, ids or css.
+const PROSE = /^[A-Z][a-z]+(?:[\s,.;:()'’/-]+[A-Za-z][a-z]*)*[\s.…:!?)]*$/;
+// Callees whose string arguments are never shown to the user.
+const NON_UI_CALLS = new Set([
+  't',
+  'translate',
+  'Error',
+  'get',
+  'getItem',
+  'setItem',
+  'startsWith',
+  'includes',
+  'book_append_sheet',
+]);
+
+test('no English labels passed as plain arguments or label/title properties', () => {
+  const found: string[] = [];
+  const at = (rel: string, sf: ts.SourceFile, n: ts.Node, v: string) =>
+    found.push(`${rel}:${sf.getLineAndCharacterOfPosition(n.getStart()).line + 1} ${v}`);
+  for (const { rel, sf } of sources) {
+    walk(sf, (n) => {
+      if (ts.isCallExpression(n) || ts.isNewExpression(n)) {
+        const callee = n.expression;
+        const name = ts.isIdentifier(callee)
+          ? callee.text
+          : ts.isPropertyAccessExpression(callee)
+            ? callee.name.text
+            : '';
+        if (NON_UI_CALLS.has(name)) return;
+        for (const a of n.arguments ?? []) {
+          const v = isStr(a) ? a.text : ts.isTemplateExpression(a) ? templateText(a) : '';
+          if (PROSE.test(v.trim()) && !ALLOWED.test(v)) at(rel, sf, a, v);
+        }
+      } else if (
+        ts.isPropertyAssignment(n) &&
+        /^(title|label|body|description|text|message|heading)$/.test(n.name.getText()) &&
+        // { labelKey: 'nav.goals', label: 'Savings goals' }: the English fallback of a t() key
+        !n.parent.properties.some((p) => p.name?.getText().endsWith('Key'))
+      ) {
+        const i = n.initializer;
+        const v = isStr(i) ? i.text : ts.isTemplateExpression(i) ? templateText(i) : '';
+        if ((PROSE.test(v) || /[A-Za-z]{2,} [A-Za-z]{2,}/.test(v)) && !ALLOWED.test(v))
+          at(rel, sf, n, v);
+      }
+    });
+  }
+  expect(found).toEqual([]);
+});
+
+// Keys built at runtime: t(`transaction.kind.${k}`, k), t(w.titleKey, w.title), importer limitations.
+test('runtime-built keys have Bosnian translations', () => {
+  const has = (k: string) => !!(bs[k] ?? (pkgBs as Record<string, string>)[k]);
+  const keys = [
+    ...TRANSACTION_KINDS.map((k) => `transaction.kind.${k}`),
+    ...TRANSACTION_STATUSES.map((k) => `transaction.status.${k}`),
+    ...TRANSACTION_SOURCES.map((k) => `transaction.source.${k}`),
+    ...ACCOUNT_TYPES.map((k) => `accountType.${k}`),
+    ...BUDGET_PERIOD_TYPES.map((k) => `budget.period.${k}`),
+    ...ROLLOVER_POLICIES.map((k) => `budget.rollover.${k}`),
+    ...CONFIDENCE_LEVELS.map((k) => `planning.confidence.${k}`),
+    ...PRIORITIES.map((k) => `planning.priority.${k}`),
+    ...OCCURRENCE_STATUSES.map((k) => `planning.occurrenceStatus.${k}`),
+    ...GOAL_KINDS.map((k) => `goal.kind.${k}`),
+    ...GOAL_STATUSES.map((k) => `goal.status.${k}`),
+    ...['complete', 'plan', 'history', 'none'].map((k) => `goal.basis.${k}`),
+    ...['monthly', 'quarterly', 'annual', 'custom'].map((k) => `reports.title.${k}`),
+    ...WIDGETS.map((w) => w.titleKey),
+    ...createRegistry()
+      .manifests()
+      .flatMap((m) => (m.limitations ?? []).map((l) => `importer.limitation:${l}`)),
+  ];
+  expect(keys.filter((k) => !has(k))).toEqual([]);
 });

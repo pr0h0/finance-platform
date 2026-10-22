@@ -170,9 +170,19 @@ export default function TransactionsPage() {
         value={tab}
         onChange={setTab}
         tabs={[
-          { id: 'all', label: 'All transactions' },
-          { id: 'inbox', label: `Uncategorized inbox${inboxCount ? ` (${inboxCount})` : ''}` },
-          { id: 'duplicates', label: `Possible duplicates${dups ? ` (${dups})` : ''}` },
+          { id: 'all', label: t('transactions.page.tabAll', 'All transactions') },
+          {
+            id: 'inbox',
+            label:
+              t('transactions.page.tabInbox', 'Uncategorized inbox') +
+              (inboxCount ? ` (${inboxCount})` : ''),
+          },
+          {
+            id: 'duplicates',
+            label:
+              t('transactions.page.tabDuplicates', 'Possible duplicates') +
+              (dups ? ` (${dups})` : ''),
+          },
         ]}
       />
       {tab === 'inbox' ? (

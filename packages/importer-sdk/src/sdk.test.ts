@@ -513,3 +513,25 @@ describe('merchant templates (Feature 125)', () => {
     expect(match('')).toBeNull();
   });
 });
+
+// Same vectors as Go imports.TestMerchantTemplateVectors.
+test('merchant template vectors shared with Go', () => {
+  const vec = JSON.parse(readFileSync(join(IMPORTS_DIR, 'merchant-templates.json'), 'utf8')) as {
+    merchants: { id: string; name: string; aliases?: string[] }[];
+    cases: { description: string; merchantId: string | null }[];
+  };
+  const match = merchantMatcher(
+    vec.merchants.map((m) => ({
+      id: m.id,
+      normalizedName: m.name,
+      aliases: m.aliases ?? [],
+      defaultCategoryId: null,
+    })),
+    [],
+  );
+  for (const c of vec.cases)
+    expect([c.description, match(c.description)?.merchantId ?? null]).toEqual([
+      c.description,
+      c.merchantId,
+    ]);
+});

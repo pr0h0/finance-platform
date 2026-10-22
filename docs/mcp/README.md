@@ -109,6 +109,8 @@ or in `.mcp.json`:
 | `edit_rules` | `create_categorization_rule` |
 
    You can only grant what you have: read scopes need viewer, write scopes editor on the profile.
+   End-to-end encrypted profiles cannot be granted at all (422; the server holds only ciphertext, so
+   reads would be empty and writes would break the profile's devices); the consent page does not list them.
    The same rules apply to grants chosen on the OAuth consent page.
 
 ```json
@@ -196,6 +198,7 @@ agent: apply_approved_changes([id])      -> {"results": [{"proposalId": "...", "
 ## Scope restrictions (Feature 144)
 
 - **Profile:** a client sees only profiles it has grants on (`profileId` is required when it has several).
+  A grant made before its profile became end-to-end encrypted answers every tool with `e2ee_profile`.
 - **Accounts:** results are limited to granted accounts; postings on other accounts (e.g. the other leg of a
   transfer) are removed; tools that cannot be limited to accounts (budget status, goals, budgets, rules)
   refuse with `account_restricted`.

@@ -8,9 +8,11 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -680,9 +682,40 @@ type suggestions struct {
 }
 
 type merchantTemplate struct {
-	name          string
+	name          string   // name or alias as stored
+	words         []string // descriptionWords(name)
+	size          int      // letters+digits in words (runes)
 	id            uuid.UUID
 	cat, splitTpl *uuid.UUID
+}
+
+// prepareMerchants keeps names of at least 3 letters/digits, longest first ("shell oil" beats "shell");
+// id breaks ties deterministically.
+func prepareMerchants(ms []merchantTemplate) []merchantTemplate {
+	out := ms[:0]
+	for _, m := range ms {
+		m.words = descriptionWords(m.name)
+		m.size = utf8.RuneCountInString(strings.Join(m.words, ""))
+		if m.size >= 3 {
+			out = append(out, m)
+		}
+	}
+	sort.Slice(out, func(i, j int) bool {
+		a, b := out[i], out[j]
+		return a.size > b.size || a.size == b.size && a.id.String() < b.id.String()
+	})
+	return out
+}
+
+// containsWords reports whether words occur as consecutive whole words of desc (no match inside a word:
+// "ina" is not found in "marina").
+func containsWords(desc, words []string) bool {
+	for i := 0; i+len(words) <= len(desc); i++ {
+		if slices.Equal(desc[i:i+len(words)], words) {
+			return true
+		}
+	}
+	return false
 }
 
 // Suggestion is what staging and the uncategorized inbox propose; the user approves it (commit rows /
@@ -734,7 +767,7 @@ func loadSuggestions(ctx context.Context, q Querier, profileID uuid.UUID) (*sugg
 		(SELECT st.id FROM split_templates st WHERE st.merchant_id = m.id AND st.profile_id = m.profile_id AND st.deleted_at IS NULL
 			ORDER BY st.updated_at DESC, st.id LIMIT 1)
 		FROM merchants m, unnest(array_prepend(m.normalized_name, m.aliases)) n
-		WHERE m.profile_id = $1 AND m.deleted_at IS NULL AND length(n) >= 3`, profileID)
+		WHERE m.profile_id = $1 AND m.deleted_at IS NULL`, profileID)
 	if err != nil {
 		return nil, err
 	}
@@ -744,17 +777,10 @@ func loadSuggestions(ctx context.Context, q Querier, profileID uuid.UUID) (*sugg
 			rows.Close()
 			return nil, err
 		}
-		m.name = canonicalDesc(m.name)
-		if m.name != "" {
-			s.merchants = append(s.merchants, m)
-		}
+		s.merchants = append(s.merchants, m)
 	}
 	rows.Close()
-	// Longest merchant name first so "shell oil" beats "shell"; id breaks ties deterministically.
-	sort.Slice(s.merchants, func(i, j int) bool {
-		a, b := s.merchants[i], s.merchants[j]
-		return len(a.name) > len(b.name) || len(a.name) == len(b.name) && a.id.String() < b.id.String()
-	})
+	s.merchants = prepareMerchants(s.merchants)
 	return s, rows.Err()
 }
 
@@ -764,8 +790,9 @@ func (s *suggestions) suggest(desc string) Suggestion {
 	if k == "" {
 		return out
 	}
+	words := descriptionWords(desc)
 	for _, m := range s.merchants {
-		if strings.Contains(k, m.name) {
+		if containsWords(words, m.words) {
 			id := m.id
 			out = Suggestion{MerchantID: &id, CategoryID: m.cat, SplitTemplateID: m.splitTpl, Reason: "merchant"}
 			break

@@ -292,9 +292,12 @@ export function PlanEditor({
                   <option key={b} value={b}>
                     {
                       {
-                        none: 'Keep date',
-                        previous: 'Move to previous weekday',
-                        next: 'Move to next weekday',
+                        none: t('planning.planEditor.keepDate', 'Keep date'),
+                        previous: t(
+                          'planning.planEditor.previousWeekday',
+                          'Move to previous weekday',
+                        ),
+                        next: t('planning.planEditor.nextWeekday', 'Move to next weekday'),
                       }[b]
                     }
                   </option>
@@ -336,7 +339,7 @@ export function PlanEditor({
         <Select value={priority} onChange={(e) => setPriority(e.target.value as typeof priority)}>
           {PRIORITIES.map((p) => (
             <option key={p} value={p}>
-              {PRIORITY_LABEL[p]}
+              {t(`planning.priority.${p}`, PRIORITY_LABEL[p])}
             </option>
           ))}
         </Select>
@@ -348,7 +351,7 @@ export function PlanEditor({
         >
           {CONFIDENCE_LEVELS.map((c) => (
             <option key={c} value={c}>
-              {CONFIDENCE_LABEL[c]}
+              {t(`planning.confidence.${c}`, CONFIDENCE_LABEL[c])}
             </option>
           ))}
         </Select>
@@ -409,8 +412,12 @@ export function PlanEditor({
           <Button
             variant="danger"
             onClick={() =>
-              confirm('Delete this plan and all its future occurrences?') &&
-              remove.mutate(undefined, { onSuccess: onDone, onError: setErr })
+              confirm(
+                t(
+                  'planning.planEditor.confirmDelete',
+                  'Delete this plan and all its future occurrences?',
+                ),
+              ) && remove.mutate(undefined, { onSuccess: onDone, onError: setErr })
             }
           >
             {t('common.delete', 'Delete')}

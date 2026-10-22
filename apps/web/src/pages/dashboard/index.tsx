@@ -132,6 +132,7 @@ function SortableWidget({
   const t = useT();
   const s = useSortable({ id, disabled: !editing });
   const w = meta.get(id);
+  const title = w ? t(w.titleKey, w.title) : '';
   const wide = w?.wide ? 'md:col-span-2' : '';
   return (
     <div
@@ -141,14 +142,14 @@ function SortableWidget({
     >
       <Card
         className="h-full"
-        title={w?.title}
+        title={title}
         actions={
           editing && (
             <>
               <Button
                 variant="ghost"
                 aria-label={t('dashboard.page.moveEarlier', 'Move {{title}} earlier', {
-                  title: w?.title ?? '',
+                  title,
                 })}
                 onClick={() => onMove(-1)}
               >
@@ -157,7 +158,7 @@ function SortableWidget({
               <Button
                 variant="ghost"
                 aria-label={t('dashboard.page.moveLater', 'Move {{title}} later', {
-                  title: w?.title ?? '',
+                  title,
                 })}
                 onClick={() => onMove(1)}
               >
@@ -165,7 +166,11 @@ function SortableWidget({
               </Button>
               <Button
                 variant="ghost"
-                aria-label={hidden ? `Show ${w?.title}` : `Hide ${w?.title}`}
+                aria-label={
+                  hidden
+                    ? t('dashboard.page.show', 'Show {{title}}', { title })
+                    : t('dashboard.page.hide', 'Hide {{title}}', { title })
+                }
                 aria-pressed={!hidden}
                 onClick={onToggle}
               >
@@ -178,7 +183,7 @@ function SortableWidget({
               <button
                 type="button"
                 className="cursor-grab rounded p-1 hover:bg-surface-2"
-                aria-label={t('dashboard.page.drag', 'Drag {{title}}', { title: w?.title ?? '' })}
+                aria-label={t('dashboard.page.drag', 'Drag {{title}}', { title })}
                 {...s.attributes}
                 {...s.listeners}
               >

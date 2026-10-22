@@ -1,0 +1,38 @@
+{
+  "_comment": "Merchant template matching vectors shared by Go (imports.prepareMerchants/suggest) and TS (merchantMatcher). Invented names.",
+  "merchants": [
+    { "id": "00000000-0000-4000-8000-000000000001", "name": "ina" },
+    { "id": "00000000-0000-4000-8000-000000000002", "name": "shell" },
+    {
+      "id": "00000000-0000-4000-8000-000000000003",
+      "name": "shell oil",
+      "aliases": ["so station"]
+    },
+    { "id": "00000000-0000-4000-8000-000000000004", "name": "a.b" },
+    { "id": "00000000-0000-4000-8000-000000000005", "name": "kasa" },
+    { "id": "00000000-0000-4000-8000-000000000006", "name": "čaša" },
+    { "id": "00000000-0000-4000-8000-000000000007", "name": "pekara primjer" },
+    { "id": "00000000-0000-4000-8000-000000000008", "name": "konzum" }
+  ],
+  "cases": [
+    { "description": "KARTICNO PLACANJE MARINA BAR", "merchantId": null },
+    { "description": "INA PUMPA 12 MOSTAR", "merchantId": "00000000-0000-4000-8000-000000000001" },
+    {
+      "description": "Kupovina SHELL-OIL 12 Sarajevo",
+      "merchantId": "00000000-0000-4000-8000-000000000003"
+    },
+    { "description": "SO STATION 4", "merchantId": "00000000-0000-4000-8000-000000000003" },
+    { "description": "Shell express", "merchantId": "00000000-0000-4000-8000-000000000002" },
+    { "description": "SHELLY STORE", "merchantId": null },
+    { "description": "ABC DOO", "merchantId": null },
+    { "description": "AB CD", "merchantId": null },
+    { "description": "ČAŠA KASA", "merchantId": "00000000-0000-4000-8000-000000000005" },
+    {
+      "description": "POS PEKARA, PRIMJER D.O.O.",
+      "merchantId": "00000000-0000-4000-8000-000000000007"
+    },
+    { "description": "PEKARAPRIMJER", "merchantId": null },
+    { "description": "KONZUM123 SARAJEVO", "merchantId": "00000000-0000-4000-8000-000000000008" },
+    { "description": "", "merchantId": null }
+  ]
+}

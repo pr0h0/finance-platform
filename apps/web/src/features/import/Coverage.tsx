@@ -93,7 +93,10 @@ export function Coverage({ refs }: { refs: Refs }) {
             <h3 className="mb-2 text-sm font-semibold">
               {refs.accountName(accountId)}{' '}
               <span className="font-normal text-muted">
-                · {gaps ? `${gaps} months with gaps` : t('import.coverage.noGaps', 'no gaps')}
+                ·{' '}
+                {gaps
+                  ? t('import.coverage.monthsWithGaps', '{{n}} months with gaps', { n: gaps })
+                  : t('import.coverage.noGaps', 'no gaps')}
               </span>
             </h3>
             <table className="text-xs">

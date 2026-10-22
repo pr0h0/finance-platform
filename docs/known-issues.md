@@ -40,6 +40,8 @@
 - Custom code adapters (Feature 112): QuickJS checks its CPU deadline between bytecode steps, so a single huge native call (e.g. `new Array(1e8).fill()`) can overrun it until the heap limit or the page watchdog (3x timeout + 5 s, worker terminated) stops it. Adapters are per device (localStorage); clearing site data deletes them. They only receive decoded text (no binary formats).
 - Generic PDF text import (template) rebuilds rows from text positions; multi-line descriptions keep only their first line. The Raiffeisen BiH importer has its own layout parser and keeps them whole.
 - Raiffeisen BiH: only the "IZVOD - OBAVIJEST" PDF layout is supported (seen on current-account/card statements in KM); other products or currencies are untested. PDF parsing runs only in the web client, so MCP/connected uploads must send the client-parsed result.
+- Merchant templates (Feature 125) match whole words: a bank description that glues the merchant to other
+  letters ("PEKARAPRIMJER") no longer matches "Pekara Primjer"; add that spelling as an alias.
 - Merchant templates (Feature 125): in the web import the merchant and split template are applied right after the commit (one update per templated row), not inside the commit write; an interruption leaves those rows with their category only. The web uncategorized inbox (`features/transactions/Inbox.tsx`) suggests merchant default categories but not split templates yet; the REST inbox returns them (`suggestion.splitTemplateId`).
 - QIF: day/month order is inferred per file; all-ambiguous files assume MM/DD (DD.MM for dot dates) with a warning. QIF splits are kept raw only.
 - MT940 `:86:` is used verbatim; bank-specific sub-field parsing (`?20`, `/REMI/` …) is not done.
@@ -144,8 +146,9 @@
   period allocation row carries `periodStart` so the web applies it. Period rows written before this change
   have no `periodStart` in the client cache: the web falls back to the chained value for them (equal unless
   older transactions changed after the close) until the row is re-synced.
-- Chained rollover counts every period since the budget start: a budget created with an old start date and
-  no history carries the full unused allocation of those periods (carry_surplus/carry_both).
+- (fixed) Chained rollover started at the budget start, so a backdated carry_surplus/carry_both budget with no
+  history inherited every elapsed period's allocation. The chain now starts at the first period with any spending
+  (Go and TS, conformance `budgets.json`). Months with real but zero spending before that are treated the same.
 - Forecast behaviour changes from aligning with the web: plans without an account and events in another
   currency than their account are left out (warning) instead of moving the total; only stored pending
   occurrences become overdue (rule dates that were never stored are not assumed to happen today).
@@ -253,9 +256,10 @@
   are still refused by sync (`unsupported_entity`) and listed on /sync; local-to-connected activation with
   imported data uploads the transactions with `importRecordId = null`. Activation (with duplicate merge) and
   E2EE (encrypt on A, unlock with passphrase on B and recovery code on C) run in the E2E suite.
-- E2EE: the server still accepts plaintext REST/MCP/job writes into an end-to-end encrypted profile, and its
-  clients then stop syncing (they accept only envelopes: "expected an encrypted envelope"). Only
-  `POST /categories/defaults` refuses e2ee profiles (409 `e2ee_profile`). Don't use REST writes on e2ee profiles.
+- (fixed) E2EE: plaintext REST/MCP/import/job writes into an end-to-end encrypted profile are refused with 409
+  `e2ee_profile` (`changes.Record`), MCP grants on e2ee profiles are refused (and older grants answer
+  `e2ee_profile`), and the consent page/grant dialog exclude or flag them. REST reads of an e2ee profile still
+  return empty lists/analytics (the server has only ciphertext); they are not refused.
 - (fixed) A device that signed in to an e2ee profile pulled before it was unlocked and stored ciphertext as records
   (transactions page crashed). The engine now refuses envelopes without a key (`ProfileLockedError`); devices that
   hit the old bug should disconnect and connect again to re-download the profile.
@@ -273,12 +277,14 @@
 - The app lock is an Argon2id verifier in localStorage that hides the UI; it does not encrypt IndexedDB. Clearing
   site data removes both the lock and the data. Biometric unlock is Phase 3/4.
 - The MCP management page is at `/agents` because `/mcp` is the MCP protocol endpoint (proxied by the gateway).
-- Bosnian: every `t(key, english)` call in `apps/web/src` has a translation and no JSX text, text attribute
-  (including template-literal attributes such as `aria-label={`Edit ${name}`}`) or `?:`/`&&` literal is
-  hardcoded English (`apps/web/src/lib/i18n.test.ts`, no exclusions left). Still English: strings built outside
-  JSX (toasts in some modules, option-label arrays in `.ts` files, notification titles/bodies, enum values such as
-  account types "Checking" or the transaction kind inside "Linked to …"), and a few sentences translated in pieces
-  around inline values (`{n} {t('…records,')}`), which read acceptably but not perfectly in Bosnian.
+- Bosnian: `apps/web/src/lib/i18n.test.ts` now also catches template literals inside `?:`, capitalized English
+  passed as call arguments and English `label`/`title` properties, and checks runtime keys (enums, widget titles,
+  importer limitations); the dashboard, filters, forecast assumptions, insights and the hits it found are
+  translated. The scans are heuristics: still English are lowercase-start fragments outside JSX, label maps whose
+  keys are enum values (e.g. the rules page summary `field op "value"`, notification kinds, import batch status,
+  sync entity names on activation), notification titles/bodies generated in `.ts`, server-generated text
+  (REST/MCP forecast assumptions, insights, error details), and sentences translated in pieces around inline
+  values (`{n} {t('…records,')}`). Merchant names of importers ("Generic CSV") stay as-is.
 - (fixed) Chromium has no Bosnian ICU data (bs-BA formatted as `-BAM 1,234.50`, `2026 M03 31`); `intlLocale()` in
   `@finplat/localization` substitutes `sr-Latn-BA` (same BiH conventions: `1.234,56 KM`). Firefox/WebKit use bs.
 - (fixed) Accessibility: `tests/e2e/specs/a11y.spec.ts` runs axe-core (WCAG 2.1 A/AA) on every main page in
@@ -292,6 +298,8 @@
   1.63 image) against an isolated `finplat-e2e` stack with Mailpit; `admin.spec.ts` runs alone afterwards because
   it closes registration for a moment. Firefox occasionally stalls downloading the main bundle under load
   (page.goto never reaches `load`); see the latest run in implementation-status.md.
+  `server-features.spec.ts` "notification preferences" also fails intermittently in Firefox (preference read back
+  before the save landed); not investigated further.
 - Real bugs found by the new journeys and fixed: pdf.js worker (`.mjs`) served as octet-stream with nosniff, so every
   PDF import failed in the built app; Bosnian formatting in Chromium; the E2EE fresh-device crash; WebKit Blob
   storage; the "ready to work offline" prompt covering page buttons until closed.

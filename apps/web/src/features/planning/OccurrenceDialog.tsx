@@ -86,13 +86,14 @@ export function OccurrenceDetail({
         <dd>
           {row.overdue
             ? t('planning.occurrenceDialog.overdue', 'overdue')
-            : row.status.replace('_', ' ')}
+            : t(`planning.occurrenceStatus.${row.status}`, row.status)}
         </dd>
         <dt className="text-muted">
           {t('planning.occurrenceDialog.priorityConfidence', 'Priority / confidence')}
         </dt>
         <dd>
-          {PRIORITY_LABEL[row.plan.priority]} · {CONFIDENCE_LABEL[row.plan.confidence]}
+          {t(`planning.priority.${row.plan.priority}`, PRIORITY_LABEL[row.plan.priority])} ·{' '}
+          {t(`planning.confidence.${row.plan.confidence}`, CONFIDENCE_LABEL[row.plan.confidence])}
         </dd>
         {schedule && (
           <>
