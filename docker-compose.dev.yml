@@ -1,7 +1,10 @@
 # Development stack (project "finplat-dev", separate from the prod-like "finplat" stack).
 #   docker compose -f docker-compose.dev.yml up -d          # postgres + api + vite
 #   docker compose -f docker-compose.dev.yml restart api     # reload Go changes
-# Ports (localhost only): postgres 5440, api 3811, vite 3812.
+# Ports (localhost only): postgres 5440, api 3811, vite 3812, mailpit UI 3813.
+#   docker compose -f docker-compose.dev.yml --profile integrations up -d mailpit minio
+#     SMTP sink (mailpit:1025, STARTTLS with a self-signed cert) and S3 (minio:9000) for the
+#     notifications/attachments integration tests (scripts/go.sh joins this network).
 name: finplat-dev
 
 x-go-env: &go-env
@@ -85,6 +88,28 @@ services:
     depends_on:
       cache-perms: { condition: service_completed_successfully }
     profiles: [web]
+
+  mailpit:
+    image: axllent/mailpit:v1.31.6
+    environment:
+      MP_SMTP_TLS_CERT: sans:mailpit
+      MP_SMTP_TLS_KEY: sans:mailpit
+      MP_SMTP_AUTH_ACCEPT_ANY: "1"
+      MP_SMTP_AUTH_ALLOW_INSECURE: "1"
+      MP_MAX_MESSAGES: "500"
+    ports:
+      - "127.0.0.1:3813:8025"
+    profiles: [integrations]
+
+  minio:
+    image: pgsty/minio:RELEASE.2026-08-04T00-00-00Z # upstream stopped publishing images; community build
+    command: server /data
+    environment:
+      MINIO_ROOT_USER: finplat
+      MINIO_ROOT_PASSWORD: finplat-dev-secret
+      # SSE-S3 needs a KMS key; a static dev-only key (never use outside this dev container).
+      MINIO_KMS_SECRET_KEY: finplat-dev:ZGV2LW9ubHktZGV2LW9ubHktZGV2LW9ubHktZGV2LW8=
+    profiles: [integrations]
 
 volumes:
   pgdata:

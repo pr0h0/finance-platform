@@ -1,9 +1,10 @@
 // Package notifications: In-app notifications and reminders.
 //
-// Owned routes under /api/v1: /notifications
+// Owned routes under /api/v1: /notifications (incl. /notifications/preferences, /push-subscriptions, /test)
 // See docs/api/openapi.yaml for the contract. Notifications belong to a user (not a profile
-// header); Generate (run by the background job) derives them from planning, budgets, forecasts
-// and anomalies and is idempotent through notifications.dedupe_key.
+// header); Generate (run by the background job) derives them from planning, budgets, forecasts,
+// anomalies and sync conflicts and is idempotent through notifications.dedupe_key. Users who opted in
+// also get them by email (SMTP) and Web Push: Generate queues channel email/push rows, Deliver sends them.
 package notifications
 
 import (
@@ -26,6 +27,7 @@ import (
 	"github.com/pr0h0/finance-platform/apps/api/internal/app"
 	"github.com/pr0h0/finance-platform/apps/api/internal/authz"
 	"github.com/pr0h0/finance-platform/apps/api/internal/budgets"
+	"github.com/pr0h0/finance-platform/apps/api/internal/config"
 	"github.com/pr0h0/finance-platform/apps/api/internal/forecasting"
 	"github.com/pr0h0/finance-platform/apps/api/internal/httpx"
 	"github.com/pr0h0/finance-platform/apps/api/internal/planning"
@@ -126,12 +128,14 @@ func Register(r chi.Router, deps *app.Deps) {
 	r.Post("/notifications/{id}/read", mark(`UPDATE notifications SET read_at = coalesce(read_at, now()) WHERE id = $1 AND user_id = $2`))
 	r.Delete("/notifications/{id}", mark(`UPDATE notifications SET dismissed_at = coalesce(dismissed_at, now()) WHERE id = $1 AND user_id = $2`))
 
+	registerDelivery(r, deps)
+
 	if deps.Config != nil && deps.Config.JobsEnabled && db != nil {
-		go loop(db, deps.Log)
+		go loop(db, deps.Config, deps.Log)
 	}
 }
 
-func loop(db *pgxpool.Pool, log *slog.Logger) {
+func loop(db *pgxpool.Pool, cfg *config.Config, log *slog.Logger) {
 	time.Sleep(30 * time.Second)
 	for {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
@@ -141,6 +145,14 @@ func loop(db *pgxpool.Pool, log *slog.Logger) {
 			log.Error("notification job failed", "err", err)
 		} else if n > 0 && log != nil {
 			log.Info("notifications generated", "count", n)
+		}
+		ctx, cancel = context.WithTimeout(context.Background(), 10*time.Minute)
+		n, err = Deliver(ctx, db, cfg)
+		cancel()
+		if err != nil && log != nil {
+			log.Error("notification delivery failed", "err", err)
+		} else if n > 0 && log != nil {
+			log.Info("notifications delivered", "count", n)
 		}
 		time.Sleep(15 * time.Minute)
 	}
@@ -189,7 +201,8 @@ type candidate struct {
 //   - budget_threshold: a budget line reached an alert threshold in the current period;
 //   - low_balance: the expected forecast goes below zero within 14 days;
 //   - trial_ending: a subscription trial ends within 3 days;
-//   - unusual_expense: an anomaly flagged in the last 7 days (not dismissed).
+//   - unusual_expense: an anomaly flagged in the last 7 days (not dismissed);
+//   - sync_conflict: open sync conflicts wait for a decision.
 func Generate(ctx context.Context, db fin.DB, profileID uuid.UUID) (int, error) {
 	p, err := fin.LoadProfile(ctx, db, profileID)
 	if err != nil {
@@ -282,6 +295,18 @@ func Generate(ctx context.Context, db fin.DB, profileID uuid.UUID) (int, error) 
 			"anomaly:" + a.TransactionID.String() + ":" + a.Rule, map[string]any{"transactionId": a.TransactionID, "rule": a.Rule}})
 	}
 
+	var conflicts int
+	var latest *uuid.UUID
+	if err := db.QueryRow(ctx, `SELECT count(*), (array_agg(id ORDER BY created_at DESC, id DESC))[1] FROM sync_conflicts
+		WHERE profile_id = $1 AND status = 'open'`, p.ID).Scan(&conflicts, &latest); err != nil {
+		return 0, err
+	}
+	if conflicts > 0 {
+		cands = append(cands, candidate{"sync_conflict", "warning", fmt.Sprintf("%d sync conflict(s) need your decision", conflicts),
+			"Changes from different devices touched the same records. Review them on the Sync page.",
+			"sync_conflict:" + latest.String(), map[string]any{"count": conflicts, "link": "/sync"}})
+	}
+
 	mrows, err := db.Query(ctx, `SELECT user_id FROM profile_members WHERE profile_id = $1`, p.ID)
 	if err != nil {
 		return 0, err
@@ -292,15 +317,29 @@ func Generate(ctx context.Context, db fin.DB, profileID uuid.UUID) (int, error) 
 	}
 	n := 0
 	for _, u := range users {
+		prefs, err := loadPrefs(ctx, db, u)
+		if err != nil {
+			return n, err
+		}
+		var hasPush bool
+		if err := db.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM push_subscriptions WHERE user_id = $1)`, u).Scan(&hasPush); err != nil {
+			return n, err
+		}
 		for _, c := range cands {
 			data, _ := json.Marshal(c.data)
+			dedupe := p.ID.String() + ":" + c.dedupe
 			tag, err := db.Exec(ctx, `INSERT INTO notifications (user_id, profile_id, kind, severity, title, body, data, dedupe_key, delivered_at)
 				VALUES ($1,$2,$3,$4,$5,$6,$7,$8, now()) ON CONFLICT (user_id, dedupe_key) WHERE dedupe_key IS NOT NULL DO NOTHING`,
-				u, p.ID, c.kind, c.severity, c.title, c.body, data, p.ID.String()+":"+c.dedupe)
+				u, p.ID, c.kind, c.severity, c.title, c.body, data, dedupe)
 			if err != nil {
 				return n, err
 			}
-			n += int(tag.RowsAffected())
+			if tag.RowsAffected() == 1 {
+				n++
+				if err := enqueue(ctx, db, u, prefs, hasPush, p.ID, c, data, dedupe); err != nil {
+					return n, err
+				}
+			}
 		}
 	}
 	return n, nil

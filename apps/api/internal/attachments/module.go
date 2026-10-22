@@ -1,7 +1,8 @@
 // Package attachments: File uploads/downloads (receipts, statements).
 //
-// Files are stored on the local volume (ATTACHMENTS_DIR) under <profile id>/<attachment id>: the path is
-// built only from server-generated UUIDs, never from the client file name, so it cannot traverse.
+// Files are stored on the local volume (ATTACHMENTS_DIR) or an S3-compatible bucket (STORAGE_BACKEND=s3)
+// under <profile id>/<attachment id>: the key is built only from server-generated UUIDs, never from the
+// client file name, so it cannot traverse. Optional AES-256-GCM at rest: see storage.go.
 // Types are sniffed from content (not trusted from the client) against an allowlist.
 //
 // Owned routes under /api/v1: /attachments
@@ -46,6 +47,8 @@ type Attachment struct {
 	IsEncrypted   bool       `json:"isEncrypted"`
 	Purpose       string     `json:"purpose"`
 	storageKey    string
+	storageBack   string
+	sealed        bool // server-side encrypted at rest
 }
 
 // allowed maps sniffed content types (http.DetectContentType) to the stored type.
@@ -58,12 +61,12 @@ var keyRE = regexp.MustCompile(`^[0-9a-f-]{36}/[0-9a-f-]{36}$`)
 
 var entity = ledger.Entity[Attachment]{
 	Table: "attachments", Name: "attachment",
-	Cols:    "transaction_id, file_name, content_type, size_bytes, sha256, is_encrypted, purpose, storage_key",
+	Cols:    "transaction_id, file_name, content_type, size_bytes, sha256, is_encrypted, purpose, storage_key, storage_backend, server_encrypted",
 	GetMeta: func(a *Attachment) *ledger.Meta { return &a.Meta },
 	Scan: func(row pgx.Row) (*Attachment, error) {
 		a := &Attachment{}
 		var sum []byte
-		err := row.Scan(append(a.Dest(), &a.TransactionID, &a.FileName, &a.ContentType, &a.SizeBytes, &sum, &a.IsEncrypted, &a.Purpose, &a.storageKey)...)
+		err := row.Scan(append(a.Dest(), &a.TransactionID, &a.FileName, &a.ContentType, &a.SizeBytes, &sum, &a.IsEncrypted, &a.Purpose, &a.storageKey, &a.storageBack, &a.sealed)...)
 		a.SHA256 = hex.EncodeToString(sum)
 		return a, err
 	},
@@ -106,6 +109,11 @@ func checkTransaction(ctx context.Context, db ledger.DB, profileID uuid.UUID, id
 // Register mounts this module's routes on the /api/v1 router.
 func Register(r chi.Router, deps *app.Deps) {
 	db, cfg := deps.DB, deps.Config
+	store, err := newBlobs(cfg)
+	if err != nil { // config.Load validates the same settings; this only guards hand-built configs
+		deps.Log.Error("attachment storage disabled", "err", err)
+		store = &blobs{backend: "unavailable"}
+	}
 
 	// The upload limit must be raised before Idempotent buffers the body (it reads it first).
 	upload := func(next http.Handler) http.Handler {
@@ -119,16 +127,16 @@ func Register(r chi.Router, deps *app.Deps) {
 		if err != nil {
 			return err
 		}
-		if cfg.StorageBackend != "local" {
-			return httpx.NewError(http.StatusNotImplemented, "storage_unavailable", "only STORAGE_BACKEND=local is implemented")
+		if store.backend != "local" && store.backend != "s3" {
+			return errUnavailable
 		}
 		mr, err := r.MultipartReader()
 		if err != nil {
 			return httpx.BadRequest("expected multipart/form-data")
 		}
-		dir := filepath.Join(cfg.AttachmentsDir, profileID.String())
-		if err := os.MkdirAll(dir, 0o700); err != nil {
-			return fmt.Errorf("attachments dir: %w", err)
+		dir, err := store.tempDir(profileID.String())
+		if err != nil {
+			return err
 		}
 		a := &Attachment{Purpose: "receipt"}
 		a.ID = uuid.New()
@@ -152,7 +160,7 @@ func Register(r chi.Router, deps *app.Deps) {
 					return httpx.Validation(map[string]string{"file": "exactly one file"})
 				}
 				a.FileName = SafeFileName(part.FileName())
-				if tmp, err = store(part, dir, cfg.MaxUploadBytes, a); err != nil {
+				if tmp, err = stage(part, dir, cfg.MaxUploadBytes, a); err != nil {
 					return err
 				}
 			case "transactionId", "purpose", "id":
@@ -191,20 +199,20 @@ func Register(r chi.Router, deps *app.Deps) {
 		err = ledger.InTx(r.Context(), db, func(tx pgx.Tx) error {
 			sum, _ := hex.DecodeString(a.SHA256)
 			if _, err := tx.Exec(r.Context(), `INSERT INTO attachments (id, profile_id, transaction_id, file_name, content_type, size_bytes,
-				sha256, storage_backend, storage_key, purpose, uploaded_by) VALUES ($1,$2,$3,$4,$5,$6,$7,'local',$8,$9,$10)`,
-				a.ID, profileID, a.TransactionID, a.FileName, a.ContentType, a.SizeBytes, sum, key, a.Purpose, p.UserID); err != nil {
+				sha256, storage_backend, storage_key, purpose, uploaded_by, server_encrypted) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+				a.ID, profileID, a.TransactionID, a.FileName, a.ContentType, a.SizeBytes, sum, store.backend, key, a.Purpose, p.UserID, store.encrypted()); err != nil {
 				if pe := (*pgconn.PgError)(nil); errors.As(err, &pe) && pe.Code == "23505" {
 					return httpx.Conflict("an attachment with this id already exists")
 				}
 				return err
 			}
-			if err := os.Rename(tmp, filepath.Join(cfg.AttachmentsDir, key)); err != nil {
-				return fmt.Errorf("store attachment: %w", err)
+			if _, err := store.put(r.Context(), key, tmp); err != nil {
+				return err
 			}
 			tmp = ""
 			out, err = entity.Record(r.Context(), tx, profileID, a.ID, changes.OpUpsert, nil, "create")
 			if err != nil {
-				_ = os.Remove(filepath.Join(cfg.AttachmentsDir, key))
+				_ = store.remove(context.WithoutCancel(r.Context()), store.backend, key)
 			}
 			return err
 		})
@@ -335,13 +343,13 @@ func Register(r chi.Router, deps *app.Deps) {
 		if err != nil {
 			return err
 		}
-		var key string
+		var key, backend string
 		err = ledger.InTx(r.Context(), db, func(tx pgx.Tx) error {
 			cur, err := entity.Get(r.Context(), tx, profileID, id, true)
 			if err != nil {
 				return err
 			}
-			key = cur.storageKey
+			key, backend = cur.storageKey, cur.storageBack
 			if _, err := tx.Exec(r.Context(), `UPDATE attachments SET deleted_at = now(), version = version + 1 WHERE id = $1`, id); err != nil {
 				return err
 			}
@@ -353,7 +361,7 @@ func Register(r chi.Router, deps *app.Deps) {
 		}
 		// The tombstone stays for sync; the content is removed (privacy) once the delete is committed.
 		if keyRE.MatchString(key) {
-			_ = os.Remove(filepath.Join(cfg.AttachmentsDir, key))
+			_ = store.remove(context.WithoutCancel(r.Context()), backend, key)
 		}
 		w.WriteHeader(http.StatusNoContent)
 		return nil
@@ -367,7 +375,7 @@ func Register(r chi.Router, deps *app.Deps) {
 		if !keyRE.MatchString(a.storageKey) {
 			return httpx.NotFound("attachment content")
 		}
-		f, err := os.Open(filepath.Join(cfg.AttachmentsDir, a.storageKey))
+		f, mod, err := store.open(r.Context(), a.storageBack, a.storageKey, a.sealed)
 		if errors.Is(err, os.ErrNotExist) {
 			return httpx.NotFound("attachment content")
 		}
@@ -375,10 +383,6 @@ func Register(r chi.Router, deps *app.Deps) {
 			return err
 		}
 		defer f.Close()
-		st, err := f.Stat()
-		if err != nil {
-			return err
-		}
 		h := w.Header()
 		h.Set("Content-Type", a.ContentType)
 		h.Set("X-Content-Type-Options", "nosniff")
@@ -389,7 +393,7 @@ func Register(r chi.Router, deps *app.Deps) {
 			disp = "inline"
 		}
 		h.Set("Content-Disposition", disp+"; filename*=UTF-8''"+url.PathEscape(a.FileName))
-		http.ServeContent(w, r, "", st.ModTime(), f)
+		http.ServeContent(w, r, "", mod, f)
 		return nil
 	}))
 }
@@ -415,8 +419,8 @@ func tooLarge(err error, msg string) error {
 	return httpx.BadRequest(msg)
 }
 
-// store streams the file part to a temp file in dir, hashing and sniffing it, and enforcing max bytes.
-func store(part *multipart.Part, dir string, max int64, a *Attachment) (string, error) {
+// stage streams the file part to a temp file in dir, hashing and sniffing it, and enforcing max bytes.
+func stage(part *multipart.Part, dir string, max int64, a *Attachment) (string, error) {
 	f, err := os.CreateTemp(dir, ".upload-*")
 	if err != nil {
 		return "", fmt.Errorf("temp file: %w", err)

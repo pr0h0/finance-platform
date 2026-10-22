@@ -133,8 +133,11 @@ export default function NotificationsPage() {
         )}
       </Card>
       <p className="text-xs text-muted">
-        Notifications are created on this device while the app is open; email and push delivery are
-        not available.
+        Notifications are created on this device while the app is open. Connected to a server,
+        reminders and alerts can also arrive by email or push while the app is closed.{' '}
+        <Link className="text-accent hover:underline" to="/settings?tab=notifications">
+          Notifications
+        </Link>
       </p>
     </Page>
   );

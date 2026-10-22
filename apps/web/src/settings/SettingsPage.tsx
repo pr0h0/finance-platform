@@ -5,6 +5,7 @@ import { useT } from '../lib/i18n.ts';
 import { BackupsTab } from './BackupsTab.tsx';
 import { ConnectionTab } from './ConnectionTab.tsx';
 import { GeneralTab } from './GeneralTab.tsx';
+import { NotificationsTab } from './NotificationsTab.tsx';
 import { ProfilesTab } from './ProfilesTab.tsx';
 import { SecurityTab } from './SecurityTab.tsx';
 
@@ -31,6 +32,11 @@ export default function SettingsPage() {
             value: 'security',
             label: t('settings.security', 'Security'),
             content: <SecurityTab />,
+          },
+          {
+            value: 'notifications',
+            label: t('settings.notifications', 'Notifications'),
+            content: <NotificationsTab />,
           },
           {
             value: 'backups',

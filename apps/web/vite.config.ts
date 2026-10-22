@@ -76,6 +76,7 @@ export default defineConfig({
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api\//, /^\/mcp/],
         runtimeCaching: [],
+        importScripts: ['push-sw.js'], // Web Push + notificationclick handlers (public/push-sw.js)
         cleanupOutdatedCaches: true,
       },
       devOptions: { enabled: false },

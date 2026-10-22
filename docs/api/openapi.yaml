@@ -4380,6 +4380,109 @@ paths:
           description: "No content"
         default:
           $ref: "#/components/responses/Error"
+  /api/v1/notifications/preferences:
+    get:
+      tags: ["notifications"]
+      summary: "Email/push delivery preferences of the current user"
+      operationId: "get_notifications_preferences"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/NotificationPreferences"
+                  - type: "object"
+                    properties:
+                      emailConfigured:
+                        type: "boolean"
+                        description: "SMTP is configured on this server"
+                      emailAddress:
+                        type: "string"
+                      pushPublicKey:
+                        type: "string"
+                        description: "VAPID application server key (base64url) for PushManager.subscribe"
+                      pushSubscriptions:
+                        type: "integer"
+                    required: ["emailConfigured", "emailAddress", "pushPublicKey", "pushSubscriptions"]
+        default:
+          $ref: "#/components/responses/Error"
+    put:
+      tags: ["notifications"]
+      summary: "Replace delivery preferences"
+      operationId: "put_notifications_preferences"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NotificationPreferences"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationPreferences"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/notifications/push-subscriptions:
+    post:
+      tags: ["notifications"]
+      summary: "Register this browser's Web Push subscription (PushSubscription.toJSON())"
+      operationId: "post_notifications_push_subscriptions"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PushSubscriptionInput"
+      responses:
+        "204":
+          description: "No content"
+        default:
+          $ref: "#/components/responses/Error"
+    delete:
+      tags: ["notifications"]
+      summary: "Remove a Web Push subscription by endpoint"
+      operationId: "delete_notifications_push_subscriptions"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: "object"
+              properties:
+                endpoint:
+                  type: "string"
+              required: ["endpoint"]
+      responses:
+        "204":
+          description: "No content"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/notifications/test:
+    post:
+      tags: ["notifications"]
+      summary: "Send a test email or push to the current user now"
+      operationId: "post_notifications_test"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: "object"
+              properties:
+                channel:
+                  type: "string"
+                  enum: ["email", "push"]
+              required: ["channel"]
+      responses:
+        "204":
+          description: "Delivered"
+        default:
+          $ref: "#/components/responses/Error"
   /api/v1/notifications/{id}:
     delete:
       tags: ["notifications"]
@@ -8220,6 +8323,52 @@ components:
           type: "string"
           enum: ["weekly", "biweekly", "monthly", "quarterly", "yearly"]
       additionalProperties: false
+    NotificationChannelPreferences:
+      type: "object"
+      properties:
+        enabled:
+          type: "boolean"
+        bills:
+          type: "boolean"
+          description: "bill_due, bill_overdue, trial_ending"
+        budgets:
+          type: "boolean"
+          description: "budget_threshold, low_balance"
+        anomalies:
+          type: "boolean"
+          description: "unusual_expense"
+        sync:
+          type: "boolean"
+          description: "sync_conflict"
+      required: ["enabled", "bills", "budgets", "anomalies", "sync"]
+    NotificationPreferences:
+      type: "object"
+      properties:
+        email:
+          $ref: "#/components/schemas/NotificationChannelPreferences"
+        push:
+          $ref: "#/components/schemas/NotificationChannelPreferences"
+        quietHoursStart:
+          type: "string"
+          description: "HH:MM in the user's timezone, or empty"
+        quietHoursEnd:
+          type: "string"
+      required: ["email", "push", "quietHoursStart", "quietHoursEnd"]
+    PushSubscriptionInput:
+      type: "object"
+      properties:
+        endpoint:
+          type: "string"
+          format: "uri"
+        keys:
+          type: "object"
+          properties:
+            p256dh:
+              type: "string"
+            auth:
+              type: "string"
+          required: ["p256dh", "auth"]
+      required: ["endpoint", "keys"]
     Notification:
       type: "object"
       properties:
