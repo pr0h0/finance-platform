@@ -4,6 +4,7 @@
 import type * as D from '@finplat/domain';
 import { useRef, useState } from 'react';
 import { Link } from 'react-router';
+import { useT } from '../../lib/i18n.ts';
 import { describeError, type Refs, useImportBatches, useWrite } from '../transactions/data.ts';
 import { Badge, Button, Empty, ErrorText } from '../transactions/ui.tsx';
 import { MANIFESTS } from './ImportWizard.tsx';
@@ -16,6 +17,7 @@ export function History({
   refs: Refs;
   onReprocess: (file: File, batch: D.ImportBatch) => void;
 }) {
+  const t = useT();
   const batches = useImportBatches();
   const settings = useImportSettings();
   const rollback = useWrite((o, id: string) => o.rollbackImport(id));
@@ -51,8 +53,11 @@ export function History({
 
   if (!batches.data?.length)
     return (
-      <Empty title="No imports yet">
-        Imported statements appear here with rollback and reprocess.
+      <Empty title={t('import.history.noImportsYet', 'No imports yet')}>
+        {t(
+          'import.history.importedStatementsAppearHere',
+          'Imported statements appear here with rollback and reprocess.',
+        )}
       </Empty>
     );
   return (
@@ -70,14 +75,16 @@ export function History({
         <table className="w-full text-sm">
           <thead className="bg-surface-2 text-left text-xs text-muted">
             <tr>
-              <th className="px-2 py-2 font-medium">Imported</th>
-              <th className="font-medium">File</th>
-              <th className="font-medium">Account</th>
-              <th className="font-medium">Period</th>
-              <th className="font-medium">Rows</th>
-              <th className="font-medium">Status</th>
+              <th className="px-2 py-2 font-medium">
+                {t('transactions.transactionTable.imported', 'Imported')}
+              </th>
+              <th className="font-medium">{t('import.history.file', 'File')}</th>
+              <th className="font-medium">{t('quick.account', 'Account')}</th>
+              <th className="font-medium">{t('import.history.period', 'Period')}</th>
+              <th className="font-medium">{t('import.history.rows', 'Rows')}</th>
+              <th className="font-medium">{t('sync.status', 'Status')}</th>
               <th className="font-medium">
-                <span className="sr-only">Actions</span>
+                <span className="sr-only">{t('common.actions', 'Actions')}</span>
               </th>
             </tr>
           </thead>
@@ -104,7 +111,7 @@ export function History({
                     {String(b.stats.records ?? '?')}
                     {b.stats.created !== undefined && (
                       <span className="block text-xs text-muted">
-                        {String(b.stats.created)} created
+                        {String(b.stats.created)} {t('import.history.created', 'created')}
                       </span>
                     )}
                   </td>
@@ -122,8 +129,14 @@ export function History({
                     >
                       {b.status.replace('_', ' ')}
                     </Badge>
-                    {check === 'balanced' && <Badge tone="green">balanced</Badge>}
-                    {check === 'mismatch' && <Badge tone="red">balance mismatch</Badge>}
+                    {check === 'balanced' && (
+                      <Badge tone="green">{t('import.history.balanced', 'balanced')}</Badge>
+                    )}
+                    {check === 'mismatch' && (
+                      <Badge tone="red">
+                        {t('import.history.balanceMismatch', 'balance mismatch')}
+                      </Badge>
+                    )}
                   </td>
                   <td className="whitespace-nowrap">
                     {b.status === 'committed' && (
@@ -132,7 +145,7 @@ export function History({
                           className="mr-2 text-xs text-accent underline"
                           to={`/transactions?importBatchId=${b.id}`}
                         >
-                          Transactions
+                          {t('admin.transactions', 'Transactions')}
                         </Link>
                         <Button
                           size="sm"
@@ -142,7 +155,7 @@ export function History({
                             ) && rollback.mutateAsync(b.id).catch((e) => setErr(describeError(e)))
                           }
                         >
-                          Roll back
+                          {t('import.history.rollBack', 'Roll back')}
                         </Button>
                       </>
                     )}
@@ -150,7 +163,7 @@ export function History({
                       b.status === 'rolled_back' ||
                       b.status === 'staged') && (
                       <Button size="sm" variant="ghost" onClick={() => pickForReprocess(b)}>
-                        Reprocess…
+                        {t('import.history.reprocess', 'Reprocess…')}
                       </Button>
                     )}
                   </td>
@@ -161,8 +174,10 @@ export function History({
         </table>
       </div>
       <p className="text-xs text-muted">
-        Reprocess asks for the original file again (only parsed records are stored), rolls the old
-        batch back and stages the file with the current importer version.
+        {t(
+          'import.history.reprocessAsksForThe',
+          'Reprocess asks for the original file again (only parsed records are stored), rolls the old batch back and stages the file with the current importer version.',
+        )}
       </p>
     </div>
   );

@@ -5,7 +5,7 @@ import { AlertTriangle, Info } from 'lucide-react';
 import { type ReactNode, useId } from 'react';
 import { Dialog as UiDialog } from '../../components/ui/index.tsx';
 import { useFormat } from '../../lib/format.ts';
-import { errorText } from '../../lib/i18n.ts';
+import { errorText, useT } from '../../lib/i18n.ts';
 import './charts.css';
 
 export const SERIES = Array.from({ length: 8 }, (_, i) => `var(--series-${i + 1})`);
@@ -109,6 +109,7 @@ export function DataBanner({
   missingRates?: readonly MissingRate[];
   warnings?: readonly string[];
 }) {
+  const t = useT();
   const pairs = [...new Set(missingRates.map((m) => `${m.from}/${m.to}`))];
   if (!pairs.length && !warnings.length) return null;
   return (
@@ -118,12 +119,16 @@ export function DataBanner({
     >
       <AlertTriangle aria-hidden className="mt-0.5 size-4 shrink-0 text-warn" />
       <div>
-        <p className="font-medium">Incomplete data</p>
+        <p className="font-medium">{t('analytics.ui.incompleteData', 'Incomplete data')}</p>
         {pairs.length > 0 && (
           <p>
-            No exchange rate for {pairs.join(', ')} on {missingRates.length} date
-            {missingRates.length === 1 ? '' : 's'}; those amounts are left out, not guessed. Add a
-            rate in Accounts → Converter.
+            {t('analytics.ui.noExchangeRateFor', 'No exchange rate for')} {pairs.join(', ')}{' '}
+            {t('analytics.ui.on', 'on')} {missingRates.length} {t('analytics.ui.date', 'date')}
+            {missingRates.length === 1 ? '' : 's'}
+            {t(
+              'analytics.ui.thoseAmountsAreLeft',
+              '; those amounts are left out, not guessed. Add a rate in Accounts → Converter.',
+            )}
           </p>
         )}
         {warnings.map((w) => (
@@ -208,11 +213,14 @@ export function ErrorText({ error }: { error: unknown }) {
   );
 }
 
-export const Loading = () => (
-  <p role="status" className="p-4 text-sm text-muted">
-    Loading…
-  </p>
-);
+export const Loading = () => {
+  const t = useT();
+  return (
+    <p role="status" className="p-4 text-sm text-muted">
+      {t('common.loading', 'Loading…')}
+    </p>
+  );
+};
 
 /** Parse a typed amount (locale-aware) into exact Money; null when empty or invalid. */
 export function parseMoneyInput(

@@ -27,6 +27,7 @@ import {
   ROLLOVER_LABEL,
 } from '../../features/budgets/BudgetEditor.tsx';
 import { useFormat } from '../../lib/format.ts';
+import { useT } from '../../lib/i18n.ts';
 
 type Edit = {
   budget?: Budget;
@@ -36,6 +37,7 @@ type Edit = {
 };
 
 export default function BudgetsPage() {
+  const t = useT();
   const snap = useSnapshot();
   const allocs = useOpsQuery(
     ['budget-allocations'],
@@ -46,7 +48,7 @@ export default function BudgetsPage() {
   const [edit, setEdit] = useState<Edit | null>(null);
   if (snap.error)
     return (
-      <Page title="Budgets">
+      <Page title={t('budgets.page.budgets', 'Budgets')}>
         <ErrorText error={snap.error} />
       </Page>
     );
@@ -61,12 +63,14 @@ export default function BudgetsPage() {
 
   return (
     <Page
-      title="Budgets"
+      title={t('budgets.page.budgets', 'Budgets')}
       actions={
         <>
-          <Button onClick={() => setEdit({ asTemplate: true })}>New template</Button>
+          <Button onClick={() => setEdit({ asTemplate: true })}>
+            {t('budgets.page.newTemplate', 'New template')}
+          </Button>
           <Button variant="primary" onClick={() => setEdit({})}>
-            <Plus aria-hidden className="size-4" /> New budget
+            <Plus aria-hidden className="size-4" /> {t('budgets.page.newBudget', 'New budget')}
           </Button>
         </>
       }
@@ -74,7 +78,10 @@ export default function BudgetsPage() {
       {budgets.length === 0 && (
         <Card>
           <Empty>
-            No budgets yet. Create an overall monthly limit or limits for individual categories.
+            {t(
+              'budgets.page.noBudgetsYetCreate',
+              'No budgets yet. Create an overall monthly limit or limits for individual categories.',
+            )}
           </Empty>
         </Card>
       )}
@@ -89,28 +96,29 @@ export default function BudgetsPage() {
           }
         />
       ))}
-      <Card title="Templates">
+      <Card title={t('transactions.entryForm.templates', 'Templates')}>
         {templates.length ? (
           <ul className="divide-y divide-line text-sm">
-            {templates.map((t) => (
-              <li key={t.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+            {templates.map((tpl) => (
+              <li key={tpl.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
                 <span>
-                  {t.name}{' '}
+                  {tpl.name}{' '}
                   <span className="text-xs text-muted">
-                    ({t.periodType}, {allocFor(t.id).length} limits)
+                    ({tpl.periodType}, {allocFor(tpl.id).length}{' '}
+                    {t('budgets.page.limits', 'limits)')}
                   </span>
                 </span>
                 <span className="flex gap-1">
                   <Button
                     className="text-xs"
-                    onClick={() => setEdit({ allocations: allocFor(t.id), fromTemplate: t })}
+                    onClick={() => setEdit({ allocations: allocFor(tpl.id), fromTemplate: tpl })}
                   >
-                    <Copy aria-hidden className="size-3.5" /> Use
+                    <Copy aria-hidden className="size-3.5" /> {t('onb.use', 'Use')}
                   </Button>
                   <Button
                     variant="ghost"
-                    aria-label={`Edit ${t.name}`}
-                    onClick={() => setEdit({ budget: t, allocations: allocFor(t.id) })}
+                    aria-label={`Edit ${tpl.name}`}
+                    onClick={() => setEdit({ budget: tpl, allocations: allocFor(tpl.id) })}
                   >
                     <Pencil aria-hidden className="size-4" />
                   </Button>
@@ -120,15 +128,23 @@ export default function BudgetsPage() {
           </ul>
         ) : (
           <Empty>
-            Templates are reusable sets of limits for different situations (e.g. "Tight month",
-            "Holiday month").
+            {t(
+              'budgets.page.templatesAreReusableSets',
+              'Templates are reusable sets of limits for different situations (e.g. "Tight month", "Holiday month").',
+            )}
           </Empty>
         )}
       </Card>
       <Dialog
         open={!!edit}
         onClose={() => setEdit(null)}
-        title={edit?.budget ? 'Edit' : edit?.asTemplate ? 'New template' : 'New budget'}
+        title={
+          edit?.budget
+            ? t('common.edit', 'Edit')
+            : edit?.asTemplate
+              ? t('budgets.page.newTemplate', 'New template')
+              : t('budgets.page.newBudget', 'New budget')
+        }
       >
         {edit && (
           <BudgetEditor
@@ -175,6 +191,7 @@ function BudgetCard({
   onEdit: () => void;
   onTemplate: () => void;
 }) {
+  const t = useT();
   const f = useFormat();
   const [date, setDate] = useState(maxDate(snap.today, budget.startDate));
   const st = useOpsQuery(['budget-status', budget.id, date], (ops) =>
@@ -201,7 +218,7 @@ function BudgetCard({
             <>
               <Button
                 variant="ghost"
-                aria-label="Previous period"
+                aria-label={t('budgets.page.previousPeriod', 'Previous period')}
                 onClick={() => setDate(shift(budget, date, -1))}
                 disabled={!!s && s.periodStart <= budget.startDate}
               >
@@ -209,7 +226,7 @@ function BudgetCard({
               </Button>
               <Button
                 variant="ghost"
-                aria-label="Next period"
+                aria-label={t('budgets.page.nextPeriod', 'Next period')}
                 onClick={() => setDate(shift(budget, date, 1))}
               >
                 <ChevronRight aria-hidden className="size-4" />
@@ -218,8 +235,8 @@ function BudgetCard({
           )}
           <Button
             variant="ghost"
-            aria-label="Save as template"
-            title="Save as template"
+            aria-label={t('transactions.entryForm.saveAsTemplate', 'Save as template')}
+            title={t('transactions.entryForm.saveAsTemplate', 'Save as template')}
             onClick={onTemplate}
           >
             <Copy aria-hidden className="size-4" />
@@ -247,12 +264,12 @@ function BudgetCard({
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-line text-left text-xs text-muted">
-                  <th className="py-1">Limit for</th>
-                  <th className="w-1/3">Progress</th>
-                  <th className="text-right">Actual</th>
-                  <th className="text-right">Committed</th>
-                  <th className="text-right">Remaining</th>
-                  <th className="text-right">Limit</th>
+                  <th className="py-1">{t('budgets.page.limitFor', 'Limit for')}</th>
+                  <th className="w-1/3">{t('budgets.page.progress', 'Progress')}</th>
+                  <th className="text-right">{t('budgets.page.actual', 'Actual')}</th>
+                  <th className="text-right">{t('budgets.page.committed', 'Committed')}</th>
+                  <th className="text-right">{t('goals.page.remaining', 'Remaining')}</th>
+                  <th className="text-right">{t('budgets.page.limit', 'Limit')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -271,13 +288,17 @@ function BudgetCard({
                             ...(l.categoryId ? { categoryKey: l.categoryId } : {}),
                           })}
                         >
-                          {l.categoryId ? (catName.get(l.categoryId) ?? 'Unknown') : 'All spending'}
+                          {l.categoryId
+                            ? (catName.get(l.categoryId) ?? t('budgets.page.unknown', 'Unknown'))
+                            : t('budgets.page.allSpending', 'All spending')}
                         </Link>
                         {l.alert && (
                           <span
                             className={`ml-2 rounded px-1 text-[10px] ${over ? 'bg-neg/15 text-neg' : 'bg-warn/15 text-warn'}`}
                           >
-                            {over ? 'over' : `${Math.round(Number(l.alert) * 100)}% reached`}
+                            {over
+                              ? t('budgets.page.over', 'over')
+                              : `${Math.round(Number(l.alert) * 100)}% reached`}
                           </span>
                         )}
                       </td>
@@ -319,7 +340,8 @@ function BudgetCard({
                         <Amount value={l.limit} />
                         {toMinor(l.rolloverIn) !== 0n && (
                           <span className="block text-[10px] text-muted">
-                            incl. rollover <Amount value={l.rolloverIn} />
+                            {t('budgets.page.inclRollover', 'incl. rollover')}{' '}
+                            <Amount value={l.rolloverIn} />
                           </span>
                         )}
                       </td>
@@ -329,7 +351,7 @@ function BudgetCard({
               </tbody>
               <tfoot>
                 <tr className="font-medium">
-                  <td className="py-1.5">Total</td>
+                  <td className="py-1.5">{t('budgets.page.total', 'Total')}</td>
                   <td />
                   <td className="text-right">
                     <Amount value={s.totals.actual} />
@@ -350,15 +372,15 @@ function BudgetCard({
           <p className="flex flex-wrap gap-3 text-xs text-muted">
             <span>
               <span aria-hidden className="mr-1 inline-block size-2 rounded-sm bg-accent" />
-              Actual
+              {t('budgets.page.actual', 'Actual')}
             </span>
             <span>
               <span aria-hidden className="mr-1 inline-block size-2 rounded-sm bg-warn" />
-              Committed (planned, unmatched)
+              {t('budgets.page.committedPlannedUnmatched', 'Committed (planned, unmatched)')}
             </span>
             <span>
               <span aria-hidden className="mr-1 inline-block size-2 rounded-sm bg-surface-2" />
-              Remaining
+              {t('goals.page.remaining', 'Remaining')}
             </span>
           </p>
           <DataBanner warnings={s.warnings} />

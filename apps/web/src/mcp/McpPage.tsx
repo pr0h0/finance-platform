@@ -306,7 +306,7 @@ function Clients() {
                       <td>
                         <span className="font-medium">{c.name}</span>{' '}
                         {c.kind === 'oauth' ? (
-                          <Badge tone="accent">OAuth</Badge>
+                          <Badge tone="accent">{t('mcp.mcpPage.oauth', 'OAuth')}</Badge>
                         ) : (
                           <code className="text-xs text-muted">{c.tokenPrefix}…</code>
                         )}
@@ -332,7 +332,7 @@ function Clients() {
                                 tone={g.scope?.startsWith('read_') ? 'neutral' : 'warn'}
                               >
                                 {g.scope}
-                                {g.approval === 'auto' ? ' · auto' : ''}
+                                {g.approval === 'auto' ? ` ${t('mcp.mcpPage.auto', '· auto')}` : ''}
                               </Badge>
                             ))}
                             {here.some((g) => g.accountIds?.length || g.dateFrom || g.dateTo) && (
@@ -383,7 +383,7 @@ function Clients() {
             <Input
               required
               maxLength={200}
-              placeholder="Claude Desktop"
+              placeholder={t('mcp.mcpPage.claudeDesktop', 'Claude Desktop')}
               value={name}
               onChange={(e) => setName(e.target.value)}
             />

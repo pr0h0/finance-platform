@@ -24,6 +24,7 @@ import {
 import type { ImportPreview } from '@finplat/storage';
 import { FileUp, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { useT } from '../../lib/i18n.ts';
 import {
   describeError,
   type Refs,
@@ -78,6 +79,7 @@ export function ImportWizard({
   initialAccountId?: string;
   onCommitted?: () => void;
 }) {
+  const t = useT();
   const { ops, locale, profileId } = useLedgerEnv();
   const adapters = useAdapters(profileId).granted;
   const settings = useImportSettings();
@@ -280,7 +282,7 @@ export function ImportWizard({
   return (
     <div className="flex flex-col gap-4">
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-        <Field label="Account">
+        <Field label={t('quick.account', 'Account')}>
           {(id) => (
             <select
               id={id}
@@ -296,7 +298,13 @@ export function ImportWizard({
             </select>
           )}
         </Field>
-        <Field label="Importer" hint="Auto-detect picks the best match per file">
+        <Field
+          label={t('import.importWizard.importer', 'Importer')}
+          hint={t(
+            'import.importWizard.autoDetectPicksThe',
+            'Auto-detect picks the best match per file',
+          )}
+        >
           {(id, d) => (
             <select
               id={id}
@@ -305,27 +313,34 @@ export function ImportWizard({
               value={importerId}
               onChange={(e) => setImporterId(e.target.value)}
             >
-              <option value="">Auto-detect</option>
+              <option value="">{t('import.importWizard.autoDetect', 'Auto-detect')}</option>
               {usable.map((m) => (
                 <option key={m.id} value={m.id}>
                   {m.name}
-                  {m.status === 'beta' ? ' (beta)' : ''}
+                  {m.status === 'beta' ? ` ${t('import.importWizard.beta', '(beta)')}` : ''}
                 </option>
               ))}
               {adapters.map((a) => (
                 <option key={a.id} value={`custom-${a.id}`}>
-                  Custom: {a.name} ({a.version})
+                  {t('import.importWizard.custom', 'Custom:')} {a.name} ({a.version})
                 </option>
               ))}
               {MANIFESTS.filter((m) => m.status === 'blocked_external').map((m) => (
                 <option key={m.id} value={m.id} disabled>
-                  {m.name}: awaiting format
+                  {m.name}
+                  {t('import.importWizard.awaitingFormat', ': awaiting format')}
                 </option>
               ))}
             </select>
           )}
         </Field>
-        <Field label="Mapping template" hint="Needed for CSV, TSV, XLSX and PDF tables">
+        <Field
+          label={t('import.importWizard.mappingTemplate', 'Mapping template')}
+          hint={t(
+            'import.importWizard.neededForCsvTsv',
+            'Needed for CSV, TSV, XLSX and PDF tables',
+          )}
+        >
           {(id, d) => (
             <select
               id={id}
@@ -334,7 +349,7 @@ export function ImportWizard({
               value={templateId}
               onChange={(e) => setTemplateId(e.target.value)}
             >
-              <option value="">None</option>
+              <option value="">{t('common.none', 'None')}</option>
               {templates.map((t) => (
                 <option key={t.id} value={t.id}>
                   {t.name} ({t.format})
@@ -346,7 +361,10 @@ export function ImportWizard({
       </div>
       {accounts.length === 0 && (
         <p className="text-sm text-warn">
-          Create an account first; every import belongs to one account.
+          {t(
+            'import.importWizard.createAnAccountFirst',
+            'Create an account first; every import belongs to one account.',
+          )}
         </p>
       )}
 
@@ -365,11 +383,16 @@ export function ImportWizard({
       >
         <FileUp size={24} aria-hidden className="text-muted" />
         <span>
-          Drop statement files here or choose files (CSV, TSV, XLSX, XLS, OFX, QFX, QIF,
-          CAMT.053/054, MT940, JSON, PDF)
+          {t(
+            'import.importWizard.dropStatementFilesHere',
+            'Drop statement files here or choose files (CSV, TSV, XLSX, XLS, OFX, QFX, QIF, CAMT.053/054, MT940, JSON, PDF)',
+          )}
         </span>
         <span className="text-xs text-muted">
-          Files are parsed in this browser; only the parsed records are stored.
+          {t(
+            'import.importWizard.filesAreParsedIn',
+            'Files are parsed in this browser; only the parsed records are stored.',
+          )}
         </span>
         <input
           type="file"
@@ -386,7 +409,9 @@ export function ImportWizard({
             onClick={parseAll}
             disabled={busy || !jobs.some((j) => j.status === 'queued' || j.status === 'error')}
           >
-            {busy ? 'Parsing…' : 'Parse files'}
+            {busy
+              ? t('import.importWizard.parsing', 'Parsing…')
+              : t('import.importWizard.parseFiles', 'Parse files')}
           </Button>
           <Button
             variant="ghost"
@@ -394,7 +419,7 @@ export function ImportWizard({
               setJobs((js) => js.filter((j) => j.status === 'committed' || j.status === 'staged'))
             }
           >
-            Clear unstaged
+            {t('import.importWizard.clearUnstaged', 'Clear unstaged')}
           </Button>
         </div>
       )}
@@ -409,7 +434,9 @@ export function ImportWizard({
           <header className="mb-2 flex flex-wrap items-center justify-between gap-2">
             <h3 className="font-medium">
               {j.file.name}{' '}
-              <span className="text-xs text-muted">{Math.ceil(j.file.size / 1024)} KB</span>
+              <span className="text-xs text-muted">
+                {Math.ceil(j.file.size / 1024)} {t('import.importWizard.kb', 'KB')}
+              </span>
             </h3>
             <div className="flex items-center gap-2">
               <Badge
@@ -442,7 +469,7 @@ export function ImportWizard({
               className="w-full"
               max={100}
               value={j.progress}
-              aria-label="Parsing progress"
+              aria-label={t('import.importWizard.parsingProgress', 'Parsing progress')}
             />
           )}
           {j.error && <ErrorText error={j.error} />}
@@ -455,7 +482,7 @@ export function ImportWizard({
                 disabled={j.result.records.length === 0}
                 onClick={() => stage(j)}
               >
-                Stage for review
+                {t('import.importWizard.stageForReview', 'Stage for review')}
               </Button>
               {!hasOpening && (
                 <OpeningOffer
@@ -490,8 +517,11 @@ export function ImportWizard({
           )}
           {j.status === 'committed' && j.committed && (
             <p role="status" className="text-sm text-pos">
-              Committed: {String(j.committed.stats.created ?? 0)} transactions created,{' '}
-              {String(j.committed.stats.duplicates ?? 0)} duplicates skipped.
+              {t('import.importWizard.committed', 'Committed:')}{' '}
+              {String(j.committed.stats.created ?? 0)}{' '}
+              {t('import.importWizard.transactionsCreated', 'transactions created,')}{' '}
+              {String(j.committed.stats.duplicates ?? 0)}{' '}
+              {t('import.importWizard.duplicatesSkipped', 'duplicates skipped.')}
             </p>
           )}
         </article>
@@ -513,6 +543,7 @@ function OpeningOffer({
   locale: string;
   onCreate: (m: D.Money) => void;
 }) {
+  const t = useT();
   // Feature 129: balance before the first row, from the statement or the running balances.
   const st = result.statements.find((s) => s.openingBalance !== undefined);
   const cur = st?.currency ?? result.records[0]?.currency;
@@ -524,32 +555,37 @@ function OpeningOffer({
   if (!ob || toMinor(ob) <= 0n)
     return ob ? (
       <span className="text-xs text-muted">
-        Statement opening balance <MoneyText value={ob} locale={locale} />
+        {t('import.importWizard.statementOpeningBalance', 'Statement opening balance')}{' '}
+        <MoneyText value={ob} locale={locale} />
       </span>
     ) : null;
   return (
     <Button size="sm" onClick={() => onCreate(ob)}>
-      Set opening balance <MoneyText value={ob} locale={locale} />
+      {t('import.importWizard.setOpeningBalance', 'Set opening balance')}{' '}
+      <MoneyText value={ob} locale={locale} />
     </Button>
   );
 }
 
 function ParseSummary({ j, locale }: { j: Job; locale: string }) {
+  const t = useT();
   const r = j.result as ImportResult;
-  const t = totals(r.records);
+  const tot = totals(r.records);
   const running = checkRunningBalances(r.records);
   const dates = r.records.map((x) => x.postingDate).sort();
   const name = MANIFESTS.find((m) => m.id === j.importerId)?.name ?? j.importerId;
   return (
     <div className="flex flex-col gap-2 text-sm">
       <p>
-        {r.records.length} records by <strong>{name}</strong> ({r.format}
-        {r.encoding && `, ${r.encoding}`}) · {dates[0] ?? '—'} to {dates.at(-1) ?? '—'} · confidence{' '}
+        {r.records.length} {t('import.importWizard.recordsBy', 'records by')}{' '}
+        <strong>{name}</strong> ({r.format}
+        {r.encoding && `, ${r.encoding}`}) · {dates[0] ?? '—'} {t('import.importWizard.to', 'to')}{' '}
+        {dates.at(-1) ?? '—'} {t('import.importWizard.confidence', '· confidence')}{' '}
         {Math.round(r.confidence * 100)}%
         {j.candidates && j.candidates.length > 1 && (
           <span className="text-muted">
             {' '}
-            · also matched:{' '}
+            {t('import.importWizard.alsoMatched', '· also matched:')}{' '}
             {j.candidates
               .slice(1, 3)
               .map((c) => c.name)
@@ -559,15 +595,18 @@ function ParseSummary({ j, locale }: { j: Job; locale: string }) {
       </p>
       {r.requiresApproval && (
         <p className="text-warn">
-          OCR result: values may be wrong. Rows start unselected; approve each one after checking it
-          against the document.
+          {t(
+            'import.importWizard.ocrResultValuesMay',
+            'OCR result: values may be wrong. Rows start unselected; approve each one after checking it against the document.',
+          )}
         </p>
       )}
       <div className="flex flex-wrap gap-4">
-        {t.map((x) => (
+        {tot.map((x) => (
           <span key={x.currency}>
-            In <MoneyText value={x.income} locale={locale} /> · Out{' '}
-            <MoneyText value={x.expenses} locale={locale} /> · Net{' '}
+            {t('import.importWizard.in', 'In')} <MoneyText value={x.income} locale={locale} />{' '}
+            {t('import.importWizard.out', '· Out')} <MoneyText value={x.expenses} locale={locale} />{' '}
+            {t('import.importWizard.net', '· Net')}{' '}
             <MoneyText value={x.net} locale={locale} signed />
           </span>
         ))}
@@ -580,25 +619,35 @@ function ParseSummary({ j, locale }: { j: Job; locale: string }) {
         return (
           // biome-ignore lint/suspicious/noArrayIndexKey: statements have no stable id
           <p key={i}>
-            Statement {s.ref ?? i + 1} {s.periodStart && `${s.periodStart}–${s.periodEnd}`}:{' '}
-            {c.status === 'balanced' && <Badge tone="green">balances</Badge>}
+            {t('import.importWizard.statement', 'Statement')} {s.ref ?? i + 1}{' '}
+            {s.periodStart && `${s.periodStart}–${s.periodEnd}`}:{' '}
+            {c.status === 'balanced' && (
+              <Badge tone="green">{t('import.importWizard.balances', 'balances')}</Badge>
+            )}
             {c.status === 'mismatch' && (
               <Badge tone="red">
-                off by {c.difference.amount} {c.difference.currency}
+                {t('import.importWizard.offBy', 'off by')} {c.difference.amount}{' '}
+                {c.difference.currency}
               </Badge>
             )}
-            {c.status === 'unverifiable' && <Badge>not verifiable: {c.reason}</Badge>}
+            {c.status === 'unverifiable' && (
+              <Badge>
+                {t('import.importWizard.notVerifiable', 'not verifiable:')} {c.reason}
+              </Badge>
+            )}
           </p>
         );
       })}
       {running.order !== 'unknown' && (
         <p>
-          Running balances ({running.order.replace('_', ' ')}):{' '}
+          {t('import.importWizard.runningBalances', 'Running balances (')}
+          {running.order.replace('_', ' ')}):{' '}
           {running.breaks.length === 0 ? (
-            <Badge tone="green">consistent</Badge>
+            <Badge tone="green">{t('import.importWizard.consistent', 'consistent')}</Badge>
           ) : (
             <Badge tone="amber">
-              {running.breaks.length} breaks (rows {running.breaks.slice(0, 8).join(', ')})
+              {running.breaks.length} {t('import.importWizard.breaksRows', 'breaks (rows')}{' '}
+              {running.breaks.slice(0, 8).join(', ')})
             </Badge>
           )}
         </p>
@@ -606,7 +655,8 @@ function ParseSummary({ j, locale }: { j: Job; locale: string }) {
       {(r.errors.length > 0 || r.warnings.length > 0) && (
         <details>
           <summary className="cursor-pointer text-warn">
-            {r.errors.length} errors, {r.warnings.length} warnings
+            {r.errors.length} {t('import.importWizard.errors', 'errors,')} {r.warnings.length}{' '}
+            {t('import.importWizard.warnings', 'warnings')}
           </summary>
           <ul className="mt-1 max-h-40 overflow-auto text-xs">
             {[
@@ -650,6 +700,7 @@ function StagedRows({
   splitTemplateName: (id: string) => string;
   onSaveMerchant: (name: string, categoryId: string | null) => Promise<MerchantMatcher | null>;
 }) {
+  const t = useT();
   const p = job.preview as ImportPreview;
   const choices = job.choices as NonNullable<Job['choices']>;
   const [page, setPage] = useState(0);
@@ -692,13 +743,18 @@ function StagedRows({
   return (
     <div className="mt-3 flex flex-col gap-2">
       <p className="text-sm">
-        {p.totals.count} rows · {p.totals.duplicates} already imported (duplicates) · income{' '}
-        <MoneyText value={p.totals.income} locale={locale} /> · expenses{' '}
+        {p.totals.count} {t('import.importWizard.rows', 'rows ·')} {p.totals.duplicates}{' '}
+        {t(
+          'import.importWizard.alreadyImportedDuplicatesIncome',
+          'already imported (duplicates) · income',
+        )}{' '}
+        <MoneyText value={p.totals.income} locale={locale} />{' '}
+        {t('import.importWizard.expenses', '· expenses')}{' '}
         <MoneyText value={p.totals.expenses} locale={locale} />
       </p>
       <div className="flex flex-wrap items-center gap-2 text-sm">
         <select
-          aria-label="Show rows"
+          aria-label={t('import.importWizard.showRows', 'Show rows')}
           className={`${inputCls} h-7 w-auto text-xs`}
           value={show}
           onChange={(e) => {
@@ -706,10 +762,12 @@ function StagedRows({
             setPage(0);
           }}
         >
-          <option value="all">All rows</option>
-          <option value="new">New only</option>
-          <option value="duplicate">Duplicates only</option>
-          <option value="warnings">With warnings</option>
+          <option value="all">{t('import.importWizard.allRows', 'All rows')}</option>
+          <option value="new">{t('import.importWizard.newOnly', 'New only')}</option>
+          <option value="duplicate">
+            {t('import.importWizard.duplicatesOnly', 'Duplicates only')}
+          </option>
+          <option value="warnings">{t('import.importWizard.withWarnings', 'With warnings')}</option>
         </select>
         <Button
           size="sm"
@@ -724,7 +782,7 @@ function StagedRows({
             )
           }
         >
-          Select all new
+          {t('import.importWizard.selectAllNew', 'Select all new')}
         </Button>
         <Button
           size="sm"
@@ -736,7 +794,7 @@ function StagedRows({
             )
           }
         >
-          Select none
+          {t('import.importWizard.selectNone', 'Select none')}
         </Button>
       </div>
       <div className="overflow-x-auto">
@@ -746,7 +804,7 @@ function StagedRows({
               <th className="w-8 py-1">
                 <input
                   type="checkbox"
-                  aria-label="Select page"
+                  aria-label={t('import.importWizard.selectPage', 'Select page')}
                   checked={allOnPage}
                   onChange={(e) =>
                     onChange({
@@ -764,11 +822,11 @@ function StagedRows({
                   }
                 />
               </th>
-              <th className="font-medium">Date</th>
-              <th className="font-medium">Description</th>
-              <th className="text-right font-medium">Amount</th>
-              <th className="font-medium">Category</th>
-              <th className="font-medium">Flags</th>
+              <th className="font-medium">{t('transaction.date', 'Date')}</th>
+              <th className="font-medium">{t('transaction.description', 'Description')}</th>
+              <th className="text-right font-medium">{t('transaction.amount', 'Amount')}</th>
+              <th className="font-medium">{t('transaction.category', 'Category')}</th>
+              <th className="font-medium">{t('import.importWizard.flags', 'Flags')}</th>
             </tr>
           </thead>
           <tbody>
@@ -812,7 +870,12 @@ function StagedRows({
                         set(r.id, { categoryId: e.target.value || null, splitTemplateId: null })
                       }
                     >
-                      <option value="">Uncategorized (rules may apply)</option>
+                      <option value="">
+                        {t(
+                          'import.importWizard.uncategorizedRulesMayApply',
+                          'Uncategorized (rules may apply)',
+                        )}
+                      </option>
                       {refs.categoryOptions
                         .filter((o) => o.kind === kind)
                         .map((o) => (
@@ -840,18 +903,21 @@ function StagedRows({
                           }
                           aria-label={`Apply split template to row ${r.rowNumber}`}
                         />
-                        split: {splitTemplateName(c.splitSuggestion)}
+                        {t('import.importWizard.split', 'split:')}{' '}
+                        {splitTemplateName(c.splitSuggestion)}
                       </label>
                     )}
                     {!c.merchantId && (
                       <Button size="sm" onClick={() => saveMerchant(r.id)}>
-                        Save merchant
+                        {t('import.importWizard.saveMerchant', 'Save merchant')}
                       </Button>
                     )}
-                    {row.outcome === 'duplicate' && <Badge tone="amber">duplicate</Badge>}
+                    {row.outcome === 'duplicate' && (
+                      <Badge tone="amber">{t('import.importWizard.duplicate', 'duplicate')}</Badge>
+                    )}
                     {r.warnings.length > 0 && (
                       <span title={r.warnings.join('; ')} className="ml-1 text-warn">
-                        {r.warnings.length} warning(s)
+                        {r.warnings.length} {t('import.importWizard.warningS', 'warning(s)')}
                       </span>
                     )}
                   </td>
@@ -862,25 +928,30 @@ function StagedRows({
         </table>
       </div>
       {rows.length > PAGE && (
-        <nav aria-label="Rows pages" className="flex items-center gap-2 text-sm">
+        <nav
+          aria-label={t('import.importWizard.rowsPages', 'Rows pages')}
+          className="flex items-center gap-2 text-sm"
+        >
           <Button size="sm" disabled={page === 0} onClick={() => setPage(page - 1)}>
-            Previous
+            {t('reports.page.previous', 'Previous')}
           </Button>
           <span>
-            {page * PAGE + 1}–{Math.min((page + 1) * PAGE, rows.length)} of {rows.length}
+            {page * PAGE + 1}–{Math.min((page + 1) * PAGE, rows.length)} {t('goals.page.of', 'of')}{' '}
+            {rows.length}
           </span>
           <Button
             size="sm"
             disabled={(page + 1) * PAGE >= rows.length}
             onClick={() => setPage(page + 1)}
           >
-            Next
+            {t('common.next', 'Next')}
           </Button>
         </nav>
       )}
       <div className="flex justify-end">
         <Button variant="primary" onClick={onCommit} disabled={committing || selectedCount === 0}>
-          Commit {selectedCount} transactions
+          {t('import.importWizard.commit', 'Commit')} {selectedCount}{' '}
+          {t('import.importWizard.transactions', 'transactions')}
         </Button>
       </div>
     </div>

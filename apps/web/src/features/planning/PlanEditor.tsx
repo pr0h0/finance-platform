@@ -10,6 +10,7 @@ import {
 } from '@finplat/domain';
 import { type FormEvent, useState } from 'react';
 import { useFormat } from '../../lib/format.ts';
+import { useT } from '../../lib/i18n.ts';
 import { useOpsMutation } from '../analytics/hooks.ts';
 import type { Snapshot } from '../analytics/snapshot.ts';
 import { todayIso } from '../analytics/snapshot.ts';
@@ -28,6 +29,7 @@ export function PlanEditor({
   initial?: { kind?: PlannedTransaction['kind']; dueDate?: string };
   onDone: () => void;
 }) {
+  const t = useT();
   const f = useFormat();
   const schedule: RecurrenceSchedule | undefined = plan?.recurrenceId
     ? snap.schedules.find((s) => s.id === plan.recurrenceId)
@@ -120,17 +122,21 @@ export function PlanEditor({
   );
   return (
     <form onSubmit={submit} className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-      <Field label="Type">
+      <Field label={t('notif.type', 'Type')}>
         <Select value={kind} onChange={(e) => setKind(e.target.value as typeof kind)}>
-          <option value="expense">Expense</option>
-          <option value="income">Income</option>
-          <option value="transfer">Transfer</option>
+          <option value="expense">{t('transaction.kind.expense', 'Expense')}</option>
+          <option value="income">{t('transaction.kind.income', 'Income')}</option>
+          <option value="transfer">{t('transaction.kind.transfer', 'Transfer')}</option>
         </Select>
       </Field>
-      <Field label="Description">
+      <Field label={t('transaction.description', 'Description')}>
         <Input required value={description} onChange={(e) => setDescription(e.target.value)} />
       </Field>
-      <Field label={kind === 'transfer' ? 'From account' : 'Account'}>
+      <Field
+        label={
+          kind === 'transfer' ? t('quick.from', 'From account') : t('quick.account', 'Account')
+        }
+      >
         <Select value={accountId} onChange={(e) => setAccountId(e.target.value)}>
           {accounts.map((a) => (
             <option key={a.id} value={a.id}>
@@ -140,9 +146,9 @@ export function PlanEditor({
         </Select>
       </Field>
       {kind === 'transfer' ? (
-        <Field label="To account">
+        <Field label={t('quick.to', 'To account')}>
           <Select required value={toAccountId} onChange={(e) => setToAccountId(e.target.value)}>
-            <option value="">Choose…</option>
+            <option value="">{t('quick.choose', 'Choose…')}</option>
             {accounts
               .filter((a) => a.id !== accountId)
               .map((a) => (
@@ -153,9 +159,9 @@ export function PlanEditor({
           </Select>
         </Field>
       ) : (
-        <Field label="Category">
+        <Field label={t('transaction.category', 'Category')}>
           <Select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
-            <option value="">Uncategorized</option>
+            <option value="">{t('transaction.uncategorized', 'Uncategorized')}</option>
             {cats.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
@@ -172,17 +178,23 @@ export function PlanEditor({
           onChange={(e) => setAmount(e.target.value)}
         />
       </Field>
-      <Field label="Due date (first occurrence)">
+      <Field label={t('planning.planEditor.dueDateFirstOccurrence', 'Due date (first occurrence)')}>
         <Input type="date" required value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
       </Field>
-      <Field label="Minimum (optional)" hint="Variable bills: range used by forecasts">
+      <Field
+        label={t('planning.planEditor.minimumOptional', 'Minimum (optional)')}
+        hint={t(
+          'planning.planEditor.variableBillsRangeUsed',
+          'Variable bills: range used by forecasts',
+        )}
+      >
         <Input
           inputMode="decimal"
           value={amountMin}
           onChange={(e) => setAmountMin(e.target.value)}
         />
       </Field>
-      <Field label="Maximum (optional)">
+      <Field label={t('planning.planEditor.maximumOptional', 'Maximum (optional)')}>
         <Input
           inputMode="decimal"
           value={amountMax}
@@ -191,22 +203,24 @@ export function PlanEditor({
       </Field>
 
       <fieldset className="col-span-full grid grid-cols-1 gap-3 rounded-md border border-line p-3 sm:grid-cols-2">
-        <legend className="px-1 text-sm font-medium">Repeat</legend>
-        <Field label="Frequency">
+        <legend className="px-1 text-sm font-medium">{t('lock.repeat', 'Repeat')}</legend>
+        <Field label={t('planning.planEditor.frequency', 'Frequency')}>
           <Select
             value={rec.freq}
             onChange={(e) => setRec({ ...rec, freq: e.target.value as RecurrenceForm['freq'] })}
           >
-            <option value="none">Does not repeat</option>
-            <option value="DAILY">Daily</option>
-            <option value="WEEKLY">Weekly</option>
-            <option value="MONTHLY">Monthly</option>
-            <option value="YEARLY">Yearly</option>
+            <option value="none">
+              {t('planning.planEditor.doesNotRepeat', 'Does not repeat')}
+            </option>
+            <option value="DAILY">{t('backup.daily', 'Daily')}</option>
+            <option value="WEEKLY">{t('backup.weekly', 'Weekly')}</option>
+            <option value="MONTHLY">{t('backup.monthly', 'Monthly')}</option>
+            <option value="YEARLY">{t('planning.planEditor.yearly', 'Yearly')}</option>
           </Select>
         </Field>
         {rec.freq !== 'none' && (
           <>
-            <Field label="Every (interval)">
+            <Field label={t('planning.planEditor.everyInterval', 'Every (interval)')}>
               <Input
                 type="number"
                 min={1}
@@ -216,10 +230,15 @@ export function PlanEditor({
               />
             </Field>
             {custom && rec.freq === parsed.freq && (
-              <p className="col-span-full text-xs text-muted">Custom rule kept: {custom}</p>
+              <p className="col-span-full text-xs text-muted">
+                {t('planning.planEditor.customRuleKept', 'Custom rule kept:')} {custom}
+              </p>
             )}
             {rec.freq === 'WEEKLY' && (
-              <fieldset className="col-span-full flex flex-wrap gap-2" aria-label="Weekdays">
+              <fieldset
+                className="col-span-full flex flex-wrap gap-2"
+                aria-label={t('planning.planEditor.weekdays', 'Weekdays')}
+              >
                 {WEEKDAYS.map((d) => (
                   <label key={d} className="flex items-center gap-1 text-sm">
                     <input
@@ -241,8 +260,11 @@ export function PlanEditor({
             )}
             {rec.freq === 'MONTHLY' && (
               <Field
-                label="Day of month"
-                hint="Missing days (e.g. 31 in April) fall on the month end"
+                label={t('planning.planEditor.dayOfMonth', 'Day of month')}
+                hint={t(
+                  'planning.planEditor.missingDaysEG',
+                  'Missing days (e.g. 31 in April) fall on the month end',
+                )}
               >
                 <Select
                   value={rec.byMonthDay ?? ''}
@@ -250,17 +272,19 @@ export function PlanEditor({
                     setRec({ ...rec, byMonthDay: e.target.value ? Number(e.target.value) : null })
                   }
                 >
-                  <option value="">Same as due date</option>
+                  <option value="">
+                    {t('planning.planEditor.sameAsDueDate', 'Same as due date')}
+                  </option>
                   {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
                     <option key={d} value={d}>
                       {d}
                     </option>
                   ))}
-                  <option value={-1}>Last day</option>
+                  <option value={-1}>{t('planning.planEditor.lastDay', 'Last day')}</option>
                 </Select>
               </Field>
             )}
-            <Field label="Weekend handling">
+            <Field label={t('planning.planEditor.weekendHandling', 'Weekend handling')}>
               <Select value={bda} onChange={(e) => setBda(e.target.value as typeof bda)}>
                 {BUSINESS_DAY_ADJUSTMENTS.map((b) => (
                   <option key={b} value={b}>
@@ -275,23 +299,25 @@ export function PlanEditor({
                 ))}
               </Select>
             </Field>
-            <Field label="Ends">
+            <Field label={t('planning.planEditor.ends', 'Ends')}>
               <Select
                 value={endMode}
                 onChange={(e) => setEndMode(e.target.value as typeof endMode)}
               >
-                <option value="never">Never</option>
-                <option value="until">On date</option>
-                <option value="count">After N times</option>
+                <option value="never">{t('planning.planEditor.never', 'Never')}</option>
+                <option value="until">{t('planning.planEditor.onDate', 'On date')}</option>
+                <option value="count">
+                  {t('planning.planEditor.afterNTimes', 'After N times')}
+                </option>
               </Select>
             </Field>
             {endMode === 'until' && (
-              <Field label="End date">
+              <Field label={t('planning.planEditor.endDate', 'End date')}>
                 <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
               </Field>
             )}
             {endMode === 'count' && (
-              <Field label="Occurrences">
+              <Field label={t('planning.planEditor.occurrences', 'Occurrences')}>
                 <Input
                   type="number"
                   min={1}
@@ -304,7 +330,7 @@ export function PlanEditor({
         )}
       </fieldset>
 
-      <Field label="Priority">
+      <Field label={t('goals.page.priority', 'Priority')}>
         <Select value={priority} onChange={(e) => setPriority(e.target.value as typeof priority)}>
           {PRIORITIES.map((p) => (
             <option key={p} value={p}>
@@ -313,7 +339,7 @@ export function PlanEditor({
           ))}
         </Select>
       </Field>
-      <Field label="Confidence">
+      <Field label={t('planning.planEditor.confidence', 'Confidence')}>
         <Select
           value={confidence}
           onChange={(e) => setConfidence(e.target.value as typeof confidence)}
@@ -325,7 +351,9 @@ export function PlanEditor({
           ))}
         </Select>
       </Field>
-      <Field label="Installments (total, optional)">
+      <Field
+        label={t('planning.planEditor.installmentsTotalOptional', 'Installments (total, optional)')}
+      >
         <Input
           type="number"
           min={1}
@@ -334,7 +362,10 @@ export function PlanEditor({
         />
       </Field>
       {installments && (
-        <Field label="First installment number" hint="e.g. 4 when 3 were paid before">
+        <Field
+          label={t('planning.planEditor.firstInstallmentNumber', 'First installment number')}
+          hint={t('planning.planEditor.eG4When', 'e.g. 4 when 3 were paid before')}
+        >
           <Input
             type="number"
             min={1}
@@ -343,7 +374,9 @@ export function PlanEditor({
           />
         </Field>
       )}
-      <Field label="Remind days before (optional)">
+      <Field
+        label={t('planning.planEditor.remindDaysBeforeOptional', 'Remind days before (optional)')}
+      >
         <Input
           type="number"
           min={0}
@@ -353,7 +386,7 @@ export function PlanEditor({
         />
       </Field>
       {plan && (
-        <Field label="Status">
+        <Field label={t('sync.status', 'Status')}>
           <Select value={status} onChange={(e) => setStatus(e.target.value as typeof status)}>
             {PLAN_STATUSES.map((s) => (
               <option key={s} value={s}>
@@ -363,7 +396,7 @@ export function PlanEditor({
           </Select>
         </Field>
       )}
-      <Field label="Notes">
+      <Field label={t('transaction.notes', 'Notes')}>
         <Input value={notes} onChange={(e) => setNotes(e.target.value)} />
       </Field>
       <div className="col-span-full">
@@ -378,15 +411,15 @@ export function PlanEditor({
               remove.mutate(undefined, { onSuccess: onDone, onError: setErr })
             }
           >
-            Delete
+            {t('common.delete', 'Delete')}
           </Button>
         ) : (
           <span />
         )}
         <div className="flex gap-2">
-          <Button onClick={onDone}>Cancel</Button>
+          <Button onClick={onDone}>{t('common.cancel', 'Cancel')}</Button>
           <Button type="submit" variant="primary" disabled={save.isPending}>
-            Save
+            {t('common.save', 'Save')}
           </Button>
         </div>
       </div>

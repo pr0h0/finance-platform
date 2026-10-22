@@ -31,10 +31,12 @@ import {
 } from '../../features/planning/Views.tsx';
 import { WhatIf } from '../../features/planning/WhatIf.tsx';
 import { useFormat } from '../../lib/format.ts';
+import { useT } from '../../lib/i18n.ts';
 
 type View = 'calendar' | 'list' | 'timeline';
 
 export default function PlanningPage() {
+  const t = useT();
   const snap = useSnapshot();
   const profile = useProfile();
   const f = useFormat();
@@ -46,7 +48,7 @@ export default function PlanningPage() {
 
   if (snap.error)
     return (
-      <Page title="Planning">
+      <Page title={t('planning.page.planning', 'Planning')}>
         <ErrorText error={snap.error} />
       </Page>
     );
@@ -62,10 +64,11 @@ export default function PlanningPage() {
 
   return (
     <Page
-      title="Planning"
+      title={t('planning.page.planning', 'Planning')}
       actions={
         <Button variant="primary" onClick={() => setEdit({})}>
-          <Plus aria-hidden className="size-4" /> Plan transaction
+          <Plus aria-hidden className="size-4" />{' '}
+          {t('planning.page.planTransaction', 'Plan transaction')}
         </Button>
       }
     >
@@ -74,7 +77,7 @@ export default function PlanningPage() {
           <div className="flex items-center gap-1">
             <Button
               variant="ghost"
-              aria-label="Previous"
+              aria-label={t('reports.page.previous', 'Previous')}
               onClick={() => setMonth(addMonths(m, -1))}
             >
               <ChevronLeft aria-hidden className="size-4" />
@@ -84,26 +87,34 @@ export default function PlanningPage() {
                 ? f.month(m.slice(0, 7))
                 : `${f.month(m.slice(0, 7))} – ${f.month(to.slice(0, 7))}`}
             </h2>
-            <Button variant="ghost" aria-label="Next" onClick={() => setMonth(addMonths(m, 1))}>
+            <Button
+              variant="ghost"
+              aria-label={t('common.next', 'Next')}
+              onClick={() => setMonth(addMonths(m, 1))}
+            >
               <ChevronRight aria-hidden className="size-4" />
             </Button>
             <Button variant="ghost" className="text-xs" onClick={() => setMonth(null)}>
-              Today
+              {t('planning.page.today', 'Today')}
             </Button>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <select
-              aria-label="Show"
+              aria-label={t('planning.page.show', 'Show')}
               value={kindFilter}
               onChange={(e) => setKindFilter(e.target.value as typeof kindFilter)}
               className="rounded-md border border-line bg-surface px-2 py-1 text-sm"
             >
-              <option value="all">All plans</option>
-              <option value="expense">Expenses</option>
-              <option value="income">Income</option>
-              <option value="transfer">Transfers</option>
+              <option value="all">{t('planning.page.allPlans', 'All plans')}</option>
+              <option value="expense">{t('reports.page.expenses', 'Expenses')}</option>
+              <option value="income">{t('transaction.kind.income', 'Income')}</option>
+              <option value="transfer">{t('planning.page.transfers', 'Transfers')}</option>
             </select>
-            <div role="tablist" aria-label="View" className="flex rounded-md border border-line">
+            <div
+              role="tablist"
+              aria-label={t('planning.page.view', 'View')}
+              className="flex rounded-md border border-line"
+            >
               {(
                 [
                   ['calendar', CalendarDays, 'Calendar'],
@@ -127,10 +138,22 @@ export default function PlanningPage() {
           </div>
         </div>
         <div className="mb-3 grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <Stat label="Committed expenses" value={<Amount value={c.expense} />} />
-          <Stat label="Expected income" value={<Amount value={c.income} />} />
-          <Stat label="Planned items" value={rows.filter((r) => r.status === 'pending').length} />
-          <Stat label="Overdue" value={rows.filter((r) => r.overdue).length} />
+          <Stat
+            label={t('planning.page.committedExpenses', 'Committed expenses')}
+            value={<Amount value={c.expense} />}
+          />
+          <Stat
+            label={t('planning.page.expectedIncome', 'Expected income')}
+            value={<Amount value={c.income} />}
+          />
+          <Stat
+            label={t('planning.page.plannedItems', 'Planned items')}
+            value={rows.filter((r) => r.status === 'pending').length}
+          />
+          <Stat
+            label={t('dashboard.widgets.overdue', 'Overdue')}
+            value={rows.filter((r) => r.overdue).length}
+          />
         </div>
         {!c.complete && (
           <DataBanner
@@ -165,7 +188,11 @@ export default function PlanningPage() {
         </div>
       </div>
 
-      <Dialog open={!!open} onClose={() => setOpen(null)} title="Occurrence">
+      <Dialog
+        open={!!open}
+        onClose={() => setOpen(null)}
+        title={t('planning.page.occurrence', 'Occurrence')}
+      >
         {open && (
           <OccurrenceDetail
             snap={s}
@@ -181,7 +208,11 @@ export default function PlanningPage() {
       <Dialog
         open={!!edit}
         onClose={() => setEdit(null)}
-        title={edit?.plan ? 'Edit plan' : 'New planned transaction'}
+        title={
+          edit?.plan
+            ? t('planning.page.editPlan', 'Edit plan')
+            : t('cmd.newPlanned', 'New planned transaction')
+        }
       >
         {edit && (
           <PlanEditor

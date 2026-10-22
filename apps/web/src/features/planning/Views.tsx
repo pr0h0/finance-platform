@@ -9,6 +9,7 @@ import {
   toMinor,
 } from '@finplat/finance-engine';
 import { useFormat } from '../../lib/format.ts';
+import { useT } from '../../lib/i18n.ts';
 import { ChartFrame, MoneyChart } from '../analytics/chart.tsx';
 import { plannedVsActual } from '../analytics/compute.ts';
 import { useOpsMutation } from '../analytics/hooks.ts';
@@ -50,6 +51,7 @@ export function CalendarView({
   onNew: (date: string) => void;
   today: string;
 }) {
+  const t = useT();
   const f = useFormat();
   const first = startOfMonth(month);
   const lead = (isoWeekday(first) - (weekStart || 1) + 7) % 7;
@@ -66,7 +68,9 @@ export function CalendarView({
   );
   return (
     <table className="w-full table-fixed border-collapse text-xs">
-      <caption className="sr-only">Bill calendar {f.month(month.slice(0, 7))}</caption>
+      <caption className="sr-only">
+        {t('planning.views.billCalendar', 'Bill calendar')} {f.month(month.slice(0, 7))}
+      </caption>
       <thead>
         <tr>
           {names.map((n) => (
@@ -130,19 +134,23 @@ export function ListView({
   rows: readonly OccRow[];
   onOpen: (r: OccRow) => void;
 }) {
+  const t = useT();
   const f = useFormat();
-  if (!rows.length) return <Empty>Nothing planned in this period.</Empty>;
+  if (!rows.length)
+    return (
+      <Empty>{t('planning.views.nothingPlannedInThis', 'Nothing planned in this period.')}</Empty>
+    );
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-line text-left text-xs text-muted">
-            <th className="py-1.5">Date</th>
-            <th>Description</th>
-            <th>Type</th>
-            <th>Priority</th>
-            <th>Status</th>
-            <th className="text-right">Amount</th>
+            <th className="py-1.5">{t('transaction.date', 'Date')}</th>
+            <th>{t('transaction.description', 'Description')}</th>
+            <th>{t('notif.type', 'Type')}</th>
+            <th>{t('goals.page.priority', 'Priority')}</th>
+            <th>{t('sync.status', 'Status')}</th>
+            <th className="text-right">{t('transaction.amount', 'Amount')}</th>
           </tr>
         </thead>
         <tbody>
@@ -198,8 +206,12 @@ export function TimelineView({
   rows: readonly OccRow[];
   onOpen: (r: OccRow) => void;
 }) {
+  const t = useT();
   const f = useFormat();
-  if (!rows.length) return <Empty>Nothing planned in this period.</Empty>;
+  if (!rows.length)
+    return (
+      <Empty>{t('planning.views.nothingPlannedInThis', 'Nothing planned in this period.')}</Empty>
+    );
   const groups = new Map<string, OccRow[]>();
   for (const r of rows) {
     const wk = addDays(r.date, -(isoWeekday(r.date) - 1));
@@ -213,7 +225,9 @@ export function TimelineView({
             aria-hidden
             className="absolute -left-1.5 mt-1 size-3 rounded-full border-2 border-surface bg-accent"
           />
-          <h3 className="text-xs font-medium text-muted">Week of {f.date(wk)}</h3>
+          <h3 className="text-xs font-medium text-muted">
+            {t('planning.views.weekOf', 'Week of')} {f.date(wk)}
+          </h3>
           <ul className="mt-1 space-y-1 text-sm">
             {items.map((r) => (
               <li
@@ -248,20 +262,21 @@ export function TimelineView({
 }
 
 export function AnnualPlanCard({ snap }: { snap: Snapshot }) {
+  const t = useT();
   const f = useFormat();
   const a = annualPlan(snap);
   return (
-    <Card title="Annual plan (next 12 months)">
+    <Card title={t('planning.views.annualPlanNext12', 'Annual plan (next 12 months)')}>
       <ChartFrame
         name="annual-plan"
         table={
           <table className="w-full text-xs">
             <thead>
               <tr className="text-left text-muted">
-                <th>Month</th>
-                <th>Income</th>
-                <th>Expenses</th>
-                <th>Set aside monthly</th>
+                <th>{t('planning.views.month', 'Month')}</th>
+                <th>{t('transaction.kind.income', 'Income')}</th>
+                <th>{t('reports.page.expenses', 'Expenses')}</th>
+                <th>{t('planning.views.setAsideMonthly', 'Set aside monthly')}</th>
               </tr>
             </thead>
             <tbody>
@@ -284,7 +299,10 @@ export function AnnualPlanCard({ snap }: { snap: Snapshot }) {
         }
       >
         <MoneyChart
-          title="Scheduled income and expenses per month"
+          title={t(
+            'planning.views.scheduledIncomeAndExpenses',
+            'Scheduled income and expenses per month',
+          )}
           rows={a.months.map((m) => ({
             x: m.month,
             label: f.month(m.month),
@@ -299,22 +317,28 @@ export function AnnualPlanCard({ snap }: { snap: Snapshot }) {
       {a.items.length > 0 ? (
         <div className="mt-3 text-sm">
           <p className="mb-1 text-muted">
-            Non-monthly expenses smoothed into a monthly set-aside of{' '}
-            <Amount value={a.months[0]?.smoothed} /> (not added to budgets automatically):
+            {t(
+              'planning.views.nonMonthlyExpensesSmoothed',
+              'Non-monthly expenses smoothed into a monthly set-aside of',
+            )}{' '}
+            <Amount value={a.months[0]?.smoothed} />{' '}
+            {t('planning.views.notAddedToBudgets', '(not added to budgets automatically):')}
           </p>
           <ul className="space-y-0.5">
             {a.items.map((i) => (
               <li key={i.plan.id} className="flex justify-between">
                 <span>{i.plan.description}</span>
                 <span>
-                  <Amount value={i.annual} /> / year
+                  <Amount value={i.annual} /> {t('planning.views.year', '/ year')}
                 </span>
               </li>
             ))}
           </ul>
         </div>
       ) : (
-        <Empty>No annual or irregular expenses planned.</Empty>
+        <Empty>
+          {t('planning.views.noAnnualOrIrregular', 'No annual or irregular expenses planned.')}
+        </Empty>
       )}
       <DataBanner
         warnings={a.complete ? [] : ['Some amounts have no exchange rate and are left out.']}
@@ -324,18 +348,20 @@ export function AnnualPlanCard({ snap }: { snap: Snapshot }) {
 }
 
 export function InstallmentsCard({ snap }: { snap: Snapshot }) {
+  const t = useT();
   const f = useFormat();
   const list = installments(snap);
   if (!list.length) return null;
   return (
-    <Card title="Installments">
+    <Card title={t('planning.views.installments', 'Installments')}>
       <ul className="space-y-3 text-sm">
         {list.map(({ plan, progress: p }) => (
           <li key={plan.id}>
             <div className="flex flex-wrap justify-between gap-2">
               <span>{plan.description}</span>
               <span className="text-xs text-muted">
-                {p.paid}/{p.total} paid · outstanding <Amount value={p.outstanding} /> · next{' '}
+                {p.paid}/{p.total} {t('planning.views.paidOutstanding', 'paid · outstanding')}{' '}
+                <Amount value={p.outstanding} /> {t('planning.views.next', '· next')}{' '}
                 {p.nextDueDate ? f.date(p.nextDueDate) : '—'}
               </span>
             </div>
@@ -354,6 +380,7 @@ export function InstallmentsCard({ snap }: { snap: Snapshot }) {
 }
 
 export function PlannedVsActualCard({ snap }: { snap: Snapshot }) {
+  const t = useT();
   const f = useFormat();
   const from = startOfMonth(addMonths(snap.today, -2));
   const rows = plannedVsActual(snap, {
@@ -373,13 +400,17 @@ export function PlannedVsActualCard({ snap }: { snap: Snapshot }) {
     }),
   );
   return (
-    <Card title="Planned versus actual (last 3 months)">
+    <Card
+      title={t('planning.views.plannedVersusActualLast', 'Planned versus actual (last 3 months)')}
+    >
       {suggestions.length > 0 && (
         <div className="mb-4">
-          <h3 className="mb-1 text-sm font-medium">Suggested matches</h3>
+          <h3 className="mb-1 text-sm font-medium">
+            {t('planning.views.suggestedMatches', 'Suggested matches')}
+          </h3>
           <ul className="space-y-1 text-sm">
             {suggestions.map((s) => {
-              const t = tx.get(s.transactionId);
+              const txn = tx.get(s.transactionId);
               return (
                 <li
                   key={`${s.plannedTransactionId}|${s.occurrenceDate}`}
@@ -387,13 +418,16 @@ export function PlannedVsActualCard({ snap }: { snap: Snapshot }) {
                 >
                   <span>
                     {plans.get(s.plannedTransactionId)?.description} ({f.date(s.occurrenceDate)}) ↔{' '}
-                    {t?.description || t?.payee || 'transaction'} on {t && f.date(t.bookingDate)}
+                    {txn?.description ||
+                      txn?.payee ||
+                      t('transactions.transactionTable.transaction', 'transaction')}{' '}
+                    {t('planning.views.on', 'on')} {txn && f.date(txn.bookingDate)}
                     <span className="ml-1 text-xs text-muted">
-                      score {s.score}: {s.reasons.join(', ')}
+                      {t('planning.views.score', 'score')} {s.score}: {s.reasons.join(', ')}
                     </span>
                   </span>
                   <Button className="text-xs" onClick={() => match.mutate(s)}>
-                    Match
+                    {t('transactions.detailDrawer.match', 'Match')}
                   </Button>
                 </li>
               );
@@ -406,12 +440,12 @@ export function PlannedVsActualCard({ snap }: { snap: Snapshot }) {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-line text-left text-xs text-muted">
-                <th className="py-1">Date</th>
-                <th>Plan</th>
-                <th>Status</th>
-                <th className="text-right">Planned</th>
-                <th className="text-right">Actual</th>
-                <th className="text-right">Variance</th>
+                <th className="py-1">{t('transaction.date', 'Date')}</th>
+                <th>{t('transactions.detailDrawer.plan', 'Plan')}</th>
+                <th>{t('sync.status', 'Status')}</th>
+                <th className="text-right">{t('planning.views.planned', 'Planned')}</th>
+                <th className="text-right">{t('planning.views.actual', 'Actual')}</th>
+                <th className="text-right">{t('planning.views.variance', 'Variance')}</th>
               </tr>
             </thead>
             <tbody>
@@ -441,8 +475,10 @@ export function PlannedVsActualCard({ snap }: { snap: Snapshot }) {
         </div>
       ) : (
         <Empty>
-          No resolved occurrences yet. Match or mark occurrences paid to compare planned and actual
-          amounts.
+          {t(
+            'planning.views.noResolvedOccurrencesYet',
+            'No resolved occurrences yet. Match or mark occurrences paid to compare planned and actual amounts.',
+          )}
         </Empty>
       )}
     </Card>

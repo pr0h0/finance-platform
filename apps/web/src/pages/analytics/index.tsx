@@ -52,6 +52,7 @@ import {
 } from '../../features/analytics/ui.tsx';
 import { buildForecast } from '../../features/planning/forecast.ts';
 import { useFormat } from '../../lib/format.ts';
+import { useT } from '../../lib/i18n.ts';
 
 const PRESETS = [
   ['month', 'This month'],
@@ -80,6 +81,7 @@ function presetRange(p: Preset, today: string): { from: string; to: string } {
 }
 
 export default function AnalyticsPage() {
+  const t = useT();
   const snap = useSnapshot();
   const [preset, setPreset] = useState<Preset>('6m');
   const [custom, setCustom] = useState<{ from: string; to: string } | null>(null);
@@ -94,7 +96,7 @@ export default function AnalyticsPage() {
 
   if (snap.error)
     return (
-      <Page title="Analytics">
+      <Page title={t('analytics.page.analytics', 'Analytics')}>
         <ErrorText error={snap.error} />
       </Page>
     );
@@ -114,10 +116,13 @@ export default function AnalyticsPage() {
   const start = historyStart(s);
 
   return (
-    <Page title="Analytics">
+    <Page title={t('analytics.page.analytics', 'Analytics')}>
       <Card>
-        <fieldset className="flex flex-wrap items-end gap-3" aria-label="Filters">
-          <Field label="Period">
+        <fieldset
+          className="flex flex-wrap items-end gap-3"
+          aria-label={t('analytics.page.filters', 'Filters')}
+        >
+          <Field label={t('analytics.page.period', 'Period')}>
             <Select
               value={preset}
               onChange={(e) => {
@@ -134,7 +139,7 @@ export default function AnalyticsPage() {
           </Field>
           {preset === 'custom' && custom && (
             <>
-              <Field label="From">
+              <Field label={t('notif.quietFrom', 'From')}>
                 <Input
                   type="date"
                   value={custom.from}
@@ -142,7 +147,7 @@ export default function AnalyticsPage() {
                   onChange={(e) => e.target.value && setCustom({ ...custom, from: e.target.value })}
                 />
               </Field>
-              <Field label="To">
+              <Field label={t('reports.page.to', 'To')}>
                 <Input
                   type="date"
                   value={custom.to}
@@ -152,18 +157,18 @@ export default function AnalyticsPage() {
               </Field>
             </>
           )}
-          <Field label="Group by">
+          <Field label={t('analytics.page.groupBy', 'Group by')}>
             <Select
               value={granularity}
               onChange={(e) => setGranularity(e.target.value as Granularity)}
             >
-              <option value="week">Week</option>
-              <option value="month">Month</option>
-              <option value="quarter">Quarter</option>
-              <option value="year">Year</option>
+              <option value="week">{t('analytics.page.week', 'Week')}</option>
+              <option value="month">{t('analytics.page.month', 'Month')}</option>
+              <option value="quarter">{t('analytics.page.quarter', 'Quarter')}</option>
+              <option value="year">{t('analytics.page.year', 'Year')}</option>
             </Select>
           </Field>
-          <Field label="Reporting currency">
+          <Field label={t('settings.reportingLabel', 'Reporting currency')}>
             <Select
               value={cur}
               onChange={(e) => setCurrency(e.target.value === s.currency ? null : e.target.value)}
@@ -173,7 +178,7 @@ export default function AnalyticsPage() {
               ))}
             </Select>
           </Field>
-          <Field label="Accounts">
+          <Field label={t('mcp.accounts', 'Accounts')}>
             <Select
               multiple
               size={Math.min(4, Math.max(2, s.accounts.length))}
@@ -190,7 +195,7 @@ export default function AnalyticsPage() {
           </Field>
           {accountIds.length > 0 && (
             <Button variant="ghost" onClick={() => setAccountIds([])}>
-              All accounts
+              {t('analytics.page.allAccounts', 'All accounts')}
             </Button>
           )}
         </fieldset>
@@ -205,7 +210,9 @@ export default function AnalyticsPage() {
         )}
         {!start && (
           <div className="mt-3">
-            <Empty>No transactions recorded yet.</Empty>
+            <Empty>
+              {t('analytics.page.noTransactionsRecordedYet', 'No transactions recorded yet.')}
+            </Empty>
           </div>
         )}
       </Card>
@@ -239,33 +246,38 @@ export default function AnalyticsPage() {
 type P = { s: Snapshot; f: Filters };
 
 function CategorySection({ s, f }: P) {
+  const t = useT();
   const [kind, setKind] = useState<'spending' | 'income'>('spending');
   const [rollup, setRollup] = useState<'parent' | 'none'>('parent');
   const r = kind === 'spending' ? spendingByCategory(s, f, rollup) : incomeByCategory(s, f);
   const total = Number(r.total.amount) || 1;
   return (
     <Card
-      title={kind === 'spending' ? 'Expenses by category' : 'Income by category'}
+      title={
+        kind === 'spending'
+          ? t('analytics.page.expensesByCategory', 'Expenses by category')
+          : t('reports.page.incomeByCategory', 'Income by category')
+      }
       actions={
         <>
           <Select
-            aria-label="Kind"
+            aria-label={t('backup.kind', 'Kind')}
             className="h-8 w-auto text-xs"
             value={kind}
             onChange={(e) => setKind(e.target.value as typeof kind)}
           >
-            <option value="spending">Expenses</option>
-            <option value="income">Income</option>
+            <option value="spending">{t('reports.page.expenses', 'Expenses')}</option>
+            <option value="income">{t('transaction.kind.income', 'Income')}</option>
           </Select>
           {kind === 'spending' && (
             <Select
-              aria-label="Subcategories"
+              aria-label={t('analytics.page.subcategories', 'Subcategories')}
               className="h-8 w-auto text-xs"
               value={rollup}
               onChange={(e) => setRollup(e.target.value as typeof rollup)}
             >
-              <option value="parent">Top-level</option>
-              <option value="none">Subcategories</option>
+              <option value="parent">{t('analytics.page.topLevel', 'Top-level')}</option>
+              <option value="none">{t('analytics.page.subcategories', 'Subcategories')}</option>
             </Select>
           )}
         </>
@@ -273,15 +285,21 @@ function CategorySection({ s, f }: P) {
     >
       <DataBanner missingRates={r.missingRates} />
       {r.rows.length === 0 ? (
-        <Empty>No {kind === 'spending' ? 'spending' : 'income'} in this period.</Empty>
+        <Empty>
+          {t('analytics.page.no', 'No')}{' '}
+          {kind === 'spending'
+            ? t('analytics.page.spending', 'spending')
+            : t('analytics.page.income2', 'income')}{' '}
+          {t('analytics.page.inThisPeriod', 'in this period.')}
+        </Empty>
       ) : (
         <table className="w-full text-sm">
           <thead className="sr-only">
             <tr>
-              <th>Category</th>
-              <th>Share</th>
-              <th>Amount</th>
-              <th>Count</th>
+              <th>{t('transaction.category', 'Category')}</th>
+              <th>{t('analytics.page.share', 'Share')}</th>
+              <th>{t('transaction.amount', 'Amount')}</th>
+              <th>{t('analytics.page.count', 'Count')}</th>
             </tr>
           </thead>
           <tbody>
@@ -326,7 +344,7 @@ function CategorySection({ s, f }: P) {
           </tbody>
           <tfoot>
             <tr className="font-medium">
-              <td className="pt-2">Total</td>
+              <td className="pt-2">{t('analytics.page.total', 'Total')}</td>
               <td />
               <td className="pt-2 text-right">
                 <Amount value={r.total} />
@@ -356,6 +374,7 @@ function periodRange(p: string): { from: string; to: string } | null {
 }
 
 function IncomeExpenseSection({ s, f }: P) {
+  const t = useT();
   const fmt = useFormat();
   const nav = useNavigate();
   const r = incomeVsExpenses(s, f);
@@ -365,15 +384,21 @@ function IncomeExpenseSection({ s, f }: P) {
     money: { income: p.income, expense: p.expense, net: p.net },
   }));
   return (
-    <Card title="Income versus expenses">
+    <Card title={t('analytics.page.incomeVersusExpenses', 'Income versus expenses')}>
       <div className="mb-3 grid grid-cols-2 gap-3">
-        <Stat label="Income" value={<Amount value={r.totals.income} />} />
-        <Stat label="Expenses" value={<Amount value={r.totals.expense} />} />
-        <Stat label="Net" value={<Amount value={r.totals.net} tone />} />
         <Stat
-          label="Savings rate"
+          label={t('transaction.kind.income', 'Income')}
+          value={<Amount value={r.totals.income} />}
+        />
+        <Stat
+          label={t('reports.page.expenses', 'Expenses')}
+          value={<Amount value={r.totals.expense} />}
+        />
+        <Stat label={t('reports.page.net', 'Net')} value={<Amount value={r.totals.net} tone />} />
+        <Stat
+          label={t('reports.page.savingsRate', 'Savings rate')}
           value={r.totals.savingsRate ? fmt.percent(r.totals.savingsRate) : '—'}
-          hint="(income − spending) / income"
+          hint={t('dashboard.widgets.incomeSpendingIncome', '(income − spending) / income')}
         />
       </div>
       <DataBanner missingRates={r.missingRates} />
@@ -392,7 +417,10 @@ function IncomeExpenseSection({ s, f }: P) {
           }
         >
           <MoneyChart
-            title="Income versus expenses per period; select a period to see its transactions"
+            title={t(
+              'analytics.page.incomeVersusExpensesPer',
+              'Income versus expenses per period; select a period to see its transactions',
+            )}
             rows={rows}
             onSelect={(row) => {
               const pr = periodRange(row.x);
@@ -403,7 +431,9 @@ function IncomeExpenseSection({ s, f }: P) {
               { key: 'expense', label: 'Expenses', color: SERIES[1] as string },
             ]}
           />
-          <h3 className="mt-4 mb-1 text-xs font-medium text-muted">Savings rate per period</h3>
+          <h3 className="mt-4 mb-1 text-xs font-medium text-muted">
+            {t('analytics.page.savingsRatePerPeriod', 'Savings rate per period')}
+          </h3>
           <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
             {r.periods.map((p) => (
               <li key={p.period}>
@@ -416,7 +446,9 @@ function IncomeExpenseSection({ s, f }: P) {
           </ul>
         </ChartFrame>
       ) : (
-        <Empty>No income or expenses in this period.</Empty>
+        <Empty>
+          {t('reports.page.noIncomeOrExpenses', 'No income or expenses in this period.')}
+        </Empty>
       )}
     </Card>
   );
@@ -429,11 +461,12 @@ function MoneyTable({
   rows: readonly ChartRow[];
   cols: readonly (readonly [string, string])[];
 }) {
+  const t = useT();
   return (
     <table className="w-full text-xs">
       <thead>
         <tr className="text-left text-muted">
-          <th className="py-1">Period</th>
+          <th className="py-1">{t('analytics.page.period', 'Period')}</th>
           {cols.map(([k, l]) => (
             <th key={k} className="text-right">
               {l}
@@ -458,30 +491,39 @@ function MoneyTable({
 }
 
 function TrendSection({ s, f }: P) {
+  const t = useT();
   const fmt = useFormat();
   const nav = useNavigate();
-  const t = categoryTrend(s, f);
-  const rows: ChartRow[] = t.rows.map((r) => ({
+  const trend = categoryTrend(s, f);
+  const rows: ChartRow[] = trend.rows.map((r) => ({
     x: r.month,
     label: fmt.month(r.month),
     money: r.values,
   }));
-  const series = t.keys.map((k, i) => ({
+  const series = trend.keys.map((k, i) => ({
     key: k.key,
     label: k.label,
     color: k.key === 'other' ? SERIES_OTHER : (SERIES[i] as string),
     stack: 'a',
   }));
   return (
-    <Card title="Monthly spending and long-term trend (top categories)">
-      <DataBanner missingRates={t.missingRates} />
+    <Card
+      title={t(
+        'analytics.page.monthlySpendingAndLong',
+        'Monthly spending and long-term trend (top categories)',
+      )}
+    >
+      <DataBanner missingRates={trend.missingRates} />
       {series.length ? (
         <ChartFrame
           name="spending-trend"
-          table={<MoneyTable rows={rows} cols={t.keys.map((k) => [k.key, k.label] as const)} />}
+          table={<MoneyTable rows={rows} cols={trend.keys.map((k) => [k.key, k.label] as const)} />}
         >
           <MoneyChart
-            title="Monthly spending by top category, stacked"
+            title={t(
+              'analytics.page.monthlySpendingByTop',
+              'Monthly spending by top category, stacked',
+            )}
             rows={rows}
             series={series}
             height={260}
@@ -498,46 +540,56 @@ function TrendSection({ s, f }: P) {
           />
         </ChartFrame>
       ) : (
-        <Empty>No spending in this period.</Empty>
+        <Empty>{t('analytics.page.noSpendingInThis', 'No spending in this period.')}</Empty>
       )}
     </Card>
   );
 }
 
 function ComparisonSection({ s, f }: P) {
+  const t = useT();
   const fmt = useFormat();
   const [mode, setMode] = useState<'previous' | 'year_ago'>('previous');
   const c = periodComparison(s, f, mode);
   const diff = toMinor(c.total.current) - toMinor(c.total.previous);
   return (
     <Card
-      title="Period comparison"
+      title={t('analytics.page.periodComparison', 'Period comparison')}
       actions={
         <Select
-          aria-label="Compare with"
+          aria-label={t('analytics.page.compareWith', 'Compare with')}
           className="h-8 w-auto text-xs"
           value={mode}
           onChange={(e) => setMode(e.target.value as typeof mode)}
         >
-          <option value="previous">Previous period</option>
-          <option value="year_ago">Same period last year</option>
+          <option value="previous">{t('analytics.page.previousPeriod', 'Previous period')}</option>
+          <option value="year_ago">
+            {t('analytics.page.samePeriodLastYear', 'Same period last year')}
+          </option>
         </Select>
       }
     >
       <p className="mb-2 text-xs text-muted">
-        {fmt.date(f.from)} – {fmt.date(f.to)} vs {fmt.date(c.range.from)} – {fmt.date(c.range.to)} ·
-        total <Amount value={c.total.current} /> vs <Amount value={c.total.previous} /> (
-        {diff > 0n ? 'more' : diff < 0n ? 'less' : 'same'})
+        {fmt.date(f.from)} – {fmt.date(f.to)} {t('analytics.page.vs', 'vs')}{' '}
+        {fmt.date(c.range.from)} – {fmt.date(c.range.to)} {t('analytics.page.total2', '· total')}{' '}
+        <Amount value={c.total.current} /> {t('analytics.page.vs', 'vs')}{' '}
+        <Amount value={c.total.previous} /> (
+        {diff > 0n
+          ? t('analytics.page.more', 'more')
+          : diff < 0n
+            ? t('analytics.page.less', 'less')
+            : t('analytics.page.same', 'same')}
+        )
       </p>
       <DataBanner missingRates={c.missingRates} />
       {c.rows.length ? (
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-line text-left text-xs text-muted">
-              <th className="py-1">Category</th>
-              <th className="text-right">Now</th>
-              <th className="text-right">Before</th>
-              <th className="text-right">Change</th>
+              <th className="py-1">{t('transaction.category', 'Category')}</th>
+              <th className="text-right">{t('analytics.page.now', 'Now')}</th>
+              <th className="text-right">{t('analytics.page.before', 'Before')}</th>
+              <th className="text-right">{t('lock.change', 'Change')}</th>
             </tr>
           </thead>
           <tbody>
@@ -560,16 +612,17 @@ function ComparisonSection({ s, f }: P) {
           </tbody>
         </table>
       ) : (
-        <Empty>No spending in either period.</Empty>
+        <Empty>{t('analytics.page.noSpendingInEither', 'No spending in either period.')}</Empty>
       )}
     </Card>
   );
 }
 
 function MerchantSection({ s, f }: P) {
+  const t = useT();
   const r = merchantRanking(s, f);
   return (
-    <Card title="Merchant ranking">
+    <Card title={t('analytics.page.merchantRanking', 'Merchant ranking')}>
       <DataBanner missingRates={r.missingRates} />
       {r.rows.length ? (
         <ol className="space-y-1 text-sm">
@@ -589,16 +642,22 @@ function MerchantSection({ s, f }: P) {
           ))}
         </ol>
       ) : (
-        <Empty>No merchant spending in this period.</Empty>
+        <Empty>
+          {t('analytics.page.noMerchantSpendingIn', 'No merchant spending in this period.')}
+        </Empty>
       )}
       <p className="mt-2 text-xs text-muted">
-        Grouped by merchant (aliases merged), else by normalized payee/description.
+        {t(
+          'analytics.page.groupedByMerchantAliases',
+          'Grouped by merchant (aliases merged), else by normalized payee/description.',
+        )}
       </p>
     </Card>
   );
 }
 
 function NetWorthSection({ s, f }: P) {
+  const t = useT();
   const fmt = useFormat();
   const n = netWorthHistory(s, f);
   const rows: ChartRow[] = n.points.map((p) => ({
@@ -608,12 +667,18 @@ function NetWorthSection({ s, f }: P) {
   }));
   const last = n.points.at(-1);
   return (
-    <Card title="Net worth">
+    <Card title={t('reports.page.netWorth', 'Net worth')}>
       {last && (
         <div className="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
-          <Stat label="Net worth" value={<Amount value={last.netWorth} tone />} />
-          <Stat label="Assets" value={<Amount value={last.assets} />} />
-          <Stat label="Liabilities" value={<Amount value={last.liabilities} />} />
+          <Stat
+            label={t('reports.page.netWorth', 'Net worth')}
+            value={<Amount value={last.netWorth} tone />}
+          />
+          <Stat label={t('reports.page.assets', 'Assets')} value={<Amount value={last.assets} />} />
+          <Stat
+            label={t('reports.page.liabilities', 'Liabilities')}
+            value={<Amount value={last.liabilities} />}
+          />
         </div>
       )}
       <DataBanner missingRates={n.missingRates} />
@@ -631,7 +696,10 @@ function NetWorthSection({ s, f }: P) {
         }
       >
         <MoneyChart
-          title="Assets, liabilities and net worth at each month end"
+          title={t(
+            'analytics.page.assetsLiabilitiesAndNet',
+            'Assets, liabilities and net worth at each month end',
+          )}
           rows={rows}
           series={[
             { key: 'netWorth', label: 'Net worth', color: SERIES[0] as string, kind: 'line' },
@@ -641,13 +709,17 @@ function NetWorthSection({ s, f }: P) {
         />
       </ChartFrame>
       <p className="mt-1 text-xs text-muted">
-        Valued at each month end's exchange rate; accounts excluded from net worth are left out.
+        {t(
+          'analytics.page.valuedAtEachMonth',
+          "Valued at each month end's exchange rate; accounts excluded from net worth are left out.",
+        )}
       </p>
     </Card>
   );
 }
 
 function ForecastEvolution({ s }: { s: Snapshot }) {
+  const t = useT();
   const fmt = useFormat();
   const fc = buildForecast(s, addMonths(s.today, 12));
   const rows: ChartRow[] = fc.days
@@ -658,7 +730,7 @@ function ForecastEvolution({ s }: { s: Snapshot }) {
       money: { expected: d.expected, conservative: d.conservative, optimistic: d.optimistic },
     }));
   return (
-    <Card title="Forecast evolution (12 months)">
+    <Card title={t('analytics.page.forecastEvolution12Months', 'Forecast evolution (12 months)')}>
       <DataBanner warnings={fc.warnings} />
       <ChartFrame
         name="forecast-evolution"
@@ -674,7 +746,10 @@ function ForecastEvolution({ s }: { s: Snapshot }) {
         }
       >
         <MoneyChart
-          title="Projected balance: conservative, expected and optimistic"
+          title={t(
+            'analytics.page.projectedBalanceConservativeExpected',
+            'Projected balance: conservative, expected and optimistic',
+          )}
           rows={rows}
           series={[
             { key: 'expected', label: 'Expected', color: SERIES[0] as string, kind: 'line' },
@@ -689,9 +764,12 @@ function ForecastEvolution({ s }: { s: Snapshot }) {
         />
       </ChartFrame>
       <p className="mt-1 text-xs text-muted">
-        An estimate from plans and today's balances, not a guarantee.{' '}
+        {t(
+          'analytics.page.anEstimateFromPlans',
+          "An estimate from plans and today's balances, not a guarantee.",
+        )}{' '}
         <Link className="text-accent hover:underline" to="/planning">
-          Planning
+          {t('analytics.page.planning', 'Planning')}
         </Link>
       </p>
     </Card>
@@ -699,12 +777,13 @@ function ForecastEvolution({ s }: { s: Snapshot }) {
 }
 
 function CurrencySection({ s, f }: P) {
+  const t = useT();
   const fmt = useFormat();
   const ex = currencyDistribution(s, f);
   const spend = spendingByCurrency(s, f);
   const fees = conversionFees(s, f);
   return (
-    <Card title="Currency distribution and fees">
+    <Card title={t('analytics.page.currencyDistributionAndFees', 'Currency distribution and fees')}>
       {ex.missing.length > 0 && (
         <DataBanner
           warnings={[
@@ -716,10 +795,12 @@ function CurrencySection({ s, f }: P) {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-line text-left text-xs text-muted">
-              <th className="py-1">Currency</th>
-              <th>Share of assets</th>
-              <th className="text-right">Balance</th>
-              <th className="text-right">In {f.currency}</th>
+              <th className="py-1">{t('profiles.currency', 'Currency')}</th>
+              <th>{t('analytics.page.shareOfAssets', 'Share of assets')}</th>
+              <th className="text-right">{t('analytics.page.balance', 'Balance')}</th>
+              <th className="text-right">
+                {t('analytics.page.in', 'In')} {f.currency}
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -752,12 +833,15 @@ function CurrencySection({ s, f }: P) {
           </tbody>
         </table>
       ) : (
-        <Empty>No balances.</Empty>
+        <Empty>{t('analytics.page.noBalances', 'No balances.')}</Empty>
       )}
       {spend.length > 0 && (
         <div className="mt-3 text-sm">
           <h3 className="mb-1 text-xs font-medium text-muted">
-            Spending by original currency (this period)
+            {t(
+              'analytics.page.spendingByOriginalCurrency',
+              'Spending by original currency (this period)',
+            )}
           </h3>
           <ul className="space-y-0.5">
             {spend.map((x) => (
@@ -778,24 +862,28 @@ function CurrencySection({ s, f }: P) {
       )}
       <div className="mt-3 text-sm">
         <h3 className="mb-1 text-xs font-medium text-muted">
-          Currency and transfer fees (this period)
+          {t('analytics.page.currencyAndTransferFees', 'Currency and transfer fees (this period)')}
         </h3>
         {fees.items.length ? (
           <>
             <p>
-              Total <Amount value={fees.total} /> in {fees.items.length} fee
+              {t('analytics.page.total', 'Total')} <Amount value={fees.total} />{' '}
+              {t('analytics.page.in2', 'in')} {fees.items.length} {t('analytics.page.fee', 'fee')}
               {fees.items.length === 1 ? '' : 's'}
-              {!fees.complete && ' (some without a rate are left out)'}
+              {!fees.complete &&
+                ` ${t('analytics.page.someWithoutARate', '(some without a rate are left out)')}`}
             </p>
             <Link
               className="text-xs text-accent hover:underline"
               to={transactionsLink({ ...f, kind: 'expense' })}
             >
-              See expenses
+              {t('analytics.page.seeExpenses', 'See expenses')}
             </Link>
           </>
         ) : (
-          <p className="text-muted">No fees recorded on transfers or exchanges.</p>
+          <p className="text-muted">
+            {t('analytics.page.noFeesRecordedOn', 'No fees recorded on transfers or exchanges.')}
+          </p>
         )}
       </div>
     </Card>
@@ -803,12 +891,24 @@ function CurrencySection({ s, f }: P) {
 }
 
 function RecurringSection({ s, f }: P) {
+  const t = useT();
   const r = recurringCosts(s, f);
   return (
-    <Card title="Subscription and recurring spending">
+    <Card
+      title={t(
+        'analytics.page.subscriptionAndRecurringSpending',
+        'Subscription and recurring spending',
+      )}
+    >
       <div className="mb-3 grid grid-cols-2 gap-3">
-        <Stat label="Monthly equivalent" value={<Amount value={r.monthly} />} />
-        <Stat label="Annual equivalent" value={<Amount value={r.annual} />} />
+        <Stat
+          label={t('subscriptions.page.monthlyEquivalent', 'Monthly equivalent')}
+          value={<Amount value={r.monthly} />}
+        />
+        <Stat
+          label={t('analytics.page.annualEquivalent', 'Annual equivalent')}
+          value={<Amount value={r.annual} />}
+        />
       </div>
       {!r.complete && (
         <DataBanner
@@ -819,9 +919,9 @@ function RecurringSection({ s, f }: P) {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-line text-left text-xs text-muted">
-              <th className="py-1">Plan</th>
-              <th className="text-right">Monthly</th>
-              <th className="text-right">Annual</th>
+              <th className="py-1">{t('transactions.detailDrawer.plan', 'Plan')}</th>
+              <th className="text-right">{t('backup.monthly', 'Monthly')}</th>
+              <th className="text-right">{t('reports.page.annual', 'Annual')}</th>
             </tr>
           </thead>
           <tbody>
@@ -840,9 +940,9 @@ function RecurringSection({ s, f }: P) {
         </table>
       ) : (
         <Empty>
-          No recurring expense plans.{' '}
+          {t('analytics.page.noRecurringExpensePlans', 'No recurring expense plans.')}{' '}
           <Link className="underline" to="/subscriptions">
-            Subscriptions
+            {t('subscriptions.page.subscriptions', 'Subscriptions')}
           </Link>
         </Empty>
       )}
@@ -851,6 +951,7 @@ function RecurringSection({ s, f }: P) {
 }
 
 function PlannedActualSection({ s, f }: P) {
+  const t = useT();
   const fmt = useFormat();
   const rows = plannedVsActual(s, f).filter((r) => r.actual);
   let planned = 0n;
@@ -864,23 +965,24 @@ function PlannedActualSection({ s, f }: P) {
     }
   }
   return (
-    <Card title="Planned versus actual">
+    <Card title={t('analytics.page.plannedVersusActual', 'Planned versus actual')}>
       {rows.length ? (
         <>
           <p className="mb-2 text-sm">
-            {rows.length} matched payments: planned{' '}
-            <Amount value={fromMinor(planned, f.currency)} />, paid{' '}
-            <Amount value={fromMinor(actual, f.currency)} />, difference{' '}
+            {rows.length} {t('analytics.page.matchedPaymentsPlanned', 'matched payments: planned')}{' '}
+            <Amount value={fromMinor(planned, f.currency)} />
+            {t('analytics.page.paid', ', paid')} <Amount value={fromMinor(actual, f.currency)} />
+            {t('analytics.page.difference', ', difference')}{' '}
             <Amount value={fromMinor(actual - planned, f.currency)} />
           </p>
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-line text-left text-xs text-muted">
-                <th className="py-1">Date</th>
-                <th>Plan</th>
-                <th className="text-right">Planned</th>
-                <th className="text-right">Actual</th>
-                <th className="text-right">Variance</th>
+                <th className="py-1">{t('transaction.date', 'Date')}</th>
+                <th>{t('transactions.detailDrawer.plan', 'Plan')}</th>
+                <th className="text-right">{t('analytics.page.planned', 'Planned')}</th>
+                <th className="text-right">{t('analytics.page.actual', 'Actual')}</th>
+                <th className="text-right">{t('analytics.page.variance', 'Variance')}</th>
               </tr>
             </thead>
             <tbody>
@@ -907,8 +1009,10 @@ function PlannedActualSection({ s, f }: P) {
         </>
       ) : (
         <Empty>
-          No planned payments matched to transactions in this period. Match them on the Planning
-          page.
+          {t(
+            'analytics.page.noPlannedPaymentsMatched',
+            'No planned payments matched to transactions in this period. Match them on the Planning page.',
+          )}
         </Empty>
       )}
     </Card>
@@ -916,6 +1020,7 @@ function PlannedActualSection({ s, f }: P) {
 }
 
 function AnomalySection({ s, f }: P) {
+  const t = useT();
   const fmt = useFormat();
   const dismissed = (s.settings['analytics.dismissedAnomalies'] as string[] | undefined) ?? [];
   const [showDismissed, setShowDismissed] = useState(false);
@@ -931,11 +1036,13 @@ function AnomalySection({ s, f }: P) {
   const list = all.filter((a) => showDismissed || !dismissed.includes(a.id));
   return (
     <Card
-      title="Unusual expenses"
+      title={t('notif.type.anomalies', 'Unusual expenses')}
       actions={
         dismissed.length > 0 && (
           <Button size="sm" variant="ghost" onClick={() => setShowDismissed(!showDismissed)}>
-            {showDismissed ? 'Hide dismissed' : `Show dismissed (${dismissed.length})`}
+            {showDismissed
+              ? t('analytics.page.hideDismissed', 'Hide dismissed')
+              : `Show dismissed (${dismissed.length})`}
           </Button>
         )
       }
@@ -945,36 +1052,45 @@ function AnomalySection({ s, f }: P) {
           {list.map((a) => {
             const isDismissed = dismissed.includes(a.id);
             const txId = a.data.transactionId as string;
-            const t = s.transactions.find((x) => x.id === txId);
+            const txn = s.transactions.find((x) => x.id === txId);
             return (
               <li key={a.id} className={isDismissed ? 'opacity-60' : ''}>
                 <p className="font-medium">
-                  {t?.description || t?.payee || a.title}
-                  {t && (
+                  {txn?.description || txn?.payee || a.title}
+                  {txn && (
                     <span className="ml-2 text-xs font-normal text-muted">
-                      {fmt.date(t.bookingDate)}
+                      {fmt.date(txn.bookingDate)}
                     </span>
                   )}
                 </p>
                 <p className="text-muted">{a.body}</p>
                 <p className="text-xs text-muted">
-                  Rule:{' '}
+                  {t('analytics.page.rule', 'Rule:')}{' '}
                   {a.data.rule === 'large_vs_category'
-                    ? '≥ 3× the category median (needs ≥ 5 earlier transactions)'
-                    : '≥ 2× the merchant median (needs ≥ 3 earlier transactions)'}
-                  ; history = 180 days before the period.
+                    ? t(
+                        'analytics.page.3TheCategoryMedian',
+                        '≥ 3× the category median (needs ≥ 5 earlier transactions)',
+                      )
+                    : t(
+                        'analytics.page.2TheMerchantMedian',
+                        '≥ 2× the merchant median (needs ≥ 3 earlier transactions)',
+                      )}
+                  {t(
+                    'analytics.page.history180DaysBefore',
+                    '; history = 180 days before the period.',
+                  )}
                 </p>
                 <div className="mt-1 flex gap-2">
-                  {t && (
+                  {txn && (
                     <Link
                       className="text-xs text-accent hover:underline"
                       to={transactionsLink({
-                        from: t.bookingDate,
-                        to: t.bookingDate,
-                        accountIds: t.postings.map((p) => p.accountId),
+                        from: txn.bookingDate,
+                        to: txn.bookingDate,
+                        accountIds: txn.postings.map((p) => p.accountId),
                       })}
                     >
-                      View transaction
+                      {t('analytics.page.viewTransaction', 'View transaction')}
                     </Link>
                   )}
                   <Button
@@ -986,7 +1102,7 @@ function AnomalySection({ s, f }: P) {
                       )
                     }
                   >
-                    {isDismissed ? 'Restore' : 'Dismiss'}
+                    {isDismissed ? t('backup.restore', 'Restore') : t('sync.discard', 'Dismiss')}
                   </Button>
                 </div>
               </li>
@@ -994,13 +1110,14 @@ function AnomalySection({ s, f }: P) {
           })}
         </ul>
       ) : (
-        <Empty>Nothing unusual in this period.</Empty>
+        <Empty>{t('analytics.page.nothingUnusualInThis', 'Nothing unusual in this period.')}</Empty>
       )}
     </Card>
   );
 }
 
 function InsightSection({ s, f }: P) {
+  const t = useT();
   const dismissed = new Set((s.settings['insights.dismissed'] as string[] | undefined) ?? []);
   const save = useOpsMutation((ops, ids: string[]) => ops.setSetting('insights.dismissed', ids));
   const list = monthlyInsights(s.ledger, {
@@ -1010,7 +1127,13 @@ function InsightSection({ s, f }: P) {
     dismissed,
   });
   return (
-    <Card title={<span id="insights">Insights for {f.to.slice(0, 7)}</span>}>
+    <Card
+      title={
+        <span id="insights">
+          {t('analytics.page.insightsFor', 'Insights for')} {f.to.slice(0, 7)}
+        </span>
+      }
+    >
       {list.length ? (
         <ul className="space-y-3 text-sm">
           {list.map((i) => (
@@ -1020,17 +1143,24 @@ function InsightSection({ s, f }: P) {
               </p>
               <p className="text-muted">{i.body}</p>
               <Button size="sm" variant="ghost" onClick={() => save.mutate([...dismissed, i.id])}>
-                Dismiss
+                {t('sync.discard', 'Dismiss')}
               </Button>
             </li>
           ))}
         </ul>
       ) : (
-        <Empty>No notable changes compared with the previous 3 months.</Empty>
+        <Empty>
+          {t(
+            'analytics.page.noNotableChangesCompared',
+            'No notable changes compared with the previous 3 months.',
+          )}
+        </Empty>
       )}
       <p className="mt-2 text-xs text-muted">
-        Deterministic rules: category spikes (≥ 1.3× the 3-month average), spending change ≥ 20%,
-        savings rate. No AI.
+        {t(
+          'analytics.page.deterministicRulesCategorySpikes',
+          'Deterministic rules: category spikes (≥ 1.3× the 3-month average), spending change ≥ 20%, savings rate. No AI.',
+        )}
       </p>
     </Card>
   );

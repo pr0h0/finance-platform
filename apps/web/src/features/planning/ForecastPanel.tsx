@@ -7,6 +7,7 @@ import type { Forecast } from '@finplat/forecasting';
 import { AlertTriangle } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useFormat } from '../../lib/format.ts';
+import { useT } from '../../lib/i18n.ts';
 import { ChartFrame, type ChartRow, MoneyChart } from '../analytics/chart.tsx';
 import { useOpsMutation } from '../analytics/hooks.ts';
 import type { Snapshot } from '../analytics/snapshot.ts';
@@ -43,17 +44,21 @@ export function ForecastSummary({
   fc: Forecast;
   accountName: (id: string) => string;
 }) {
+  const t = useT();
   const f = useFormat();
   return (
     <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-      <Stat label="Month-end (expected)" value={<Amount value={fc.monthEnd} tone />} />
       <Stat
-        label="Lowest balance (expected)"
+        label={t('planning.forecastPanel.monthEndExpected', 'Month-end (expected)')}
+        value={<Amount value={fc.monthEnd} tone />}
+      />
+      <Stat
+        label={t('planning.forecastPanel.lowestBalanceExpected', 'Lowest balance (expected)')}
         value={<Amount value={fc.lowest.amount} tone />}
         hint={f.date(fc.lowest.date)}
       />
       <Stat
-        label="Safe to spend"
+        label={t('planning.forecastPanel.safeToSpend', 'Safe to spend')}
         value={<Amount value={fc.safeToSpend} />}
         hint={`Lowest conservative balance until ${f.date(fc.safeToSpendUntil)}, minus reserve`}
       />
@@ -68,11 +73,15 @@ export function ForecastSummary({
         >
           <AlertTriangle aria-hidden className="mt-0.5 size-4 text-neg" />
           <div>
-            <p className="font-medium">Projected shortfall</p>
+            <p className="font-medium">
+              {t('planning.forecastPanel.projectedShortfall', 'Projected shortfall')}
+            </p>
             <ul>
               {fc.shortfalls.map((s) => (
                 <li key={`${s.accountId}|${s.date}`}>
-                  {accountName(s.accountId)} goes below its floor from {f.date(s.date)} (lowest{' '}
+                  {accountName(s.accountId)}{' '}
+                  {t('planning.forecastPanel.goesBelowItsFloor', 'goes below its floor from')}{' '}
+                  {f.date(s.date)} {t('planning.forecastPanel.lowest', '(lowest')}{' '}
                   <Amount value={s.amount} />)
                 </li>
               ))}
@@ -85,6 +94,7 @@ export function ForecastSummary({
 }
 
 export function ForecastPanel({ snap }: { snap: Snapshot }) {
+  const t = useT();
   const f = useFormat();
   const [months, setMonths] = useState<number>(3);
   const to = addMonths(snap.today, months);
@@ -100,9 +110,12 @@ export function ForecastPanel({ snap }: { snap: Snapshot }) {
 
   return (
     <Card
-      title="Forecast balance"
+      title={t('planning.forecastPanel.forecastBalance', 'Forecast balance')}
       actions={
-        <fieldset aria-label="Forecast horizon" className="flex gap-1">
+        <fieldset
+          aria-label={t('planning.forecastPanel.forecastHorizon', 'Forecast horizon')}
+          className="flex gap-1"
+        >
           {HORIZONS.map((h) => (
             <Button
               key={h}
@@ -125,10 +138,10 @@ export function ForecastPanel({ snap }: { snap: Snapshot }) {
             <table className="w-full text-xs">
               <thead>
                 <tr className="text-left text-muted">
-                  <th className="py-1">Date</th>
-                  <th>Conservative</th>
-                  <th>Expected</th>
-                  <th>Optimistic</th>
+                  <th className="py-1">{t('transaction.date', 'Date')}</th>
+                  <th>{t('planning.forecastPanel.conservative', 'Conservative')}</th>
+                  <th>{t('planning.forecastPanel.expected', 'Expected')}</th>
+                  <th>{t('planning.forecastPanel.optimistic', 'Optimistic')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -151,7 +164,10 @@ export function ForecastPanel({ snap }: { snap: Snapshot }) {
           }
         >
           <MoneyChart
-            title="Projected total balance with conservative to optimistic range"
+            title={t(
+              'planning.forecastPanel.projectedTotalBalanceWith',
+              'Projected total balance with conservative to optimistic range',
+            )}
             rows={rows}
             height={260}
             band={{ label: 'Range', color: SERIES[0] as string }}
@@ -185,24 +201,32 @@ export function ForecastPanel({ snap }: { snap: Snapshot }) {
               onChange={(e) => setReserveText(e.target.value)}
             />
           </Field>
-          <Button type="submit">Save reserve</Button>
+          <Button type="submit">{t('planning.forecastPanel.saveReserve', 'Save reserve')}</Button>
         </form>
         <DataBanner warnings={fc.warnings} />
         <details className="text-xs text-muted">
-          <summary className="cursor-pointer">Assumptions</summary>
+          <summary className="cursor-pointer">
+            {t('planning.forecastPanel.assumptions', 'Assumptions')}
+          </summary>
           <ul className="mt-1 list-disc pl-5">
             {fc.assumptions.map((a) => (
               <li key={a}>{a}</li>
             ))}
             <li>
-              Expected counts confirmed and estimated plans; conservative drops uncertain income and
-              keeps all expenses at their maximum; optimistic the reverse. Forecasts are estimates,
-              not guarantees.
+              {t(
+                'planning.forecastPanel.expectedCountsConfirmedAnd',
+                'Expected counts confirmed and estimated plans; conservative drops uncertain income and keeps all expenses at their maximum; optimistic the reverse. Forecasts are estimates, not guarantees.',
+              )}
             </li>
           </ul>
         </details>
         {toMinor(fc.lowest.amount) < 0n && (
-          <p className="sr-only">Warning: the expected balance goes negative.</p>
+          <p className="sr-only">
+            {t(
+              'planning.forecastPanel.warningTheExpectedBalance',
+              'Warning: the expected balance goes negative.',
+            )}
+          </p>
         )}
       </div>
     </Card>

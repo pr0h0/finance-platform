@@ -8,6 +8,7 @@ import {
   type PeriodStatus,
 } from '@finplat/importer-sdk';
 import { useMemo } from 'react';
+import { useT } from '../../lib/i18n.ts';
 import { type Refs, useImportBatches } from '../transactions/data.ts';
 import { Empty, today } from '../transactions/ui.tsx';
 import { useImportSettings } from './store.ts';
@@ -28,6 +29,7 @@ const LABEL: Record<PeriodStatus, string> = {
 };
 
 export function Coverage({ refs }: { refs: Refs }) {
+  const t = useT();
   const batches = useImportBatches();
   const settings = useImportSettings();
   const perAccount = useMemo(() => {
@@ -55,13 +57,19 @@ export function Coverage({ refs }: { refs: Refs }) {
 
   if (!perAccount.length)
     return (
-      <Empty title="No coverage yet">
-        Commit statement imports to see which months are covered per account.
+      <Empty title={t('import.coverage.noCoverageYet', 'No coverage yet')}>
+        {t(
+          'import.coverage.commitStatementImportsTo',
+          'Commit statement imports to see which months are covered per account.',
+        )}
       </Empty>
     );
   return (
     <div className="flex flex-col gap-6">
-      <ul className="flex flex-wrap gap-3 text-xs" aria-label="Legend">
+      <ul
+        className="flex flex-wrap gap-3 text-xs"
+        aria-label={t('import.coverage.legend', 'Legend')}
+      >
         {(Object.keys(LABEL) as PeriodStatus[]).map((s) => (
           <li key={s} className="flex items-center gap-1">
             <span
@@ -80,13 +88,13 @@ export function Coverage({ refs }: { refs: Refs }) {
             <h3 className="mb-2 text-sm font-semibold">
               {refs.accountName(accountId)}{' '}
               <span className="font-normal text-muted">
-                · {gaps ? `${gaps} months with gaps` : 'no gaps'}
+                · {gaps ? `${gaps} months with gaps` : t('import.coverage.noGaps', 'no gaps')}
               </span>
             </h3>
             <table className="text-xs">
               <thead>
                 <tr>
-                  <th className="sr-only">Year</th>
+                  <th className="sr-only">{t('import.coverage.year', 'Year')}</th>
                   {['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'].map((m, i) => (
                     // biome-ignore lint/suspicious/noArrayIndexKey: month letters repeat
                     <th key={i} className="w-7 font-normal text-muted">

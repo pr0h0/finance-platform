@@ -5,6 +5,7 @@ import type { Money } from '@finplat/finance-engine';
 import { Plus, Trash2 } from 'lucide-react';
 import { type FormEvent, useState } from 'react';
 import { useFormat } from '../../lib/format.ts';
+import { useT } from '../../lib/i18n.ts';
 import { useOpsMutation } from '../analytics/hooks.ts';
 import { type Snapshot, todayIso } from '../analytics/snapshot.ts';
 import { Button, ErrorText, Field, Input, parseMoneyInput, Select } from '../analytics/ui.tsx';
@@ -36,6 +37,7 @@ export function BudgetEditor({
   asTemplate?: boolean;
   onDone: () => void;
 }) {
+  const t = useT();
   const f = useFormat();
   const init = budget ?? prefill;
   const [name, setName] = useState(init?.name ?? '');
@@ -106,10 +108,16 @@ export function BudgetEditor({
   const cats = snap.categories.filter((c) => c.kind === 'expense' && !c.isArchived);
   return (
     <form onSubmit={submit} className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-      <Field label={template ? 'Template name' : 'Name'}>
+      <Field
+        label={
+          template
+            ? t('budgets.budgetEditor.templateName', 'Template name')
+            : t('profiles.name', 'Name')
+        }
+      >
         <Input required value={name} onChange={(e) => setName(e.target.value)} />
       </Field>
-      <Field label="Period">
+      <Field label={t('budgets.budgetEditor.period', 'Period')}>
         <Select
           value={periodType}
           onChange={(e) => setPeriodType(e.target.value as typeof periodType)}
@@ -121,7 +129,7 @@ export function BudgetEditor({
           ))}
         </Select>
       </Field>
-      <Field label="Starts">
+      <Field label={t('budgets.budgetEditor.starts', 'Starts')}>
         <Input
           type="date"
           required
@@ -129,7 +137,13 @@ export function BudgetEditor({
           onChange={(e) => setStartDate(e.target.value)}
         />
       </Field>
-      <Field label={periodType === 'custom' ? 'Ends (required)' : 'Ends (optional)'}>
+      <Field
+        label={
+          periodType === 'custom'
+            ? t('budgets.budgetEditor.endsRequired', 'Ends (required)')
+            : t('budgets.budgetEditor.endsOptional', 'Ends (optional)')
+        }
+      >
         <Input
           type="date"
           required={periodType === 'custom'}
@@ -138,7 +152,10 @@ export function BudgetEditor({
         />
       </Field>
       {(periodType === 'monthly' || periodType === 'quarterly' || periodType === 'yearly') && (
-        <Field label="Period starts on day" hint="e.g. salary day; clamped to the month end">
+        <Field
+          label={t('budgets.budgetEditor.periodStartsOnDay', 'Period starts on day')}
+          hint={t('budgets.budgetEditor.eGSalaryDay', 'e.g. salary day; clamped to the month end')}
+        >
           <Input
             type="number"
             min={1}
@@ -148,14 +165,14 @@ export function BudgetEditor({
           />
         </Field>
       )}
-      <Field label="Currency">
+      <Field label={t('profiles.currency', 'Currency')}>
         <Select value={currency} onChange={(e) => setCurrency(e.target.value)} disabled={!!budget}>
           {currencies.map((c) => (
             <option key={c}>{c}</option>
           ))}
         </Select>
       </Field>
-      <Field label="Rollover">
+      <Field label={t('budgets.budgetEditor.rollover', 'Rollover')}>
         <Select value={rollover} onChange={(e) => setRollover(e.target.value as typeof rollover)}>
           {ROLLOVER_POLICIES.map((r) => (
             <option key={r} value={r}>
@@ -164,7 +181,7 @@ export function BudgetEditor({
           ))}
         </Select>
       </Field>
-      <Field label="Alert at (% of limit)">
+      <Field label={t('budgets.budgetEditor.alertAtOfLimit', 'Alert at (% of limit)')}>
         <Input value={thresholds} onChange={(e) => setThresholds(e.target.value)} />
       </Field>
       <label className="col-span-full flex items-center gap-2 text-sm">
@@ -173,22 +190,29 @@ export function BudgetEditor({
           checked={includePlanned}
           onChange={(e) => setIncludePlanned(e.target.checked)}
         />
-        Count planned (committed) expenses against the remaining amount
+        {t(
+          'budgets.budgetEditor.countPlannedCommittedExpenses',
+          'Count planned (committed) expenses against the remaining amount',
+        )}
       </label>
       <fieldset className="col-span-full space-y-2 rounded-md border border-line p-3">
-        <legend className="px-1 text-sm font-medium">Limits</legend>
+        <legend className="px-1 text-sm font-medium">
+          {t('budgets.budgetEditor.limits', 'Limits')}
+        </legend>
         {lines.map((l, i) => (
           // biome-ignore lint/suspicious/noArrayIndexKey: editable rows without ids
           <div key={i} className="flex gap-2">
             <Select
-              aria-label="Category"
+              aria-label={t('transaction.category', 'Category')}
               className="flex-1"
               value={l.categoryId}
               onChange={(e) =>
                 setLines(lines.map((x, j) => (j === i ? { ...x, categoryId: e.target.value } : x)))
               }
             >
-              <option value="">All spending (overall limit)</option>
+              <option value="">
+                {t('budgets.budgetEditor.allSpendingOverallLimit', 'All spending (overall limit)')}
+              </option>
               {cats.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
@@ -206,7 +230,7 @@ export function BudgetEditor({
             />
             <Button
               variant="ghost"
-              aria-label="Remove limit"
+              aria-label={t('budgets.budgetEditor.removeLimit', 'Remove limit')}
               onClick={() => setLines(lines.filter((_, j) => j !== i))}
             >
               <Trash2 aria-hidden className="size-4" />
@@ -217,19 +241,22 @@ export function BudgetEditor({
           variant="ghost"
           onClick={() => setLines([...lines, { categoryId: '', amount: '' }])}
         >
-          <Plus aria-hidden className="size-4" /> Add limit
+          <Plus aria-hidden className="size-4" /> {t('budgets.budgetEditor.addLimit', 'Add limit')}
         </Button>
         <p className="text-xs text-muted">
-          Category limits include their subcategories. You do not need to allocate all income.
+          {t(
+            'budgets.budgetEditor.categoryLimitsIncludeTheir',
+            'Category limits include their subcategories. You do not need to allocate all income.',
+          )}
         </p>
       </fieldset>
       <div className="col-span-full">
         <ErrorText error={err} />
       </div>
       <div className="col-span-full flex justify-end gap-2">
-        <Button onClick={onDone}>Cancel</Button>
+        <Button onClick={onDone}>{t('common.cancel', 'Cancel')}</Button>
         <Button type="submit" variant="primary" disabled={save.isPending}>
-          Save
+          {t('common.save', 'Save')}
         </Button>
       </div>
     </form>

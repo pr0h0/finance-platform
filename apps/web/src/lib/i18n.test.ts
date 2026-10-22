@@ -7,19 +7,7 @@ import ts from 'typescript';
 import { bs } from './messages.bs.ts';
 
 const SRC = join(import.meta.dir, '..');
-// Areas other agents are still building; their strings are converted by the integrator.
-// ponytail: shrink this list to [] once those areas use t(); the test then covers everything.
-const PENDING = [
-  'features/import/',
-  'features/budgets/',
-  'features/planning/',
-  'features/analytics/',
-  'mcp/',
-  'pages/import/',
-  'pages/budgets/',
-  'pages/planning/',
-  'pages/analytics/',
-];
+const PENDING: string[] = [];
 // JSX attributes that carry user-visible text.
 const TEXT_ATTRS = new Set([
   'aria-label',

@@ -8,6 +8,7 @@ import { ImportWizard, MANIFESTS } from '../../features/import/ImportWizard.tsx'
 import { MappingEditor } from '../../features/import/MappingEditor.tsx';
 import { useRefs } from '../../features/transactions/data.ts';
 import { Badge, PageHeader, Tabs } from '../../features/transactions/ui.tsx';
+import { useT } from '../../lib/i18n.ts';
 
 const TABS = [
   { id: 'import', label: 'Import' },
@@ -20,6 +21,7 @@ const TABS = [
 type Tab = (typeof TABS)[number]['id'];
 
 export default function ImportPage() {
+  const t = useT();
   const refs = useRefs();
   const [params, setParams] = useSearchParams();
   const tab = (TABS.find((t) => t.id === params.get('tab'))?.id ?? 'import') as Tab;
@@ -34,11 +36,18 @@ export default function ImportPage() {
 
   return (
     <div>
-      <PageHeader title="Import center">
-        Statements are parsed in your browser. Original records are kept unchanged; transactions can
-        be rolled back per import.
+      <PageHeader title={t('import.page.importCenter', 'Import center')}>
+        {t(
+          'import.page.statementsAreParsedIn',
+          'Statements are parsed in your browser. Original records are kept unchanged; transactions can be rolled back per import.',
+        )}
       </PageHeader>
-      <Tabs label="Import center" value={tab} onChange={setTab} tabs={TABS} />
+      <Tabs
+        label={t('import.page.importCenter', 'Import center')}
+        value={tab}
+        onChange={setTab}
+        tabs={TABS}
+      />
       {tab === 'import' && !refs.loading && (
         <ImportWizard
           key={reprocess?.n ?? 0}
@@ -66,16 +75,20 @@ export default function ImportPage() {
               <p className="flex flex-wrap items-center gap-2 font-medium">
                 {m.name} <span className="text-xs text-muted">{m.version}</span>
                 {m.status === 'blocked_external' ? (
-                  <Badge tone="amber">awaiting format</Badge>
+                  <Badge tone="amber">{t('import.page.awaitingFormat', 'awaiting format')}</Badge>
                 ) : m.status === 'beta' ? (
-                  <Badge tone="blue">beta</Badge>
+                  <Badge tone="blue">{t('import.page.beta', 'beta')}</Badge>
                 ) : (
-                  <Badge tone="green">stable</Badge>
+                  <Badge tone="green">{t('import.page.stable', 'stable')}</Badge>
                 )}
-                {m.requiresTemplate && <Badge>needs mapping template</Badge>}
+                {m.requiresTemplate && (
+                  <Badge>{t('import.page.needsMappingTemplate', 'needs mapping template')}</Badge>
+                )}
               </p>
               <p className="text-xs text-muted">
-                {m.formats.length ? m.formats.join(', ') : 'format not yet known'}
+                {m.formats.length
+                  ? m.formats.join(', ')
+                  : t('import.page.formatNotYetKnown', 'format not yet known')}
               </p>
               {m.limitations?.map((l) => (
                 <p key={l} className="text-xs text-muted">

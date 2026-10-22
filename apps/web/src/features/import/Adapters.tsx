@@ -7,6 +7,7 @@ import {
   validateAdapter,
 } from '@finplat/importer-sdk';
 import { useState } from 'react';
+import { useT } from '../../lib/i18n.ts';
 import { useLedgerEnv } from '../transactions/data.ts';
 import { Badge, Button, Empty, ErrorText, Field, inputCls } from '../transactions/ui.tsx';
 import { type StoredAdapter, useAdapters } from './adapters.ts';
@@ -35,6 +36,7 @@ const blank = (): StoredAdapter => ({
 });
 
 export function Adapters() {
+  const t = useT();
   const { profileId } = useLedgerEnv();
   const { list, granted, save, remove } = useAdapters(profileId);
   const [edit, setEdit] = useState<StoredAdapter | null>(null);
@@ -56,13 +58,17 @@ export function Adapters() {
   return (
     <div className="flex flex-col gap-4">
       <p className="text-sm text-muted">
-        A custom adapter is JavaScript you write or paste to read a bank format the bundled
-        importers do not cover. It is stored only on this device for this profile and runs in a
-        sandbox: it receives the text of the file you import with it and nothing else.
+        {t(
+          'import.adapters.aCustomAdapterIs',
+          'A custom adapter is JavaScript you write or paste to read a bank format the bundled importers do not cover. It is stored only on this device for this profile and runs in a sandbox: it receives the text of the file you import with it and nothing else.',
+        )}
       </p>
       {list.length === 0 && !edit && (
-        <Empty title="No custom adapters">
-          Bundled importers and mapping templates cover most banks.
+        <Empty title={t('import.adapters.noCustomAdapters', 'No custom adapters')}>
+          {t(
+            'import.adapters.bundledImportersAndMapping',
+            'Bundled importers and mapping templates cover most banks.',
+          )}
         </Empty>
       )}
       {list.length > 0 && (
@@ -71,20 +77,21 @@ export function Adapters() {
             <li key={a.id} className="flex flex-wrap items-center gap-2 px-3 py-2 text-sm">
               <span className="font-medium">{a.name}</span>
               <span className="text-xs text-muted">
-                custom-{a.id} · {a.version} · {a.format}
+                {t('import.adapters.custom', 'custom-')}
+                {a.id} · {a.version} · {a.format}
               </span>
               {grantedIds.has(a.id) ? (
-                <Badge tone="green">allowed</Badge>
+                <Badge tone="green">{t('import.adapters.allowed', 'allowed')}</Badge>
               ) : (
-                <Badge tone="amber">not allowed</Badge>
+                <Badge tone="amber">{t('import.adapters.notAllowed', 'not allowed')}</Badge>
               )}
               <span className="ml-auto flex gap-1">
                 <Button size="sm" onClick={() => setEdit({ ...a })}>
-                  Edit
+                  {t('common.edit', 'Edit')}
                 </Button>
                 {grantedIds.has(a.id) && (
                   <Button size="sm" onClick={() => save({ ...a, grant: undefined }, false)}>
-                    Revoke
+                    {t('auth.revoke', 'Revoke')}
                   </Button>
                 )}
                 <Button
@@ -92,7 +99,7 @@ export function Adapters() {
                   variant="danger"
                   onClick={() => window.confirm(`Delete adapter ${a.name}?`) && remove(a.id)}
                 >
-                  Delete
+                  {t('common.delete', 'Delete')}
                 </Button>
               </span>
             </li>
@@ -101,7 +108,9 @@ export function Adapters() {
       )}
       {!edit && (
         <div>
-          <Button onClick={() => setEdit(blank())}>New adapter</Button>
+          <Button onClick={() => setEdit(blank())}>
+            {t('import.adapters.newAdapter', 'New adapter')}
+          </Button>
         </div>
       )}
       {edit && (
@@ -113,7 +122,7 @@ export function Adapters() {
           }}
         >
           <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
-            <Field label="Name">
+            <Field label={t('profiles.name', 'Name')}>
               {(id) => (
                 <input
                   id={id}
@@ -123,7 +132,10 @@ export function Adapters() {
                 />
               )}
             </Field>
-            <Field label="Id" hint="lowercase, digits, dashes">
+            <Field
+              label={t('import.adapters.id', 'Id')}
+              hint={t('import.adapters.lowercaseDigitsDashes', 'lowercase, digits, dashes')}
+            >
               {(id, d) => (
                 <input
                   id={id}
@@ -134,7 +146,7 @@ export function Adapters() {
                 />
               )}
             </Field>
-            <Field label="Version">
+            <Field label={t('admin.version', 'Version')}>
               {(id) => (
                 <input
                   id={id}
@@ -144,7 +156,7 @@ export function Adapters() {
                 />
               )}
             </Field>
-            <Field label="Format">
+            <Field label={t('import.adapters.format', 'Format')}>
               {(id) => (
                 <select
                   id={id}
@@ -160,8 +172,11 @@ export function Adapters() {
             </Field>
           </div>
           <Field
-            label="Code"
-            hint="Plain script defining parse(input) and optionally detect(input)"
+            label={t('import.adapters.code', 'Code')}
+            hint={t(
+              'import.adapters.plainScriptDefiningParse',
+              'Plain script defining parse(input) and optionally detect(input)',
+            )}
           >
             {(id, d) => (
               <textarea
@@ -175,7 +190,7 @@ export function Adapters() {
             )}
           </Field>
           <label className="text-xs">
-            Load from file{' '}
+            {t('import.adapters.loadFromFile', 'Load from file')}{' '}
             <input
               type="file"
               accept=".js,text/javascript,text/plain"
@@ -185,35 +200,59 @@ export function Adapters() {
               }}
             />
           </label>
-          <section aria-label="Permissions" className="rounded-md border border-line p-3 text-sm">
-            <p className="font-medium">What this adapter is allowed to do</p>
+          <section
+            aria-label={t('mcp.edit', 'Permissions')}
+            className="rounded-md border border-line p-3 text-sm"
+          >
+            <p className="font-medium">
+              {t('import.adapters.whatThisAdapterIs', 'What this adapter is allowed to do')}
+            </p>
             <ul className="ml-4 list-disc text-xs">
-              <li>Read the text of a statement file when you import it with this adapter.</li>
               <li>
-                Return records, which are validated (dates, exact decimal amounts, currencies)
-                before staging.
+                {t(
+                  'import.adapters.readTheTextOf',
+                  'Read the text of a statement file when you import it with this adapter.',
+                )}
+              </li>
+              <li>
+                {t(
+                  'import.adapters.returnRecordsWhichAre',
+                  'Return records, which are validated (dates, exact decimal amounts, currencies) before staging.',
+                )}
               </li>
             </ul>
-            <p className="mt-2 font-medium">What it cannot do</p>
+            <p className="mt-2 font-medium">
+              {t('import.adapters.whatItCannotDo', 'What it cannot do')}
+            </p>
             <ul className="ml-4 list-disc text-xs">
               <li>
-                No network, no other files, no access to this page, your ledger or other profiles.
+                {t(
+                  'import.adapters.noNetworkNoOther',
+                  'No network, no other files, no access to this page, your ledger or other profiles.',
+                )}
               </li>
               <li>
-                Stops after {L.timeoutMs / 1000} s of CPU time or {L.memoryBytes / 1024 / 1024} MB
-                of memory; files over {L.maxInputBytes / 1024 / 1024} MB are refused.
+                {t('import.adapters.stopsAfter', 'Stops after')} {L.timeoutMs / 1000}{' '}
+                {t('import.adapters.sOfCpuTime', 's of CPU time or')} {L.memoryBytes / 1024 / 1024}{' '}
+                {t('import.adapters.mbOfMemoryFiles', 'MB of memory; files over')}{' '}
+                {L.maxInputBytes / 1024 / 1024}{' '}
+                {t('import.adapters.mbAreRefused', 'MB are refused.')}
               </li>
             </ul>
             <label className="mt-2 flex items-center gap-2 text-xs">
               <input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} />
-              I reviewed this code and allow it to read the statements I import with it. Editing the
-              code later removes this permission.
+              {t(
+                'import.adapters.iReviewedThisCode',
+                'I reviewed this code and allow it to read the statements I import with it. Editing the code later removes this permission.',
+              )}
             </label>
           </section>
           <ErrorText error={err} />
           <div className="flex gap-2">
             <Button type="submit" variant="primary">
-              {agree ? 'Save and allow' : 'Save (not allowed yet)'}
+              {agree
+                ? t('import.adapters.saveAndAllow', 'Save and allow')
+                : t('import.adapters.saveNotAllowedYet', 'Save (not allowed yet)')}
             </Button>
             <Button
               onClick={() => {
@@ -222,7 +261,7 @@ export function Adapters() {
                 setAgree(false);
               }}
             >
-              Cancel
+              {t('common.cancel', 'Cancel')}
             </Button>
           </div>
         </form>

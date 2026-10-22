@@ -18,6 +18,7 @@ import {
   YAxis,
 } from 'recharts';
 import { useFormat } from '../../lib/format.ts';
+import { useT } from '../../lib/i18n.ts';
 import { downloadChartPng } from '../reports/export.ts';
 import { Button } from './ui.tsx';
 
@@ -183,6 +184,7 @@ export function ChartFrame({
   children: ReactNode;
   table?: ReactNode;
 }) {
+  const t = useT();
   const ref = useRef<HTMLDivElement>(null);
   return (
     <div>
@@ -196,11 +198,13 @@ export function ChartFrame({
             downloadChartPng(ref.current, `${name}.png`).catch((e) => alert((e as Error).message))
           }
         >
-          Export PNG
+          {t('analytics.chart.exportPng', 'Export PNG')}
         </Button>
         {table && (
           <details className="w-full text-sm">
-            <summary className="cursor-pointer text-xs text-muted">Show as table</summary>
+            <summary className="cursor-pointer text-xs text-muted">
+              {t('analytics.chart.showAsTable', 'Show as table')}
+            </summary>
             <div className="mt-2 overflow-x-auto">{table}</div>
           </details>
         )}

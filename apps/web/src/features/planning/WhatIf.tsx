@@ -5,6 +5,7 @@ import type { ScenarioAdjustment } from '@finplat/forecasting';
 import { Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useFormat } from '../../lib/format.ts';
+import { useT } from '../../lib/i18n.ts';
 import { MoneyChart } from '../analytics/chart.tsx';
 import type { Snapshot } from '../analytics/snapshot.ts';
 import {
@@ -33,6 +34,7 @@ type Draft = {
 };
 
 export function WhatIf({ snap }: { snap: Snapshot }) {
+  const t = useT();
   const f = useFormat();
   const accounts = snap.accounts.filter((a) => !a.isArchived);
   const [months, setMonths] = useState(6);
@@ -101,24 +103,31 @@ export function WhatIf({ snap }: { snap: Snapshot }) {
   const step = Math.max(1, Math.floor(rows.length / 120));
 
   return (
-    <Card title="What-if scenarios (simulation only, nothing is saved)">
+    <Card
+      title={t(
+        'planning.whatIf.whatIfScenariosSimulation',
+        'What-if scenarios (simulation only, nothing is saved)',
+      )}
+    >
       <div className="space-y-4">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-          <Field label="Change">
+          <Field label={t('lock.change', 'Change')}>
             <Select
               value={d.type}
               onChange={(e) => setD({ ...d, type: e.target.value as Draft['type'] })}
             >
-              <option value="purchase">Purchase</option>
-              <option value="expense_change">New recurring expense</option>
-              <option value="income">Income change</option>
-              <option value="remove">Remove a plan</option>
+              <option value="purchase">{t('planning.whatIf.purchase', 'Purchase')}</option>
+              <option value="expense_change">
+                {t('planning.whatIf.newRecurringExpense', 'New recurring expense')}
+              </option>
+              <option value="income">{t('planning.whatIf.incomeChange', 'Income change')}</option>
+              <option value="remove">{t('planning.whatIf.removeAPlan', 'Remove a plan')}</option>
             </Select>
           </Field>
           {d.type === 'remove' ? (
-            <Field label="Plan">
+            <Field label={t('transactions.detailDrawer.plan', 'Plan')}>
               <Select value={d.planId} onChange={(e) => setD({ ...d, planId: e.target.value })}>
-                <option value="">Choose…</option>
+                <option value="">{t('quick.choose', 'Choose…')}</option>
                 {snap.plans
                   .filter((p) => p.status === 'active')
                   .map((p) => (
@@ -130,27 +139,33 @@ export function WhatIf({ snap }: { snap: Snapshot }) {
             </Field>
           ) : (
             <>
-              <Field label="Description">
+              <Field label={t('transaction.description', 'Description')}>
                 <Input
                   value={d.description}
                   onChange={(e) => setD({ ...d, description: e.target.value })}
                 />
               </Field>
-              <Field label="Amount">
+              <Field label={t('transaction.amount', 'Amount')}>
                 <Input
                   inputMode="decimal"
                   value={d.amount}
                   onChange={(e) => setD({ ...d, amount: e.target.value })}
                 />
               </Field>
-              <Field label={d.recurring || d.type === 'expense_change' ? 'Starting' : 'Date'}>
+              <Field
+                label={
+                  d.recurring || d.type === 'expense_change'
+                    ? t('planning.whatIf.starting', 'Starting')
+                    : t('transaction.date', 'Date')
+                }
+              >
                 <Input
                   type="date"
                   value={d.date}
                   onChange={(e) => setD({ ...d, date: e.target.value })}
                 />
               </Field>
-              <Field label="Account">
+              <Field label={t('quick.account', 'Account')}>
                 <Select
                   value={d.accountId}
                   onChange={(e) => setD({ ...d, accountId: e.target.value })}
@@ -169,24 +184,24 @@ export function WhatIf({ snap }: { snap: Snapshot }) {
                   disabled={d.type === 'expense_change'}
                   onChange={(e) => setD({ ...d, recurring: e.target.checked })}
                 />
-                Monthly
+                {t('backup.monthly', 'Monthly')}
               </label>
             </>
           )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button onClick={() => add()} disabled={!accounts.length}>
-            Add to scenario
+            {t('planning.whatIf.addToScenario', 'Add to scenario')}
           </Button>
           <Select
-            aria-label="Horizon"
+            aria-label={t('planning.whatIf.horizon', 'Horizon')}
             className="w-auto"
             value={months}
             onChange={(e) => setMonths(Number(e.target.value))}
           >
             {HORIZONS.map((h) => (
               <option key={h} value={h}>
-                {h} months
+                {h} {t('planning.whatIf.months', 'months')}
               </option>
             ))}
           </Select>
@@ -198,7 +213,7 @@ export function WhatIf({ snap }: { snap: Snapshot }) {
                 setLabels([]);
               }}
             >
-              Clear
+              {t('planning.whatIf.clear', 'Clear')}
             </Button>
           )}
         </div>
@@ -227,50 +242,57 @@ export function WhatIf({ snap }: { snap: Snapshot }) {
           <>
             <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
               <Stat
-                label="Lowest balance"
+                label={t('planning.whatIf.lowestBalance', 'Lowest balance')}
                 value={<Amount value={result.scenario.lowest.amount} tone />}
                 hint={
                   <>
-                    change <Amount value={result.delta.lowest} tone />
+                    {t('planning.whatIf.change2', 'change')}{' '}
+                    <Amount value={result.delta.lowest} tone />
                   </>
                 }
               />
               <Stat
-                label="Month-end"
+                label={t('planning.whatIf.monthEnd', 'Month-end')}
                 value={<Amount value={result.scenario.monthEnd} tone />}
                 hint={
                   <>
-                    change <Amount value={result.delta.monthEnd} tone />
+                    {t('planning.whatIf.change2', 'change')}{' '}
+                    <Amount value={result.delta.monthEnd} tone />
                   </>
                 }
               />
               <Stat
-                label="Safe to spend"
+                label={t('planning.whatIf.safeToSpend', 'Safe to spend')}
                 value={<Amount value={result.scenario.safeToSpend} />}
                 hint={
                   <>
-                    change <Amount value={result.delta.safeToSpend} tone />
+                    {t('planning.whatIf.change2', 'change')}{' '}
+                    <Amount value={result.delta.safeToSpend} tone />
                   </>
                 }
               />
               <Stat
-                label="End balance"
+                label={t('planning.whatIf.endBalance', 'End balance')}
                 value={<Amount value={result.scenario.days.at(-1)?.expected} tone />}
                 hint={
                   <>
-                    change <Amount value={result.delta.end} tone />
+                    {t('planning.whatIf.change2', 'change')}{' '}
+                    <Amount value={result.delta.end} tone />
                   </>
                 }
               />
             </div>
             {result.scenario.shortfalls.length > 0 && (
               <p role="alert" className="text-sm text-neg">
-                This scenario causes a shortfall from{' '}
+                {t('planning.whatIf.thisScenarioCausesA', 'This scenario causes a shortfall from')}{' '}
                 {f.date(result.scenario.shortfalls[0]?.date as string)}.
               </p>
             )}
             <MoneyChart
-              title="Baseline versus scenario expected balance"
+              title={t(
+                'planning.whatIf.baselineVersusScenarioExpected',
+                'Baseline versus scenario expected balance',
+              )}
               rows={rows.filter((_, i) => i % step === 0)}
               series={[
                 { key: 'baseline', label: 'Baseline', color: SERIES[0] as string, kind: 'line' },

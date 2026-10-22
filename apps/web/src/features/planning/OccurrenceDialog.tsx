@@ -3,6 +3,7 @@
 import { addDays, toMinor } from '@finplat/finance-engine';
 import { useState } from 'react';
 import { useFormat } from '../../lib/format.ts';
+import { useT } from '../../lib/i18n.ts';
 import { useOpsMutation } from '../analytics/hooks.ts';
 import type { Snapshot } from '../analytics/snapshot.ts';
 import {
@@ -29,6 +30,7 @@ export function OccurrenceDetail({
   onEditPlan: () => void;
   onDone: () => void;
 }) {
+  const t = useT();
   const f = useFormat();
   const [amount, setAmount] = useState(row.amount.amount);
   const [date, setDate] = useState(row.date);
@@ -58,16 +60,19 @@ export function OccurrenceDetail({
   return (
     <div className="space-y-4 text-sm">
       <dl className="grid grid-cols-2 gap-x-4 gap-y-1">
-        <dt className="text-muted">Plan</dt>
+        <dt className="text-muted">{t('transactions.detailDrawer.plan', 'Plan')}</dt>
         <dd>{row.plan.description}</dd>
-        <dt className="text-muted">Date</dt>
+        <dt className="text-muted">{t('transaction.date', 'Date')}</dt>
         <dd>
           {f.date(row.date)}
           {row.date !== row.occurrenceDate && (
-            <span className="text-muted"> (scheduled {f.date(row.occurrenceDate)})</span>
+            <span className="text-muted">
+              {' '}
+              {t('planning.occurrenceDialog.scheduled', '(scheduled')} {f.date(row.occurrenceDate)})
+            </span>
           )}
         </dd>
-        <dt className="text-muted">Amount</dt>
+        <dt className="text-muted">{t('transaction.amount', 'Amount')}</dt>
         <dd>
           <Amount value={row.amount} />
           {row.plan.amountMin && row.plan.amountMax && (
@@ -77,34 +82,44 @@ export function OccurrenceDetail({
             </span>
           )}
         </dd>
-        <dt className="text-muted">Status</dt>
-        <dd>{row.overdue ? 'overdue' : row.status.replace('_', ' ')}</dd>
-        <dt className="text-muted">Priority / confidence</dt>
+        <dt className="text-muted">{t('sync.status', 'Status')}</dt>
+        <dd>
+          {row.overdue
+            ? t('planning.occurrenceDialog.overdue', 'overdue')
+            : row.status.replace('_', ' ')}
+        </dd>
+        <dt className="text-muted">
+          {t('planning.occurrenceDialog.priorityConfidence', 'Priority / confidence')}
+        </dt>
         <dd>
           {PRIORITY_LABEL[row.plan.priority]} · {CONFIDENCE_LABEL[row.plan.confidence]}
         </dd>
         {schedule && (
           <>
-            <dt className="text-muted">Repeats</dt>
+            <dt className="text-muted">{t('planning.occurrenceDialog.repeats', 'Repeats')}</dt>
             <dd>{describeRRule(schedule.rrule)}</dd>
           </>
         )}
         {row.installmentNo && (
           <>
-            <dt className="text-muted">Installment</dt>
+            <dt className="text-muted">
+              {t('planning.occurrenceDialog.installment', 'Installment')}
+            </dt>
             <dd>
-              {row.installmentNo} of {row.plan.installmentTotal}
+              {row.installmentNo} {t('goals.page.of', 'of')} {row.plan.installmentTotal}
             </dd>
           </>
         )}
       </dl>
 
       <fieldset className="grid grid-cols-2 gap-3 rounded-md border border-line p-3">
-        <legend className="px-1 font-medium">Change this occurrence only</legend>
+        <legend className="px-1 font-medium">
+          {t('planning.occurrenceDialog.changeThisOccurrenceOnly', 'Change this occurrence only')}
+        </legend>
         <Field label={`Amount (${row.amount.currency})`}>
           <Input inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />
         </Field>
-        <Field label="Date">
+        <Field label={t('transaction.date', 'Date')}>
           <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
         </Field>
         <div className="col-span-2">
@@ -120,15 +135,17 @@ export function OccurrenceDetail({
               });
             }}
           >
-            Save change
+            {t('planning.occurrenceDialog.saveChange', 'Save change')}
           </Button>
         </div>
       </fieldset>
 
       <fieldset className="space-y-2 rounded-md border border-line p-3">
-        <legend className="px-1 font-medium">Match to a recorded transaction</legend>
+        <legend className="px-1 font-medium">
+          {t('planning.occurrenceDialog.matchToARecorded', 'Match to a recorded transaction')}
+        </legend>
         <Select value={match} onChange={(e) => setMatch(e.target.value)} className="w-full">
-          <option value="">Choose…</option>
+          <option value="">{t('quick.choose', 'Choose…')}</option>
           {candidates.map((t) => (
             <option key={t.id} value={t.id}>
               {t.bookingDate} · {t.description || t.payee || t.kind} ·{' '}
@@ -137,13 +154,16 @@ export function OccurrenceDetail({
           ))}
         </Select>
         <p className="text-xs text-muted">
-          A matched occurrence is no longer counted as planned, so the payment counts once.
+          {t(
+            'planning.occurrenceDialog.aMatchedOccurrenceIs',
+            'A matched occurrence is no longer counted as planned, so the payment counts once.',
+          )}
         </p>
         <Button
           disabled={!match}
           onClick={() => go({ status: 'matched', matchedTransactionId: match })}
         >
-          Match
+          {t('transactions.detailDrawer.match', 'Match')}
         </Button>
       </fieldset>
 
@@ -151,10 +171,10 @@ export function OccurrenceDetail({
       <div className="flex flex-wrap justify-between gap-2">
         <div className="flex flex-wrap gap-2">
           <Button onClick={() => go({ status: 'paid_manual', matchedTransactionId: null })}>
-            Mark paid
+            {t('planning.occurrenceDialog.markPaid', 'Mark paid')}
           </Button>
           <Button onClick={() => go({ status: 'skipped', matchedTransactionId: null })}>
-            Skip
+            {t('common.skip', 'Skip')}
           </Button>
           {row.stored && (
             <Button
@@ -167,12 +187,12 @@ export function OccurrenceDetail({
                 })
               }
             >
-              Reset
+              {t('planning.occurrenceDialog.reset', 'Reset')}
             </Button>
           )}
         </div>
         <Button variant="ghost" onClick={onEditPlan}>
-          Edit whole series…
+          {t('planning.occurrenceDialog.editWholeSeries', 'Edit whole series…')}
         </Button>
       </div>
     </div>

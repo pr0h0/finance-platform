@@ -10,6 +10,7 @@ import {
 } from '@finplat/importer-sdk';
 import { Download, Plus, Trash2, Upload } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import { useT } from '../../lib/i18n.ts';
 import { describeError, useLedgerEnv } from '../transactions/data.ts';
 import { Button, download, ErrorText, Field, inputCls, MoneyText } from '../transactions/ui.tsx';
 import { useDeleteTemplate, useImportSettings, useSaveTemplate } from './store.ts';
@@ -71,11 +72,12 @@ const fmtOf = (name: string): ImportTemplateInput['format'] | null => {
 };
 
 export function MappingEditor() {
+  const t = useT();
   const { locale } = useLedgerEnv();
   const settings = useImportSettings();
   const save = useSaveTemplate();
   const del = useDeleteTemplate();
-  const [t, setT] = useState<ImportTemplateInput>(blank);
+  const [tpl, setT] = useState<ImportTemplateInput>(blank);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [sample, setSample] = useState<File | null>(null);
   const [preview, setPreview] = useState<TablePreview | null>(null);
@@ -96,16 +98,16 @@ export function MappingEditor() {
 
   // Preview rows of the sample (re-read when format/delimiter/encoding/sheet change).
   useEffect(() => {
-    if (!sample || (t.format !== 'csv' && t.format !== 'tsv' && t.format !== 'xlsx'))
+    if (!sample || (tpl.format !== 'csv' && tpl.format !== 'tsv' && tpl.format !== 'xlsx'))
       return setPreview(null);
     let live = true;
     callWorker({
       kind: 'preview',
       file: sample,
-      format: /\.xls$/i.test(sample.name) ? 'xls' : t.format,
-      delimiter: t.delimiter,
-      encoding: t.encoding,
-      sheet: t.sheet,
+      format: /\.xls$/i.test(sample.name) ? 'xls' : tpl.format,
+      delimiter: tpl.delimiter,
+      encoding: tpl.encoding,
+      sheet: tpl.sheet,
       max: 40,
     })
       .then((r) => live && r.type === 'preview' && setPreview(r.preview))
@@ -113,17 +115,17 @@ export function MappingEditor() {
     return () => {
       live = false;
     };
-  }, [sample, t.format, t.delimiter, t.encoding, t.sheet]);
+  }, [sample, tpl.format, tpl.delimiter, tpl.encoding, tpl.sheet]);
 
-  const skip = t.skipRows ?? 0;
+  const skip = tpl.skipRows ?? 0;
   const headerRow = preview?.rows[skip] ?? [];
-  const dataRows = preview?.rows.slice(skip + (t.header === false ? 0 : 1), skip + 11) ?? [];
+  const dataRows = preview?.rows.slice(skip + (tpl.header === false ? 0 : 1), skip + 11) ?? [];
   const colOptions =
-    t.header === false
+    tpl.header === false
       ? (preview?.rows[skip] ?? []).map((_, i) => ({ v: i, l: `Column ${i + 1}` }))
       : headerRow.filter(Boolean).map((h) => ({ v: h, l: h }));
 
-  const draft = useMemo(() => ({ ...t, id: t.id || slug(t.name) }), [t]);
+  const draft = useMemo(() => ({ ...tpl, id: tpl.id || slug(tpl.name) }), [tpl]);
   const valid = validateTemplate(draft);
 
   const suggest = () => {
@@ -198,14 +200,16 @@ export function MappingEditor() {
   };
 
   const issueFor = (path: string) =>
-    valid.ok || !(tried || t.name)
+    valid.ok || !(tried || tpl.name)
       ? undefined
       : valid.issues.find((i) => i.path === path || i.path.startsWith(`${path}.`))?.message;
 
   return (
     <div className="grid gap-4 lg:grid-cols-[16rem_1fr]">
       <aside className="flex flex-col gap-2">
-        <h3 className="text-sm font-semibold">Saved templates</h3>
+        <h3 className="text-sm font-semibold">
+          {t('import.mappingEditor.savedTemplates', 'Saved templates')}
+        </h3>
         <ul className="flex flex-col gap-1 text-sm">
           {(settings.data?.templates ?? []).map((x) => (
             <li key={x.id} className="flex items-center justify-between gap-1">
@@ -236,8 +240,14 @@ export function MappingEditor() {
                   <Download size={12} aria-hidden />
                 </Button>
                 {settings.data?.community.has(x.id) ? (
-                  <span className="text-xs text-muted" title="Server-wide template (read-only)">
-                    shared
+                  <span
+                    className="text-xs text-muted"
+                    title={t(
+                      'import.mappingEditor.serverWideTemplateRead',
+                      'Server-wide template (read-only)',
+                    )}
+                  >
+                    {t('import.mappingEditor.shared', 'shared')}
                   </span>
                 ) : (
                   <Button
@@ -261,12 +271,14 @@ export function MappingEditor() {
             setTest(null);
           }}
         >
-          <Plus size={12} aria-hidden /> New template
+          <Plus size={12} aria-hidden /> {t('import.mappingEditor.newTemplate', 'New template')}
         </Button>
         <details>
-          <summary className="cursor-pointer text-xs text-muted">Import template JSON</summary>
+          <summary className="cursor-pointer text-xs text-muted">
+            {t('import.mappingEditor.importTemplateJson', 'Import template JSON')}
+          </summary>
           <textarea
-            aria-label="Template JSON"
+            aria-label={t('import.mappingEditor.templateJson', 'Template JSON')}
             rows={6}
             className={`${inputCls} mt-1 h-auto py-1 font-mono text-xs`}
             value={json}
@@ -274,10 +286,10 @@ export function MappingEditor() {
           />
           <div className="mt-1 flex gap-1">
             <Button size="sm" onClick={() => loadJson(json)} disabled={!json.trim()}>
-              Load
+              {t('import.mappingEditor.load', 'Load')}
             </Button>
             <label className="inline-flex h-7 cursor-pointer items-center gap-1 rounded-md border border-line px-2 text-xs">
-              <Upload size={12} aria-hidden /> File
+              <Upload size={12} aria-hidden /> {t('import.mappingEditor.file', 'File')}
               <input
                 type="file"
                 accept=".json,application/json"
@@ -293,7 +305,7 @@ export function MappingEditor() {
 
       <div className="flex flex-col gap-4">
         <section className="flex flex-wrap items-end gap-2">
-          <Field label="Sample statement file">
+          <Field label={t('import.mappingEditor.sampleStatementFile', 'Sample statement file')}>
             {(id) => (
               <input
                 id={id}
@@ -311,7 +323,7 @@ export function MappingEditor() {
             )}
           </Field>
           <Button size="sm" onClick={suggest} disabled={!preview}>
-            Suggest mapping
+            {t('import.mappingEditor.suggestMapping', 'Suggest mapping')}
           </Button>
         </section>
 
@@ -323,7 +335,7 @@ export function MappingEditor() {
                   <tr
                     // biome-ignore lint/suspicious/noArrayIndexKey: preview rows are positional
                     key={i}
-                    className={`border-b border-line ${i < skip ? 'opacity-40' : i === skip && t.header !== false ? 'bg-surface-2 font-semibold' : ''}`}
+                    className={`border-b border-line ${i < skip ? 'opacity-40' : i === skip && tpl.header !== false ? 'bg-surface-2 font-semibold' : ''}`}
                   >
                     <td className="px-1 text-muted tabular-nums">{i + 1}</td>
                     {r.map((c, j) => (
@@ -340,62 +352,67 @@ export function MappingEditor() {
         )}
 
         <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <Field label="Template name" error={issueFor('name')}>
+          <Field
+            label={t('import.mappingEditor.templateName', 'Template name')}
+            error={issueFor('name')}
+          >
             {(id) => (
               <input
                 id={id}
                 className={inputCls}
-                value={t.name}
+                value={tpl.name}
                 onChange={(e) => up({ name: e.target.value })}
               />
             )}
           </Field>
-          <Field label="Id (slug)" error={issueFor('id')}>
+          <Field label={t('import.mappingEditor.idSlug', 'Id (slug)')} error={issueFor('id')}>
             {(id) => (
               <input
                 id={id}
                 className={inputCls}
-                placeholder={slug(t.name)}
-                value={t.id}
+                placeholder={slug(tpl.name)}
+                value={tpl.id}
                 onChange={(e) => up({ id: e.target.value })}
               />
             )}
           </Field>
-          <Field label="Bank">
+          <Field label={t('import.mappingEditor.bank', 'Bank')}>
             {(id) => (
               <input
                 id={id}
                 className={inputCls}
-                value={t.bank?.name ?? ''}
+                value={tpl.bank?.name ?? ''}
                 onChange={(e) =>
-                  up({ bank: e.target.value ? { ...t.bank, name: e.target.value } : undefined })
+                  up({ bank: e.target.value ? { ...tpl.bank, name: e.target.value } : undefined })
                 }
               />
             )}
           </Field>
-          <Field label="Format">
+          <Field label={t('import.mappingEditor.format', 'Format')}>
             {(id) => (
               <select
                 id={id}
                 className={inputCls}
-                value={t.format}
+                value={tpl.format}
                 onChange={(e) => up({ format: e.target.value as ImportTemplateInput['format'] })}
               >
                 <option value="csv">CSV</option>
-                <option value="tsv">TSV</option>
-                <option value="xlsx">XLSX / XLS</option>
-                <option value="pdf">PDF table (text PDF)</option>
+                <option value="tsv">{t('import.mappingEditor.tsv', 'TSV')}</option>
+                <option value="xlsx">{t('import.mappingEditor.xlsxXls', 'XLSX / XLS')}</option>
+                <option value="pdf">
+                  {t('import.mappingEditor.pdfTableTextPdf', 'PDF table (text PDF)')}
+                </option>
               </select>
             )}
           </Field>
-          {(t.format === 'csv' || t.format === 'tsv') && (
+          {(tpl.format === 'csv' || tpl.format === 'tsv') && (
             <>
-              <Field label="Encoding">
+              <Field label={t('import.mappingEditor.encoding', 'Encoding')}>
                 {(id) => (
                   <select
                     id={id}
                     className={inputCls}
-                    value={t.encoding ?? 'auto'}
+                    value={tpl.encoding ?? 'auto'}
                     onChange={(e) =>
                       up({ encoding: e.target.value as ImportTemplateInput['encoding'] })
                     }
@@ -408,21 +425,21 @@ export function MappingEditor() {
                   </select>
                 )}
               </Field>
-              {t.format === 'csv' && (
-                <Field label="Delimiter">
+              {tpl.format === 'csv' && (
+                <Field label={t('import.mappingEditor.delimiter', 'Delimiter')}>
                   {(id) => (
                     <select
                       id={id}
                       className={inputCls}
-                      value={t.delimiter ?? 'auto'}
+                      value={tpl.delimiter ?? 'auto'}
                       onChange={(e) =>
                         up({ delimiter: e.target.value as ImportTemplateInput['delimiter'] })
                       }
                     >
-                      <option value="auto">auto</option>
+                      <option value="auto">{t('import.mappingEditor.auto', 'auto')}</option>
                       <option value=";">;</option>
                       <option value=",">,</option>
-                      <option value={'\t'}>tab</option>
+                      <option value={'\t'}>{t('import.mappingEditor.tab', 'tab')}</option>
                       <option value="|">|</option>
                     </select>
                   )}
@@ -430,13 +447,13 @@ export function MappingEditor() {
               )}
             </>
           )}
-          {t.format === 'xlsx' && preview?.sheets && (
-            <Field label="Sheet">
+          {tpl.format === 'xlsx' && preview?.sheets && (
+            <Field label={t('import.mappingEditor.sheet', 'Sheet')}>
               {(id) => (
                 <select
                   id={id}
                   className={inputCls}
-                  value={String(t.sheet ?? preview.sheets?.[0] ?? '')}
+                  value={String(tpl.sheet ?? preview.sheets?.[0] ?? '')}
                   onChange={(e) => up({ sheet: e.target.value })}
                 >
                   {preview.sheets?.map((s) => (
@@ -446,7 +463,9 @@ export function MappingEditor() {
               )}
             </Field>
           )}
-          <Field label="Rows to skip before the header">
+          <Field
+            label={t('import.mappingEditor.rowsToSkipBefore', 'Rows to skip before the header')}
+          >
             {(id) => (
               <input
                 id={id}
@@ -462,7 +481,7 @@ export function MappingEditor() {
           <label className="flex items-center gap-2 self-end pb-2 text-sm">
             <input
               type="checkbox"
-              checked={t.header !== false}
+              checked={tpl.header !== false}
               onChange={(e) =>
                 up({
                   header: e.target.checked,
@@ -470,14 +489,16 @@ export function MappingEditor() {
                 })
               }
             />{' '}
-            First row is a header
+            {t('import.mappingEditor.firstRowIsA', 'First row is a header')}
           </label>
         </section>
 
         <fieldset className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          <legend className="mb-1 text-sm font-semibold">Columns</legend>
+          <legend className="mb-1 text-sm font-semibold">
+            {t('import.mappingEditor.columns', 'Columns')}
+          </legend>
           {COLS.map((c) => {
-            const cur = t.columns[c.key];
+            const cur = tpl.columns[c.key];
             const v = Array.isArray(cur) ? cur[0] : cur;
             return (
               <Field
@@ -496,13 +517,13 @@ export function MappingEditor() {
                           c.key,
                           e.target.value === ''
                             ? undefined
-                            : t.header === false
+                            : tpl.header === false
                               ? Number(e.target.value)
                               : e.target.value,
                         )
                       }
                     >
-                      <option value="">Not mapped</option>
+                      <option value="">{t('import.mappingEditor.notMapped', 'Not mapped')}</option>
                       {colOptions.map((o) => (
                         <option key={String(o.v)} value={String(o.v)}>
                           {o.l}
@@ -513,14 +534,18 @@ export function MappingEditor() {
                     <input
                       id={id}
                       className={inputCls}
-                      placeholder={t.header === false ? 'column index (0-based)' : 'header text'}
+                      placeholder={
+                        tpl.header === false
+                          ? t('import.mappingEditor.columnIndex0Based', 'column index (0-based)')
+                          : t('import.mappingEditor.headerText', 'header text')
+                      }
                       value={v === undefined ? '' : String(v)}
                       onChange={(e) =>
                         setCol(
                           c.key,
                           e.target.value === ''
                             ? undefined
-                            : t.header === false
+                            : tpl.header === false
                               ? Number(e.target.value)
                               : e.target.value,
                         )
@@ -534,25 +559,29 @@ export function MappingEditor() {
         </fieldset>
 
         <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <Field label="Date format" hint="Tokens YYYY YY MM M DD D" error={issueFor('dateFormat')}>
+          <Field
+            label={t('import.mappingEditor.dateFormat', 'Date format')}
+            hint={t('import.mappingEditor.tokensYyyyYyMm', 'Tokens YYYY YY MM M DD D')}
+            error={issueFor('dateFormat')}
+          >
             {(id, d) => (
               <input
                 id={id}
                 aria-describedby={d}
                 className={inputCls}
-                value={t.dateFormat}
+                value={tpl.dateFormat}
                 onChange={(e) => up({ dateFormat: e.target.value })}
               />
             )}
           </Field>
-          <Field label="Decimal separator">
+          <Field label={t('import.mappingEditor.decimalSeparator', 'Decimal separator')}>
             {(id) => (
               <select
                 id={id}
                 className={inputCls}
-                value={t.number.decimalSeparator}
+                value={tpl.number.decimalSeparator}
                 onChange={(e) =>
-                  up({ number: { ...t.number, decimalSeparator: e.target.value as ',' | '.' } })
+                  up({ number: { ...tpl.number, decimalSeparator: e.target.value as ',' | '.' } })
                 }
               >
                 <option value=",">, (1.234,56)</option>
@@ -560,58 +589,74 @@ export function MappingEditor() {
               </select>
             )}
           </Field>
-          <Field label="Thousands separator" error={issueFor('number')}>
+          <Field
+            label={t('import.mappingEditor.thousandsSeparator', 'Thousands separator')}
+            error={issueFor('number')}
+          >
             {(id) => (
               <select
                 id={id}
                 className={inputCls}
-                value={t.number.thousandsSeparator ?? ''}
+                value={tpl.number.thousandsSeparator ?? ''}
                 onChange={(e) =>
-                  up({ number: { ...t.number, thousandsSeparator: e.target.value as '' } })
+                  up({ number: { ...tpl.number, thousandsSeparator: e.target.value as '' } })
                 }
               >
-                <option value="">none</option>
+                <option value="">{t('import.mappingEditor.none', 'none')}</option>
                 <option value=".">.</option>
                 <option value=",">,</option>
-                <option value=" ">space</option>
+                <option value=" ">{t('import.mappingEditor.space', 'space')}</option>
                 <option value="'">'</option>
               </select>
             )}
           </Field>
-          <Field label="Amount sign">
+          <Field label={t('import.mappingEditor.amountSign', 'Amount sign')}>
             {(id) => (
               <select
                 id={id}
                 className={inputCls}
-                value={t.amountSign ?? 'negative_is_debit'}
+                value={tpl.amountSign ?? 'negative_is_debit'}
                 onChange={(e) =>
                   up({ amountSign: e.target.value as ImportTemplateInput['amountSign'] })
                 }
               >
-                <option value="negative_is_debit">Negative = money out</option>
-                <option value="positive_is_debit">Positive = money out</option>
+                <option value="negative_is_debit">
+                  {t('import.mappingEditor.negativeMoneyOut', 'Negative = money out')}
+                </option>
+                <option value="positive_is_debit">
+                  {t('import.mappingEditor.positiveMoneyOut', 'Positive = money out')}
+                </option>
               </select>
             )}
           </Field>
-          <Field label="Currency (if the file has none)" error={issueFor('currency')}>
+          <Field
+            label={t('import.mappingEditor.currencyIfTheFile', 'Currency (if the file has none)')}
+            error={issueFor('currency')}
+          >
             {(id) => (
               <input
                 id={id}
                 maxLength={3}
                 className={`${inputCls} uppercase`}
-                value={t.currency ?? ''}
+                value={tpl.currency ?? ''}
                 onChange={(e) => up({ currency: e.target.value.toUpperCase() || undefined })}
               />
             )}
           </Field>
-          {t.columns.direction !== undefined && (
+          {tpl.columns.direction !== undefined && (
             <>
-              <Field label="Debit values (comma-separated)" error={issueFor('directionValues')}>
+              <Field
+                label={t(
+                  'import.mappingEditor.debitValuesCommaSeparated',
+                  'Debit values (comma-separated)',
+                )}
+                error={issueFor('directionValues')}
+              >
                 {(id) => (
                   <input
                     id={id}
                     className={inputCls}
-                    value={t.directionValues?.debit.join(',') ?? ''}
+                    value={tpl.directionValues?.debit.join(',') ?? ''}
                     onChange={(e) =>
                       up({
                         directionValues: {
@@ -619,19 +664,24 @@ export function MappingEditor() {
                             .split(',')
                             .map((s) => s.trim())
                             .filter(Boolean),
-                          credit: t.directionValues?.credit ?? [],
+                          credit: tpl.directionValues?.credit ?? [],
                         },
                       })
                     }
                   />
                 )}
               </Field>
-              <Field label="Credit values (comma-separated)">
+              <Field
+                label={t(
+                  'import.mappingEditor.creditValuesCommaSeparated',
+                  'Credit values (comma-separated)',
+                )}
+              >
                 {(id) => (
                   <input
                     id={id}
                     className={inputCls}
-                    value={t.directionValues?.credit.join(',') ?? ''}
+                    value={tpl.directionValues?.credit.join(',') ?? ''}
                     onChange={(e) =>
                       up({
                         directionValues: {
@@ -639,7 +689,7 @@ export function MappingEditor() {
                             .split(',')
                             .map((s) => s.trim())
                             .filter(Boolean),
-                          debit: t.directionValues?.debit ?? [],
+                          debit: tpl.directionValues?.debit ?? [],
                         },
                       })
                     }
@@ -649,32 +699,41 @@ export function MappingEditor() {
             </>
           )}
           <Field
-            label="Auto-detect headers (comma-separated)"
-            hint="Files whose header has all of these use this template"
+            label={t(
+              'import.mappingEditor.autoDetectHeadersComma',
+              'Auto-detect headers (comma-separated)',
+            )}
+            hint={t(
+              'import.mappingEditor.filesWhoseHeaderHas',
+              'Files whose header has all of these use this template',
+            )}
           >
             {(id, d) => (
               <input
                 id={id}
                 aria-describedby={d}
                 className={inputCls}
-                value={t.detect?.headerIncludes?.join(', ') ?? ''}
+                value={tpl.detect?.headerIncludes?.join(', ') ?? ''}
                 onChange={(e) => {
                   const h = e.target.value
                     .split(',')
                     .map((s) => s.trim())
                     .filter(Boolean);
-                  up({ detect: h.length ? { ...t.detect, headerIncludes: h } : undefined });
+                  up({ detect: h.length ? { ...tpl.detect, headerIncludes: h } : undefined });
                 }}
               />
             )}
           </Field>
         </section>
 
-        {!valid.ok && (tried || t.name) && (
-          <ul className="text-xs text-warn" aria-label="Template issues">
+        {!valid.ok && (tried || tpl.name) && (
+          <ul
+            className="text-xs text-warn"
+            aria-label={t('import.mappingEditor.templateIssues', 'Template issues')}
+          >
             {valid.issues.map((i) => (
               <li key={`${i.path}${i.message}`}>
-                {i.path || 'template'}: {i.message}
+                {i.path || t('import.mappingEditor.template', 'template')}: {i.message}
               </li>
             ))}
           </ul>
@@ -687,29 +746,30 @@ export function MappingEditor() {
         )}
         <div className="flex flex-wrap gap-2">
           <Button onClick={runTest} disabled={!sample || !valid.ok}>
-            Test on sample
+            {t('import.mappingEditor.testOnSample', 'Test on sample')}
           </Button>
           <Button variant="primary" onClick={submit} disabled={save.isPending}>
-            Save template
+            {t('import.mappingEditor.saveTemplate', 'Save template')}
           </Button>
         </div>
 
         {test && (
           <section
-            aria-label="Template test result"
+            aria-label={t('import.mappingEditor.templateTestResult', 'Template test result')}
             className="rounded-md border border-line p-3 text-sm"
           >
             <p className="mb-2">
-              {test.records.length} records, {test.errors.length} errors, {test.warnings.length}{' '}
-              warnings.
+              {test.records.length} {t('import.mappingEditor.records', 'records,')}{' '}
+              {test.errors.length} {t('import.mappingEditor.errors', 'errors,')}{' '}
+              {test.warnings.length} {t('import.mappingEditor.warnings', 'warnings.')}
             </p>
             <table className="w-full text-xs">
               <thead className="text-left text-muted">
                 <tr>
-                  <th className="font-medium">Row</th>
-                  <th className="font-medium">Date</th>
-                  <th className="font-medium">Description</th>
-                  <th className="text-right font-medium">Amount</th>
+                  <th className="font-medium">{t('import.mappingEditor.row', 'Row')}</th>
+                  <th className="font-medium">{t('transaction.date', 'Date')}</th>
+                  <th className="font-medium">{t('transaction.description', 'Description')}</th>
+                  <th className="text-right font-medium">{t('transaction.amount', 'Amount')}</th>
                 </tr>
               </thead>
               <tbody>
