@@ -126,7 +126,7 @@ export default function NotificationsPage() {
                         {link && (
                           <>
                             {' · '}
-                            <Link className="text-accent hover:underline" to={link}>
+                            <Link className="text-accent underline" to={link}>
                               {t('notifications.page.open', 'Open')}
                             </Link>
                           </>
@@ -157,7 +157,7 @@ export default function NotificationsPage() {
           'notifications.page.deliveryNote',
           'Notifications are created on this device while the app is open. Connected to a server, reminders and alerts can also arrive by email or push while the app is closed.',
         )}{' '}
-        <Link className="text-accent hover:underline" to="/settings?tab=notifications">
+        <Link className="text-accent underline" to="/settings?tab=notifications">
           {t('settings.notifications', 'Notifications')}
         </Link>
       </p>

@@ -768,7 +768,7 @@ function ForecastEvolution({ s }: { s: Snapshot }) {
           'analytics.page.anEstimateFromPlans',
           "An estimate from plans and today's balances, not a guarantee.",
         )}{' '}
-        <Link className="text-accent hover:underline" to="/planning">
+        <Link className="text-accent underline" to="/planning">
           {t('analytics.page.planning', 'Planning')}
         </Link>
       </p>
@@ -874,7 +874,7 @@ function CurrencySection({ s, f }: P) {
                 ` ${t('analytics.page.someWithoutARate', '(some without a rate are left out)')}`}
             </p>
             <Link
-              className="text-xs text-accent hover:underline"
+              className="text-xs text-accent underline"
               to={transactionsLink({ ...f, kind: 'expense' })}
             >
               {t('analytics.page.seeExpenses', 'See expenses')}
@@ -1083,7 +1083,7 @@ function AnomalySection({ s, f }: P) {
                 <div className="mt-1 flex gap-2">
                   {txn && (
                     <Link
-                      className="text-xs text-accent hover:underline"
+                      className="text-xs text-accent underline"
                       to={transactionsLink({
                         from: txn.bookingDate,
                         to: txn.bookingDate,

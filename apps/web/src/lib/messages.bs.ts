@@ -1028,6 +1028,8 @@ export const bs: Record<string, string> = {
   'auth.title': 'Korisnički račun',
   'auth.firstUser': 'Prvi korisnički račun na ovom serveru postaje njegov administrator.',
   'backup.restored': 'Rezervna kopija je vraćena: profila {{p}}, zapisa {{n}}',
+  'transactions.page.shownOf': '{{n}} od {{total}} prikazano',
+  'planning.views.planSomethingOn': 'Planiraj nešto za {{date}}',
   // import, budgets, planning, analytics, MCP pages
   'mcp.mcpPage.oauth': 'OAuth',
   'mcp.mcpPage.auto': '· automatski',

@@ -1,5 +1,6 @@
 // Planning views: month calendar, list and timeline of occurrences; annual plan; installments;
 // planned vs actual; match suggestions.
+
 import {
   addDays,
   addMonths,
@@ -8,6 +9,7 @@ import {
   startOfMonth,
   toMinor,
 } from '@finplat/finance-engine';
+import { intlLocale } from '@finplat/localization';
 import { useFormat } from '../../lib/format.ts';
 import { useT } from '../../lib/i18n.ts';
 import { ChartFrame, MoneyChart } from '../analytics/chart.tsx';
@@ -62,7 +64,7 @@ export function CalendarView({
   const byDay = new Map<string, OccRow[]>();
   for (const r of rows) byDay.set(r.date, [...(byDay.get(r.date) ?? []), r]);
   const names = Array.from({ length: 7 }, (_, i) =>
-    new Intl.DateTimeFormat(f.locale, { weekday: 'short', timeZone: 'UTC' }).format(
+    new Intl.DateTimeFormat(intlLocale(f.locale), { weekday: 'short', timeZone: 'UTC' }).format(
       Date.UTC(2024, 0, 1 + (((weekStart || 1) - 1 + i) % 7)),
     ),
   );
@@ -93,12 +95,14 @@ export function CalendarView({
               return (
                 <td
                   key={d}
-                  className={`h-20 border border-line bg-surface p-1 align-top ${out ? 'opacity-50' : ''}`}
+                  className={`h-20 border border-line p-1 align-top ${out ? 'bg-surface-2' : 'bg-surface'}`}
                 >
                   <button
                     type="button"
                     className={`mb-1 rounded px-1 ${d === today ? 'bg-accent text-accent-fg' : 'text-muted hover:bg-surface-2'}`}
-                    aria-label={`Plan something on ${f.date(d)}`}
+                    aria-label={t('planning.views.planSomethingOn', 'Plan something on {{date}}', {
+                      date: f.date(d),
+                    })}
                     onClick={() => onNew(d)}
                   >
                     {Number(d.slice(8))}

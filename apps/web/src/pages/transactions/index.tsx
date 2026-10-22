@@ -1,7 +1,9 @@
 // Transactions page (PLAN §33): virtualized table, filters, bulk edit, details drawer, quick entry,
 // uncategorized inbox and export. URL params: ?accountId= ?categoryId= ?importBatchId= ?tab=inbox
 // ?new=expense|income|transfer (quick action from the dashboard).
+
 import type * as D from '@finplat/domain';
+import { formatDecimal } from '@finplat/localization';
 import type { RowSelectionState } from '@tanstack/react-table';
 import { Download, Pencil, Plus } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
@@ -156,7 +158,10 @@ export default function TransactionsPage() {
         }
       >
         {all.data
-          ? `${rows.length.toLocaleString(locale)} of ${all.data.length.toLocaleString(locale)} shown`
+          ? t('transactions.page.shownOf', '{{n}} of {{total}} shown', {
+              n: formatDecimal(String(rows.length), locale),
+              total: formatDecimal(String(all.data.length), locale),
+            })
           : t('common.loading', 'Loading…')}
       </PageHeader>
       <ErrorText error={exportErr} />

@@ -5,12 +5,30 @@ export interface MoneyLike {
   currency: string;
 }
 
+// Chromium ships no Bosnian ICU data: it reports bs-BA as supported but formats with root
+// patterns ("-BAM 1,234.50", "2026 M03 31"). Serbian Latin shares the BiH conventions
+// (1.234,56 KM, 31. 3. 2026.), so it stands in when the runtime's bs data is missing.
+const resolved = new Map<string, string>();
+export function intlLocale(locale: string): string {
+  let r = resolved.get(locale);
+  if (r === undefined) {
+    r = locale;
+    if (/^bs\b/i.test(locale)) {
+      const dec = (l: string) =>
+        new Intl.NumberFormat(l).formatToParts(1.5).find((p) => p.type === 'decimal')?.value;
+      if (dec(locale) !== ',' && dec('sr-Latn-BA') === ',') r = 'sr-Latn-BA';
+    }
+    resolved.set(locale, r);
+  }
+  return r;
+}
+
 const nfCache = new Map<string, Intl.NumberFormat>();
 function nf(locale: string, o: Intl.NumberFormatOptions): Intl.NumberFormat {
   const k = `${locale}|${JSON.stringify(o)}`;
   let f = nfCache.get(k);
   if (!f) {
-    f = new Intl.NumberFormat(locale, o);
+    f = new Intl.NumberFormat(intlLocale(locale), o);
     nfCache.set(k, f);
   }
   return f;
@@ -88,14 +106,14 @@ export function formatDate(
   if (!m) throw new Error(`not an ISO date: ${isoDate}`);
   // BiH convention dd.MM.yyyy (ICU gives "31. 12. 2026." for bs)
   if (style === 'short' && /^bs\b/i.test(locale)) return `${m[3]}.${m[2]}.${m[1]}`;
-  return new Intl.DateTimeFormat(locale, { dateStyle: style, timeZone: 'UTC' }).format(
+  return new Intl.DateTimeFormat(intlLocale(locale), { dateStyle: style, timeZone: 'UTC' }).format(
     Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])),
   );
 }
 
 /** Instant in the profile's timezone. */
 export function formatDateTime(instant: string, locale = 'en', timeZone = 'UTC'): string {
-  return new Intl.DateTimeFormat(locale, {
+  return new Intl.DateTimeFormat(intlLocale(locale), {
     dateStyle: 'medium',
     timeStyle: 'short',
     timeZone,
@@ -105,7 +123,7 @@ export function formatDateTime(instant: string, locale = 'en', timeZone = 'UTC')
 /** Month label for analytics axes ("2026-03" -> "Mar 2026"). */
 export function formatMonth(yearMonth: string, locale = 'en'): string {
   const [y, mo] = yearMonth.split('-').map(Number) as [number, number];
-  return new Intl.DateTimeFormat(locale, {
+  return new Intl.DateTimeFormat(intlLocale(locale), {
     month: 'short',
     year: 'numeric',
     timeZone: 'UTC',

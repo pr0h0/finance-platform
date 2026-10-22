@@ -412,7 +412,7 @@ function TxList({
         </li>
       ))}
       <li className="pt-1 text-xs">
-        <Link className="text-accent hover:underline" to="/transactions">
+        <Link className="text-accent underline" to="/transactions">
           {t('dashboard.widgets.allTransactions', 'All transactions')}
         </Link>
         <span className="sr-only"> ({snap.transactions.length})</span>
@@ -553,7 +553,7 @@ function Insights({ snap }: { snap: Snapshot }) {
         </li>
       ))}
       <li className="text-xs">
-        <Link className="text-accent hover:underline" to="/analytics#insights">
+        <Link className="text-accent underline" to="/analytics#insights">
           {t('dashboard.widgets.allInsights', 'All insights')}
         </Link>
       </li>
@@ -590,7 +590,7 @@ function Coverage({ snap }: { snap: Snapshot }) {
         {t('dashboard.widgets.last12MonthsFrom', 'Last 12 months from {{month}}.', {
           month: f.month(addMonths(snap.today, -11).slice(0, 7)),
         })}{' '}
-        <Link className="text-accent hover:underline" to="/import">
+        <Link className="text-accent underline" to="/import">
           {t('dashboard.widgets.importCenter', 'Import Center')}
         </Link>
       </p>
@@ -612,7 +612,7 @@ function SyncHealth() {
     return (
       <p className="text-sm text-muted">
         {t('dashboard.widgets.localOnlyModeData', 'Local-only mode: data stays in this browser.')}{' '}
-        <Link className="text-accent hover:underline" to="/sync">
+        <Link className="text-accent underline" to="/sync">
           {t('dashboard.widgets.syncSettings', 'Sync settings')}
         </Link>
       </p>
@@ -638,7 +638,7 @@ function SyncHealth() {
         )}
       </p>
       {s.lastError && <p className="text-neg">{s.lastError.message}</p>}
-      <Link className="text-xs text-accent hover:underline" to="/sync">
+      <Link className="text-xs text-accent underline" to="/sync">
         {t('dashboard.widgets.syncDashboard', 'Sync dashboard')}
       </Link>
     </div>

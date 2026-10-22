@@ -10,7 +10,7 @@ import {
   type LedgerTransaction,
   toMinor,
 } from '@finplat/finance-engine';
-import { formatMoney } from '@finplat/localization';
+import { formatMoney, intlLocale } from '@finplat/localization';
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import {
@@ -194,7 +194,7 @@ export function AccountDetail({
                   tick={{ fontSize: 11, fill: 'var(--muted)' }}
                   width={70}
                   tickFormatter={(v: number) =>
-                    new Intl.NumberFormat(locale, { notation: 'compact' }).format(v)
+                    new Intl.NumberFormat(intlLocale(locale), { notation: 'compact' }).format(v)
                   }
                 />
                 <Tooltip
