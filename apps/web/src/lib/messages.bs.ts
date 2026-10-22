@@ -65,6 +65,8 @@ export const bs: Record<string, string> = {
   'cmd.newPlanned': 'Nova planirana transakcija',
   'cmd.goTo': 'Idi na {{section}}',
   'lock.title': 'Aplikacija je zaključana',
+  'lock.bio': 'Otključaj otiskom prsta / Face ID',
+  'lock.bioReason': 'Otključaj Finance Platform',
   'lock.unlock': 'Otključaj',
   'lock.wrong': 'Pogrešan PIN ili lozinka.',
   'mode.localShort': 'Lokalno',
@@ -217,6 +219,8 @@ export const bs: Record<string, string> = {
   'storage.protection': 'Zaštita',
   'storage.request': 'Zatraži od preglednika da sačuva ove podatke',
   'storage.db': 'Lokalna baza podataka',
+  'storage.noteNative':
+    'Podaci se čuvaju u bazi na ovom uređaju. Pravite šifrovane sigurnosne kopije: izgubljen ili resetovan uređaj ih gubi.',
   'storage.note':
     'Pohrana preglednika je manje trajna od baze podataka na računaru: brisanje podataka stranice, privatni prozori i oslobađanje prostora je brišu. Čuvajte šifrovane rezervne kopije.',
   'settings.display': 'Prikaz (ovaj uređaj)',
@@ -624,6 +628,8 @@ export const bs: Record<string, string> = {
     'Vaša sesija na serveru je istekla. Lokalni podaci su sačuvani; prijavite se ponovo da nastavite sinhronizaciju.',
   'auth.signInAgain': 'Prijavi se ponovo',
   'banner.backupDue': 'Vaša posljednja rezervna kopija starija je od {{days}} dana.',
+  'banner.backupNeverNative':
+    'Još nema sigurnosne kopije. Izgubljen ili resetovan uređaj nosi svoje lokalne podatke sa sobom.',
   'banner.backupNever':
     'Još nema rezervne kopije. Podaci preglednika mogu se izgubiti brisanjem podataka stranice ili oslobađanjem prostora.',
   'storage.low': 'Prostor preglednika je skoro pun. Izvezite rezervnu kopiju i oslobodite prostor.',

@@ -156,7 +156,12 @@ export function ActivateFlow({ onCancel }: { onCancel: () => void }) {
     if (!signed || !server) return;
     setApp({
       mode: 'remote',
-      connection: { serverUrl: server.baseUrl, deviceId: signed.deviceId, email: signed.email },
+      connection: {
+        serverUrl: server.baseUrl,
+        deviceId: signed.deviceId,
+        email: signed.email,
+        ...(signed.token ? { token: signed.token } : {}),
+      },
     });
     reload();
   }

@@ -2,8 +2,12 @@
 // (public/push-sw.js); the server keeps one subscription per browser endpoint.
 import type { ApiClient } from '@finplat/api-client';
 import { tNow } from '../../lib/i18n.ts';
+import { isNative } from '../../platform/native.ts';
 
+// Web Push needs a service worker of the server's web origin: not in the native app, which shows OS
+// notifications itself (useNotificationGenerator, shell/notifications.ts).
 export const pushSupported = (): boolean =>
+  !isNative &&
   typeof navigator !== 'undefined' &&
   'serviceWorker' in navigator &&
   typeof PushManager !== 'undefined' &&

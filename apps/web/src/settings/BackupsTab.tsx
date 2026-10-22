@@ -22,6 +22,7 @@ import {
 import { toast } from '../components/ui/toast.tsx';
 import { downloadBlob, formatBytes, todayIso, useFormat } from '../lib/format.ts';
 import { useT } from '../lib/i18n.ts';
+import { isNative } from '../platform/native.ts';
 
 const EXTRA_TABLES = ['exchange_rates', 'imported_raw_records', 'notifications', 'settings'];
 
@@ -518,10 +519,15 @@ function Storage() {
       )}
       <div className="mt-3">
         <Notice tone="neutral">
-          {t(
-            'storage.note',
-            'Browser storage is less durable than a desktop database: clearing site data, private windows and storage eviction delete it. Keep encrypted backups.',
-          )}
+          {isNative
+            ? t(
+                'storage.noteNative',
+                'Data is stored in a database on this device. Keep encrypted backups: a lost or reset device loses it.',
+              )
+            : t(
+                'storage.note',
+                'Browser storage is less durable than a desktop database: clearing site data, private windows and storage eviction delete it. Keep encrypted backups.',
+              )}
         </Notice>
       </div>
     </Card>

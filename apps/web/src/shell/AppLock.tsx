@@ -8,6 +8,7 @@ import { create } from 'zustand';
 import { useApp } from '../app/store.ts';
 import { Button, Field, Input } from '../components/ui/index.tsx';
 import { useT } from '../lib/i18n.ts';
+import { biometricAvailable, biometricUnlock } from '../platform/native.ts';
 
 export const useLockState = create<{ locked: boolean }>(() => ({
   locked: !!useApp.getState().lock,
@@ -62,6 +63,18 @@ function LockScreen({ hash, kind }: { hash: string; kind: 'pin' | 'password' }) 
   const [busy, setBusy] = useState(false);
   const failures = useRef(0);
   const until = useRef(0);
+  // Phone app: fingerprint / Face ID unlocks too (asked once on open); the PIN stays the fallback.
+  const [bio, setBio] = useState(false);
+  const reason = t('lock.bioReason', 'Unlock Finance Platform');
+  const tryBio = () =>
+    biometricUnlock(reason).then((ok) => ok && useLockState.setState({ locked: false }));
+  // biome-ignore lint/correctness/useExhaustiveDependencies: once per lock screen
+  useEffect(() => {
+    biometricAvailable().then((ok) => {
+      setBio(ok);
+      if (ok) void tryBio();
+    });
+  }, []);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -118,6 +131,11 @@ function LockScreen({ hash, kind }: { hash: string; kind: 'pin' | 'password' }) 
         >
           {t('lock.unlock', 'Unlock')}
         </Button>
+        {bio && (
+          <Button type="button" className="mt-2 w-full" onClick={() => void tryBio()}>
+            {t('lock.bio', 'Unlock with fingerprint / Face ID')}
+          </Button>
+        )}
         <p className="mt-3 text-xs text-muted">
           {t(
             'lock.forgot',

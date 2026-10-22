@@ -4,7 +4,7 @@
 import { type ApiClient, normalizeServerUrl } from '@finplat/api-client';
 import type { ServerMeta } from '@finplat/domain';
 import { type FormEvent, useEffect, useState } from 'react';
-import { makeApi } from '../app/data.tsx';
+import { makeApi, rememberSignInToken } from '../app/data.tsx';
 import {
   Badge,
   Button,
@@ -24,6 +24,7 @@ import {
   signInWithPasskey,
 } from '../lib/passkeys.ts';
 import { fetchServerStatus } from '../lib/server-status.ts';
+import { isNative, nativeDevice } from '../platform/native.ts';
 
 export interface VerifiedServer {
   /** '' when the server is this web app's own origin */
@@ -39,7 +40,8 @@ export function toBaseUrl(normalized: string, origin = globalThis.location?.orig
 
 export function ServerStep({ onVerified }: { onVerified: (s: VerifiedServer) => void }) {
   const t = useT();
-  const [url, setUrl] = useState(globalThis.location?.origin ?? '');
+  // the native app has no server of its own: the user types one in
+  const [url, setUrl] = useState(isNative ? '' : (globalThis.location?.origin ?? ''));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [server, setServer] = useState<VerifiedServer | null>(null);
@@ -60,7 +62,8 @@ export function ServerStep({ onVerified }: { onVerified: (s: VerifiedServer) => 
     const baseUrl = toBaseUrl(n.url);
     // The browser app talks only to the server that serves it: its CSP (connect-src 'self') and
     // SameSite session cookies rule out another origin. Every server ships this web app.
-    if (baseUrl) {
+    // The native app reaches any server (HTTP from Rust, bearer token).
+    if (baseUrl && !isNative) {
       setElsewhere(n.url);
       return;
     }
@@ -190,6 +193,8 @@ export interface SignedIn {
   deviceId: string;
   email: string;
   isAdmin: boolean;
+  /** native app: this device's bearer token */
+  token?: string;
 }
 
 export function deviceName(ua = globalThis.navigator?.userAgent ?? ''): string {
@@ -297,7 +302,18 @@ export function AuthStep({
           displayName: displayName || undefined,
           setupToken: setupToken || undefined,
         });
-      await enroll(api, await api.login({ email, password }));
+      if (isNative) {
+        // a native device is registered with the sign-in and gets a bearer token
+        const res = await api.login({ email, password, device: nativeDevice() });
+        rememberSignInToken(res.token);
+        onSignedIn({
+          api,
+          deviceId: res.deviceId ?? '',
+          email: res.user?.email ?? email,
+          isAdmin: !!res.user?.isAdmin,
+          ...(res.token ? { token: res.token } : {}),
+        });
+      } else await enroll(api, await api.login({ email, password }));
     } catch (x) {
       setError(x);
     } finally {

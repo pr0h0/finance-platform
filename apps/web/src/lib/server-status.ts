@@ -1,5 +1,6 @@
 import { checkCompatibility, createApiClient } from '@finplat/api-client';
 import type { ServerMeta } from '@finplat/domain';
+import { appFetch } from '../platform/native.ts';
 
 export type ServerStatus =
   | { state: 'checking' }
@@ -9,7 +10,7 @@ export type ServerStatus =
 
 export async function fetchServerStatus(
   baseUrl = '',
-  f: typeof fetch = fetch,
+  f: typeof fetch = appFetch,
 ): Promise<ServerStatus> {
   try {
     const meta = await createApiClient({ baseUrl, fetch: f }).getMeta();

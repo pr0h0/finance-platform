@@ -13,6 +13,8 @@ export interface Connection {
   serverUrl: string;
   deviceId: string;
   email: string;
+  /** Native app only: this device's bearer token (browsers use the HttpOnly session cookie). */
+  token?: string;
 }
 
 export interface Prefs {

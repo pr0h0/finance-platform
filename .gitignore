@@ -16,3 +16,5 @@ tests/e2e/test-results/
 
 # Real bank statements (personal data) — never commit
 samples/
+apps/native/dist/
+tests/native/results/

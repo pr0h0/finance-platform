@@ -10,8 +10,8 @@ import {
   type DataSource,
   type FinanceOps,
   getCheckpoint,
-  IdbStore,
   LocalDataSource,
+  type LocalStore,
   StorageUnavailableError,
 } from '@finplat/storage';
 // sync-client (libsodium) is loaded only in connected mode to keep local mode light.
@@ -28,6 +28,8 @@ import {
   useState,
 } from 'react';
 import { useT } from '../lib/i18n.ts';
+import { appFetch } from '../platform/native.ts';
+import { openStore } from '../platform/store.ts';
 import { type Mode, useApp } from './store.ts';
 
 export type SessionState = 'n/a' | 'checking' | 'ok' | 'expired' | 'offline';
@@ -35,7 +37,7 @@ export type SessionState = 'n/a' | 'checking' | 'ok' | 'expired' | 'offline';
 export interface DataContextValue {
   mode: Mode | null;
   ds: DataSource | null;
-  store: IdbStore;
+  store: LocalStore;
   api: ApiClient | null;
   profiles: Profile[];
   profile: Profile | null;
@@ -56,13 +58,26 @@ export interface DataContextValue {
 
 const Ctx = createContext<DataContextValue | null>(null);
 
-/** Same-origin API client for the configured server ('' = this origin). */
+// Native app: the bearer token of a sign-in that is not saved in the connection yet (onboarding).
+let signInToken: string | undefined;
+export const rememberSignInToken = (t: string | undefined) => {
+  signInToken = t;
+};
+
+/** API client for the configured server ('' = this origin). In the native app requests go through
+ * Rust (no CORS) with this device's bearer token. */
 export function makeApi(
   serverUrl: string,
   profileId?: () => string | undefined,
   onUnauth?: () => void,
 ) {
-  return createApiClient({ baseUrl: serverUrl, profileId, onUnauthenticated: onUnauth });
+  return createApiClient({
+    baseUrl: serverUrl,
+    profileId,
+    onUnauthenticated: onUnauth,
+    fetch: appFetch,
+    token: () => useApp.getState().connection?.token ?? signInToken,
+  });
 }
 
 export function DataProvider({ children }: { children: ReactNode }) {
@@ -83,7 +98,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const pidRef = useRef(profileId);
   pidRef.current = profileId;
 
-  const store = useMemo(() => new IdbStore(storeName), [storeName]);
+  const store = useMemo(() => openStore(storeName), [storeName]);
   const api = useMemo(
     () =>
       mode === 'remote' && connection

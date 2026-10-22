@@ -6,7 +6,7 @@
 import type * as D from '@finplat/domain';
 import { ACCOUNT_TYPES } from '@finplat/domain';
 import { money } from '@finplat/finance-engine';
-import { IdbStore, LocalDataSource, requestPersistence, storageEstimate } from '@finplat/storage';
+import { LocalDataSource, requestPersistence, storageEstimate } from '@finplat/storage';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Cloud, HardDrive } from 'lucide-react';
 import { type FormEvent, type ReactNode, useState } from 'react';
@@ -30,6 +30,8 @@ import { currencyCodes, currencyName } from '../lib/currencies.ts';
 import { formatBytes, todayIso, useFormat } from '../lib/format.ts';
 import { useT } from '../lib/i18n.ts';
 import { fetchServerStatus } from '../lib/server-status.ts';
+import { isNative } from '../platform/native.ts';
+import { openStore } from '../platform/store.ts';
 import { PreferencesForm } from '../settings/PreferencesForm.tsx';
 import { AuthStep, ServerStep, type VerifiedServer } from './connect.tsx';
 import { seedLocalCategories } from './defaults.ts';
@@ -158,6 +160,7 @@ function Welcome() {
   // Existing account on this server: skip region/currency/mode (defaults stay; they only shape new
   // profiles) and go straight to sign-in. Another server goes through the normal server step.
   const signIn = async () => {
+    if (isNative) return go('server'); // no own server: ask which one
     setChecking(true);
     const st = await fetchServerStatus('');
     setChecking(false);
@@ -330,11 +333,11 @@ function LocalProfile() {
   const est = useQuery({ queryKey: ['storage-estimate'], queryFn: storageEstimate });
   const existing = useQuery({
     queryKey: ['local-profiles'],
-    queryFn: () => new LocalDataSource(new IdbStore('finplat')).listProfiles(),
+    queryFn: () => new LocalDataSource(openStore('finplat')).listProfiles(),
   });
   const create = useMutation({
     mutationFn: async () => {
-      const ds = new LocalDataSource(new IdbStore('finplat'));
+      const ds = new LocalDataSource(openStore('finplat'));
       return ds.createProfile({
         name: name.trim(),
         baseCurrency: currency,
@@ -481,7 +484,12 @@ function Auth() {
           setApp({
             mode: 'remote',
             storeName: storeNameFor(server.baseUrl),
-            connection: { serverUrl: server.baseUrl, deviceId: s.deviceId, email: s.email },
+            connection: {
+              serverUrl: server.baseUrl,
+              deviceId: s.deviceId,
+              email: s.email,
+              ...(s.token ? { token: s.token } : {}),
+            },
             profileId: null,
           });
           go('server-profile');

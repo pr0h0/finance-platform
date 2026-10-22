@@ -16,6 +16,7 @@ import type { Section } from '../app/routes.tsx';
 import { useApp } from '../app/store.ts';
 import { cx, IconButton } from '../components/ui/index.tsx';
 import { useT } from '../lib/i18n.ts';
+import { isNative, onNativeQuickAdd } from '../platform/native.ts';
 import { lockNow } from './AppLock.tsx';
 import { Banners } from './Banners.tsx';
 import { CommandPalette, useShortcuts } from './CommandPalette.tsx';
@@ -88,6 +89,14 @@ export function Layout({ sections, children }: { sections: Section[]; children: 
   const openQuickAdd = useShell((s) => s.openQuickAdd);
   const location = useLocation();
   useShortcuts(sections);
+  // native desktop: tray menu / global shortcut (Ctrl/Cmd+Shift+E) open quick entry
+  useEffect(() => {
+    let off: (() => void) | undefined;
+    onNativeQuickAdd(() => openQuickAdd('expense')).then((f) => {
+      off = f;
+    });
+    return () => off?.();
+  }, [openQuickAdd]);
 
   // move focus to the page heading after navigation (screen readers announce the new page)
   // biome-ignore lint/correctness/useExhaustiveDependencies: runs per navigation
@@ -191,7 +200,7 @@ export function Layout({ sections, children }: { sections: Section[]; children: 
         </header>
 
         <Banners />
-        <UpdatePrompt />
+        {!isNative && <UpdatePrompt />}
 
         <main id="main" className="mx-auto w-full max-w-7xl flex-1 px-4 py-5 pb-24 md:pb-6">
           {children}

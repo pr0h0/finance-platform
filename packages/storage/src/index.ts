@@ -6,7 +6,12 @@ export { IdbStore } from './idb.ts';
 export { uuidv7 } from './ids.ts';
 export * from './local/errors.ts';
 export * from './local/service.ts';
-export { MemoryStore } from './memory.ts';
+export {
+  MemoryStore,
+  type StoreCommit,
+  type StorePersistence,
+  type StoreSnapshot,
+} from './memory.ts';
 export * from './quota.ts';
 export * from './schema.ts';
 export * from './types.ts';

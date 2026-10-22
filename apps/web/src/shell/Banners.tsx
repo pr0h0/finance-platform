@@ -9,6 +9,7 @@ import { useApp } from '../app/store.ts';
 import { Button, Dialog, ErrorBox, Field, Input } from '../components/ui/index.tsx';
 import { useT } from '../lib/i18n.ts';
 import { PasskeySignIn } from '../onboarding/connect.tsx';
+import { isNative, nativeDevice } from '../platform/native.ts';
 import { useOnline } from './useOnline.ts';
 
 export function backupDue(
@@ -79,10 +80,15 @@ export function Banners() {
           ? t('banner.backupDue', 'Your last backup is older than {{days}} days.', {
               days: backup.intervalDays,
             })
-          : t(
-              'banner.backupNever',
-              'No backup yet. Browser data can be deleted by clearing site data or by storage eviction.',
-            )}
+          : isNative
+            ? t(
+                'banner.backupNeverNative',
+                'No backup yet. A lost or reset device takes its local data with it.',
+              )
+            : t(
+                'banner.backupNever',
+                'No backup yet. Browser data can be deleted by clearing site data or by storage eviction.',
+              )}
         <Link to="/settings?tab=backups" className="font-medium underline">
           {t('banner.backupNow', 'Back up now')}
         </Link>
@@ -115,7 +121,15 @@ function ReLogin({ onClose }: { onClose: () => void }) {
     setBusy(true);
     setError(null);
     try {
-      await api.login({ email, password });
+      if (isNative) {
+        // native devices sign in with a bearer token: keep the new one (and its device)
+        const res = await api.login({ email, password, device: nativeDevice() });
+        const c = useApp.getState().connection;
+        if (c && res.token)
+          useApp.getState().set({
+            connection: { ...c, token: res.token, deviceId: res.deviceId ?? c.deviceId },
+          });
+      } else await api.login({ email, password });
       reload();
       onClose();
     } catch (x) {

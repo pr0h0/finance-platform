@@ -13,6 +13,7 @@ import {
 } from '../../features/notifications/useNotifications.ts';
 import { useFormat } from '../../lib/format.ts';
 import { useT } from '../../lib/i18n.ts';
+import { isNative, nativeNotifyPermission } from '../../platform/native.ts';
 
 const tone = { info: 'border-line', warning: 'border-warn/50', critical: 'border-neg/50' } as const;
 
@@ -33,7 +34,12 @@ export default function NotificationsPage() {
   const toggleBrowser = async () => {
     if (enabled) return setBrowser.mutate(false);
     if (perm === 'unsupported') return;
-    const p = perm === 'granted' ? perm : await Notification.requestPermission();
+    const p =
+      perm === 'granted'
+        ? perm
+        : isNative
+          ? await nativeNotifyPermission(true)
+          : await Notification.requestPermission();
     setPerm(p);
     if (p === 'granted') setBrowser.mutate(true);
   };

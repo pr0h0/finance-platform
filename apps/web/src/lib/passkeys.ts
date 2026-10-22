@@ -12,8 +12,10 @@ import {
   startRegistration,
   WebAuthnAbortService,
 } from '@simplewebauthn/browser';
+import { isNative } from '../platform/native.ts';
 
-export const passkeysSupported = (): boolean => browserSupportsWebAuthn();
+// WebAuthn is bound to the server's web origin: the native app (tauri:// origin) cannot use passkeys.
+export const passkeysSupported = (): boolean => !isNative && browserSupportsWebAuthn();
 export const passkeyAutofillSupported = (): Promise<boolean> =>
   browserSupportsWebAuthnAutofill().catch(() => false);
 /** Abort a pending (autofill) ceremony, e.g. when the login form unmounts. */
