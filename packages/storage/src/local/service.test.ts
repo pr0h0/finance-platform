@@ -375,7 +375,7 @@ test('import links entries made by hand (same amount, same account, ±3 days) in
   const b = await svc.commitImport(p.batch.id);
   expect(b.stats).toMatchObject({ created: 2, linked: 1 });
   const linked = await svc.getTransaction(manual.id);
-  expect(linked.importRecordId).toBe(p.rows[0]?.record.id);
+  expect(linked.importRecordId).toBe(p.rows[0]?.record.id ?? null);
   expect(linked).toMatchObject({ bookingDate: '2026-02-03', description: 'groceries (typed in)' });
   expect(linked.splits[0]?.categoryId).toBe(food.id);
   expect(await bal(checking.id)).toEqual(['955.00 BAM']); // 1000 - 20 (manual) - 20 - 5

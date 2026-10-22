@@ -10,7 +10,9 @@ import (
 
 func TestEvidenceKept(t *testing.T) {
 	a, b := uuid.New(), uuid.New()
-	p := func(acc uuid.UUID, amt string) Posting { return Posting{AccountID: acc, Amount: money.MustParse(amt, "BAM")} }
+	p := func(acc uuid.UUID, amt string) Posting {
+		return Posting{AccountID: acc, Amount: money.MustParse(amt, "BAM")}
+	}
 	exp := &Transaction{Kind: "expense", Postings: []Posting{p(a, "-10.00")}}
 	cases := []struct {
 		name  string
