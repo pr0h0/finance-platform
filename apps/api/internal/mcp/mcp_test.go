@@ -46,9 +46,11 @@ func newEnv(t *testing.T) *env {
 	r.Use(middleware.RequestID, httpx.MaxBody(1<<20), auth.Middleware(deps))
 	r.Route("/api/v1", func(v chi.Router) { mcp.Register(v, deps) })
 	r.Route("/mcp", func(m chi.Router) { mcp.RegisterTransport(m, deps) })
+	mcp.RegisterOAuth(r, deps)
 	srv := httptest.NewServer(r)
 	t.Cleanup(srv.Close)
 	e.url = srv.URL
+	e.cfg.PublicURL = srv.URL // OAuth issuer and token audience (<PUBLIC_URL>/mcp)
 	tok, hash := auth.NewToken()
 	e.human = tok
 	e.exec(`INSERT INTO sessions (user_id, token_hash, kind, expires_at) VALUES ($1,$2,'bearer', now() + interval '1 day')`, e.user, hash)
@@ -200,7 +202,7 @@ func TestProtocolAndReadTools(t *testing.T) {
 			Tools []map[string]any `json:"tools"`
 		} `json:"result"`
 	}
-	if json.Unmarshal(raw, &list); st != 200 || len(list.Result.Tools) != 30 {
+	if json.Unmarshal(raw, &list); st != 200 || len(list.Result.Tools) != 31 {
 		t.Fatalf("tools/list %d: %d tools %s", st, len(list.Result.Tools), raw)
 	}
 

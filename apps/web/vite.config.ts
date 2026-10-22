@@ -74,7 +74,7 @@ export default defineConfig({
         globIgnores: ['tesseract/**'], // OCR assets (~20 MB) load on first use, not precached
         maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
         navigateFallback: '/index.html',
-        navigateFallbackDenylist: [/^\/api\//, /^\/mcp/],
+        navigateFallbackDenylist: [/^\/api\//, /^\/mcp/, /^\/oauth\//, /^\/\.well-known\//],
         runtimeCaching: [],
         importScripts: ['push-sw.js'], // Web Push + notificationclick handlers (public/push-sw.js)
         cleanupOutdatedCaches: true,
@@ -84,7 +84,12 @@ export default defineConfig({
   ],
   server: {
     allowedHosts: true,
-    proxy: { '/api': apiTarget, '/mcp': apiTarget },
+    proxy: {
+      '/api': apiTarget,
+      '/mcp': apiTarget,
+      '/oauth': apiTarget,
+      '/.well-known/oauth-': apiTarget,
+    },
   },
   build: { sourcemap: true, chunkSizeWarningLimit: 2000 },
   // The import parser worker (features/import/parse.worker.ts) lazy-loads pdfjs: needs ES workers.

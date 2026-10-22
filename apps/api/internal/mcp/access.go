@@ -52,14 +52,15 @@ func loadGrants(ctx context.Context, q fin.DB, clientID uuid.UUID) ([]Grant, err
 
 // session is one authenticated MCP request: the client, its owner and its live grants.
 type session struct {
-	db          *pgxpool.Pool
-	maxRows     int
-	clientID    uuid.UUID
-	userID      uuid.UUID
-	grants      []Grant
-	principal   authz.Principal
-	batchID     uuid.UUID  // groups the proposals created by one MCP request
-	lastProfile *uuid.UUID // profile of the current call, for the audit entry
+	db             *pgxpool.Pool
+	maxRows        int
+	attachmentsDir string
+	clientID       uuid.UUID
+	userID         uuid.UUID
+	grants         []Grant
+	principal      authz.Principal
+	batchID        uuid.UUID  // groups the proposals created by one MCP request
+	lastProfile    *uuid.UUID // profile of the current call, for the audit entry
 }
 
 var errClientGone = httpx.NewError(http.StatusUnauthorized, "invalid_token", "MCP client disabled, expired or revoked")

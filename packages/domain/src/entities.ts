@@ -435,6 +435,8 @@ export interface McpClient {
   name: string;
   description: string;
   tokenPrefix: string;
+  /** token = static bearer token; oauth = connected through OAuth (/oauth/authorize) */
+  kind: 'token' | 'oauth';
   enabled: boolean;
   lastUsedAt: IsoInstant | null;
   expiresAt: IsoInstant | null;

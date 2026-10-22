@@ -116,6 +116,23 @@ export const TOOLS = {
     input: z.object({ transactionId: uuid }),
     output: z.object({ transaction: z.record(z.string(), z.unknown()), meta: resultMeta }),
   },
+  get_attachments: {
+    description:
+      'Attachments (receipts, statements) of a transaction or the profile: metadata. With attachmentId and includeContent, also the file itself (images and PDFs up to 4 MiB) as an image or embedded resource.',
+    readOnly: true,
+    scopes: ['read_attachments'],
+    input: z.object({
+      profileId: uuid.optional(),
+      transactionId: uuid.optional(),
+      attachmentId: uuid.optional(),
+      includeContent: z.boolean().default(false),
+      limit: z.number().int().min(1).max(100).default(50),
+    }),
+    output: z.object({
+      attachments: z.array(z.record(z.string(), z.unknown())),
+      meta: resultMeta,
+    }),
+  },
   get_spending_by_category: {
     description: 'Expense totals per category (splits counted, transfers excluded).',
     readOnly: true,
@@ -166,11 +183,17 @@ export const TOOLS = {
     }),
   },
   get_income_summary: {
-    description: 'Income totals by source/category and month.',
+    description:
+      'Income totals per month (rows) and per income category (byCategory, subcategories rolled up into their top-level category). Default: last 12 months.',
     readOnly: true,
     scopes: ['read_aggregates'],
     input: z.object({ ...scopeFilters, ...dateRange, currency }),
-    output: z.object({ rows: z.array(amountRow), total: moneySchema, meta: resultMeta }),
+    output: z.object({
+      rows: z.array(amountRow),
+      byCategory: z.array(amountRow),
+      total: moneySchema,
+      meta: resultMeta,
+    }),
   },
   get_budget_status: {
     description: 'Budget vs actual and planned for a period.',

@@ -2,7 +2,7 @@ import { expect, test } from 'bun:test';
 import { READ_TOOLS, TOOLS, toolJsonSchemas, WRITE_TOOLS } from './index.ts';
 
 test('all PLAN §28/§29 tools are defined', () => {
-  expect(READ_TOOLS.length).toBe(19); // 18 read tools + preview_changes
+  expect(READ_TOOLS.length).toBe(20); // 19 read tools + preview_changes
   expect(WRITE_TOOLS.length).toBe(11);
 });
 

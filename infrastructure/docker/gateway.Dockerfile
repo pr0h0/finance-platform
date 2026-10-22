@@ -1,4 +1,4 @@
-# Reverse proxy: / -> web, /api and /mcp -> api. TLS is terminated upstream (cloudflared/Caddy/etc).
+# Reverse proxy: / -> web; /api, /mcp, /oauth and /.well-known/oauth-* -> api. TLS is terminated upstream (cloudflared/Caddy/etc).
 FROM nginx:1.31-alpine
 COPY infrastructure/docker/nginx-base.conf /etc/nginx/nginx.conf
 COPY infrastructure/docker/gateway.conf /etc/nginx/conf.d/default.conf

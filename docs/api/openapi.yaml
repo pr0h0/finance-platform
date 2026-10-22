@@ -4977,6 +4977,51 @@ paths:
                 required: ["items"]
         default:
           $ref: "#/components/responses/Error"
+  /api/v1/mcp/oauth/authorize:
+    get:
+      tags: ["mcp"]
+      summary: "Consent page data for an OAuth authorization request (query = the /oauth/authorize parameters)"
+      operationId: "get_mcp_oauth_authorize"
+      responses:
+        "200":
+          description: "Requesting client, redirect host and the existing connection (if any)"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/McpOAuthRequest"
+        default:
+          $ref: "#/components/responses/Error"
+    post:
+      tags: ["mcp"]
+      summary: "Approve (with grants) or deny an OAuth authorization request; returns where to send the browser"
+      operationId: "post_mcp_oauth_authorize"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: "object"
+              properties:
+                approve:
+                  type: "boolean"
+                grants:
+                  type: "array"
+                  items:
+                    $ref: "#/components/schemas/McpGrant"
+              required: ["approve"]
+      responses:
+        "200":
+          description: "Redirect URI with code+state+iss, or error=access_denied"
+          content:
+            application/json:
+              schema:
+                type: "object"
+                properties:
+                  redirectUrl:
+                    type: "string"
+                required: ["redirectUrl"]
+        default:
+          $ref: "#/components/responses/Error"
   /api/v1/mcp/tools:
     get:
       tags: ["mcp"]
@@ -4996,7 +5041,7 @@ paths:
   /mcp:
     post:
       tags: ["mcp"]
-      summary: "MCP Streamable HTTP endpoint (JSON-RPC 2.0). Auth: Bearer MCP client token."
+      summary: "MCP Streamable HTTP endpoint (JSON-RPC 2.0). Auth: Bearer MCP client token or OAuth access token (docs/mcp/README.md)."
       operationId: "mcp_transport"
       security:
         - mcpToken: []
@@ -8618,6 +8663,10 @@ components:
           type: "string"
         tokenPrefix:
           type: "string"
+        kind:
+          type: "string"
+          enum: ["token", "oauth"]
+          description: "token = static fpm_ bearer token; oauth = connected through /oauth/authorize"
         enabled:
           type: "boolean"
         lastUsedAt:
@@ -8661,6 +8710,32 @@ components:
             - type: "null"
       required: ["name"]
       additionalProperties: false
+    McpOAuthRequest:
+      type: "object"
+      properties:
+        clientId:
+          $ref: "#/components/schemas/Uuid"
+        clientName:
+          type: "string"
+        clientUri:
+          oneOf:
+            - type: "string"
+            - type: "null"
+        redirectUri:
+          type: "string"
+        redirectHost:
+          type: "string"
+        resource:
+          type: "string"
+        requestedScopes:
+          type: "array"
+          items:
+            type: "string"
+        connection:
+          oneOf:
+            - $ref: "#/components/schemas/McpClient"
+            - type: "null"
+      required: ["clientId", "clientName", "redirectUri", "redirectHost", "resource", "requestedScopes", "connection"]
     McpGrant:
       type: "object"
       properties:

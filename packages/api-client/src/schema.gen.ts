@@ -2265,6 +2265,59 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/notifications/preferences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Email/push delivery preferences of the current user */
+        get: operations["get_notifications_preferences"];
+        /** Replace delivery preferences */
+        put: operations["put_notifications_preferences"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications/push-subscriptions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Register this browser's Web Push subscription (PushSubscription.toJSON()) */
+        post: operations["post_notifications_push_subscriptions"];
+        /** Remove a Web Push subscription by endpoint */
+        delete: operations["delete_notifications_push_subscriptions"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Send a test email or push to the current user now */
+        post: operations["post_notifications_test"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/notifications/{id}": {
         parameters: {
             query?: never;
@@ -2559,6 +2612,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/mcp/oauth/authorize": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Consent page data for an OAuth authorization request (query = the /oauth/authorize parameters) */
+        get: operations["get_mcp_oauth_authorize"];
+        put?: never;
+        /** Approve (with grants) or deny an OAuth authorization request; returns where to send the browser */
+        post: operations["post_mcp_oauth_authorize"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/mcp/tools": {
         parameters: {
             query?: never;
@@ -2585,7 +2656,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** MCP Streamable HTTP endpoint (JSON-RPC 2.0). Auth: Bearer MCP client token. */
+        /** MCP Streamable HTTP endpoint (JSON-RPC 2.0). Auth: Bearer MCP client token or OAuth access token (docs/mcp/README.md). */
         post: operations["mcp_transport"];
         delete?: never;
         options?: never;
@@ -3572,14 +3643,17 @@ export interface components {
             missingRates?: components["schemas"]["MissingRate"][];
             lines?: {
                 categoryId?: components["schemas"]["Uuid"] | null;
+                /** @description Allocation + rolloverIn (rollover chained from the first period; see docs/architecture/planning-analytics.md). */
                 limit?: components["schemas"]["Money"];
                 rolloverIn?: components["schemas"]["Money"];
                 actual?: components["schemas"]["Money"];
+                /** @description Pending planned expenses in the period (shown even when includePlanned is false). */
                 planned?: components["schemas"]["Money"];
+                /** @description limit - actual - planned (planned only when includePlanned). */
                 remaining?: components["schemas"]["Money"];
-                /** @description actual / (limit + rolloverIn), 4 decimals; null when that is <= 0. */
+                /** @description (actual + planned when includePlanned) / limit, 4 decimals; null when limit <= 0. */
                 utilization?: components["schemas"]["Decimal"] | null;
-                /** @description (actual + planned) / (limit + rolloverIn). */
+                /** @description (actual + planned) / limit. */
                 projectedUtilization?: components["schemas"]["Decimal"] | null;
                 alert?: components["schemas"]["Decimal"] | null;
             }[];
@@ -3647,7 +3721,7 @@ export interface components {
             currency?: string;
             from?: components["schemas"]["Date"];
             to?: components["schemas"]["Date"];
-            /** @description Total starting balance (today, all included accounts). */
+            /** @description Total starting balance before any event today (all included accounts, valued at today's rate). */
             start?: components["schemas"]["Money"];
             days?: {
                 date?: components["schemas"]["Date"];
@@ -3672,9 +3746,9 @@ export interface components {
             shortfalls?: {
                 date?: components["schemas"]["Date"];
                 amount?: components["schemas"]["Money"];
-                /** @description null = all included accounts together */
+                /** @description Account whose balance falls below its floor (0, or minus the credit limit for liabilities with a limit); amount is in that account's currency. Always set. */
                 accountId?: components["schemas"]["Uuid"] | null;
-                /** @description Last negative day; null = still negative at the end of the range. */
+                /** @description Last day below the floor; null = still below at the end of the range. */
                 until?: components["schemas"]["Date"] | null;
                 /** @enum {string} */
                 scenario?: "expected" | "conservative";
@@ -3877,6 +3951,8 @@ export interface components {
                 matchTransactionId?: components["schemas"]["Uuid"] | null;
                 matchScore?: components["schemas"]["Decimal"] | null;
                 suggestedCategoryId?: components["schemas"]["Uuid"] | null;
+                suggestedMerchantId?: components["schemas"]["Uuid"] | null;
+                suggestedSplitTemplateId?: components["schemas"]["Uuid"] | null;
                 selected?: boolean;
                 issues?: string[];
             }[];
@@ -3908,6 +3984,10 @@ export interface components {
                 selected?: boolean;
                 categoryId?: components["schemas"]["Uuid"] | null;
                 description?: string;
+                /** @description Merchant template (Feature 125). Omitted = staged suggestion; null = none */
+                merchantId?: components["schemas"]["Uuid"] | null;
+                /** @description Split template to allocate the amount with. Omitted = staged suggestion (dropped when categoryId is given); null = none */
+                splitTemplateId?: components["schemas"]["Uuid"] | null;
             }[];
             version?: number;
             /** @description Commit although statement balances do not reconcile with the file's rows */
@@ -3964,6 +4044,14 @@ export interface components {
             importRecordId?: components["schemas"]["Uuid"] | null;
             splitCount?: number;
             uncategorizedAmount?: components["schemas"]["Money"];
+            /** @description History / merchant-template suggestion (Feature 125); apply it with PATCH /transactions/{id} or PUT /transactions/{id}/splits */
+            suggestion?: null | {
+                categoryId?: components["schemas"]["Uuid"] | null;
+                merchantId?: components["schemas"]["Uuid"] | null;
+                splitTemplateId?: components["schemas"]["Uuid"] | null;
+                /** @enum {string} */
+                reason?: "history" | "merchant";
+            };
         };
         Attachment: components["schemas"]["SyncMeta"] & {
             transactionId?: components["schemas"]["Uuid"] | null;
@@ -4018,6 +4106,32 @@ export interface components {
             nextDate?: components["schemas"]["Date"];
             /** @enum {string} */
             cadence?: "weekly" | "biweekly" | "monthly" | "quarterly" | "yearly";
+        };
+        NotificationChannelPreferences: {
+            enabled: boolean;
+            /** @description bill_due, bill_overdue, trial_ending */
+            bills: boolean;
+            /** @description budget_threshold, low_balance */
+            budgets: boolean;
+            /** @description unusual_expense */
+            anomalies: boolean;
+            /** @description sync_conflict */
+            sync: boolean;
+        };
+        NotificationPreferences: {
+            email: components["schemas"]["NotificationChannelPreferences"];
+            push: components["schemas"]["NotificationChannelPreferences"];
+            /** @description HH:MM in the user's timezone, or empty */
+            quietHoursStart: string;
+            quietHoursEnd: string;
+        };
+        PushSubscriptionInput: {
+            /** Format: uri */
+            endpoint: string;
+            keys: {
+                p256dh: string;
+                auth: string;
+            };
         };
         Notification: {
             id?: components["schemas"]["Uuid"];
@@ -4127,6 +4241,11 @@ export interface components {
             name?: string;
             description?: string;
             tokenPrefix?: string;
+            /**
+             * @description token = static fpm_ bearer token; oauth = connected through /oauth/authorize
+             * @enum {string}
+             */
+            kind?: "token" | "oauth";
             enabled?: boolean;
             lastUsedAt?: components["schemas"]["Instant"] | null;
             expiresAt?: components["schemas"]["Instant"] | null;
@@ -4142,6 +4261,16 @@ export interface components {
             name: string;
             description?: string;
             expiresAt?: components["schemas"]["Instant"] | null;
+        };
+        McpOAuthRequest: {
+            clientId: components["schemas"]["Uuid"];
+            clientName: string;
+            clientUri?: string | null;
+            redirectUri: string;
+            redirectHost: string;
+            resource: string;
+            requestedScopes: string[];
+            connection: components["schemas"]["McpClient"] | null;
         };
         McpGrant: {
             id?: components["schemas"]["Uuid"];
@@ -8341,6 +8470,8 @@ export interface operations {
                 /** @description Reporting currency (default: profile base currency) */
                 currency?: components["parameters"]["Currency"];
                 format?: "json" | "csv" | "pdf";
+                /** @description CSV only: true prefixes a UTF-8 byte order mark so Excel reads č ć đ š ž correctly. */
+                bom?: boolean;
             };
             header: {
                 /** @description Active financial profile. Required on all profile-scoped endpoints. */
@@ -9627,6 +9758,133 @@ export interface operations {
             default: components["responses"]["Error"];
         };
     };
+    get_notifications_preferences: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationPreferences"] & {
+                        /** @description SMTP is configured on this server */
+                        emailConfigured: boolean;
+                        emailAddress: string;
+                        /** @description VAPID application server key (base64url) for PushManager.subscribe */
+                        pushPublicKey: string;
+                        pushSubscriptions: number;
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    put_notifications_preferences: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NotificationPreferences"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationPreferences"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    post_notifications_push_subscriptions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PushSubscriptionInput"];
+            };
+        };
+        responses: {
+            /** @description No content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    delete_notifications_push_subscriptions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    endpoint: string;
+                };
+            };
+        };
+        responses: {
+            /** @description No content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    post_notifications_test: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    channel: "email" | "push";
+                };
+            };
+        };
+        responses: {
+            /** @description Delivered */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Error"];
+        };
+    };
     delete_notifications_id: {
         parameters: {
             query?: never;
@@ -10218,6 +10476,57 @@ export interface operations {
                     "application/json": {
                         items: components["schemas"]["McpProposal"][];
                         nextCursor?: string;
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    get_mcp_oauth_authorize: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Requesting client, redirect host and the existing connection (if any) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["McpOAuthRequest"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    post_mcp_oauth_authorize: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    approve: boolean;
+                    grants?: components["schemas"]["McpGrant"][];
+                };
+            };
+        };
+        responses: {
+            /** @description Redirect URI with code+state+iss, or error=access_denied */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        redirectUrl: string;
                     };
                 };
             };

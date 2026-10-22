@@ -102,7 +102,11 @@ func (s *session) call(ctx context.Context, name string, args json.RawMessage) (
 	res, err := s.dispatch(ctx, name, args)
 	size := 0
 	if err == nil {
-		b, merr := json.Marshal(res)
+		payload := res
+		if f, ok := res.(*fileResult); ok {
+			payload = f.result
+		}
+		b, merr := json.Marshal(payload)
 		if merr != nil {
 			err = merr
 		} else if size = len(b); size > maxResultBytes {

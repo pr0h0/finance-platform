@@ -1,10 +1,12 @@
 // MCP connections (features 133, 141–144): clients with per-client tokens (shown once), grants
 // per profile and capability with account/period restrictions and approval mode, the review
-// queue for proposed changes (per change and batch), audit history, disable and revoke.
+// queue for proposed changes (per change and batch), audit history, disable and revoke. Also the
+// OAuth consent screen (/agents/authorize) that the API's /oauth/authorize sends the browser to.
 import type { Schemas } from '@finplat/api-client';
 import { MCP_SCOPES, type McpScope } from '@finplat/domain';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
+import { useLocation } from 'react-router';
 import { qk, useData, useFinance, useProfile } from '../app/data.tsx';
 import { useApp } from '../app/store.ts';
 import {
@@ -36,7 +38,7 @@ type Proposal = Schemas['McpProposal'];
 /** Only these scopes may run without per-change approval (enforced by the server too). */
 export const AUTO_SCOPES: McpScope[] = ['edit_categories', 'edit_metadata'];
 
-const scopeLabel = (t: TFn, s: string) =>
+const scopeLabel = (t: TFn, s: string): string =>
   ({
     read_aggregates: t('mcp.s.read_aggregates', 'Read totals and analytics'),
     read_transactions: t('mcp.s.read_transactions', 'Read individual transactions'),
@@ -303,7 +305,11 @@ function Clients() {
                     <tr key={c.id}>
                       <td>
                         <span className="font-medium">{c.name}</span>{' '}
-                        <code className="text-xs text-muted">{c.tokenPrefix}…</code>
+                        {c.kind === 'oauth' ? (
+                          <Badge tone="accent">OAuth</Badge>
+                        ) : (
+                          <code className="text-xs text-muted">{c.tokenPrefix}…</code>
+                        )}
                         {c.description && (
                           <span className="block text-xs text-muted">{c.description}</span>
                         )}
@@ -704,15 +710,248 @@ function Audit() {
   );
 }
 
+/** Read-only by default (PLAN §29); write capabilities must be ticked explicitly. */
+const CONSENT_DEFAULTS: McpScope[] = ['read_aggregates', 'read_transactions', 'read_merchants'];
+
+type OAuthRequest = Schemas['McpOAuthRequest'];
+
+function OAuthConsent() {
+  const t = useT();
+  const { api, profiles } = useData();
+  const current = useProfile();
+  const search = useLocation().search;
+  const [profileId, setProfileId] = useState(current.id);
+  const info = useQuery({
+    queryKey: ['server', 'mcp-oauth', search],
+    enabled: !!api,
+    retry: false,
+    queryFn: () =>
+      api?.request<OAuthRequest>('GET', `/api/v1/mcp/oauth/authorize${search}`) ??
+      Promise.reject(new Error('not connected')),
+  });
+  if (!api)
+    return (
+      <Notice tone="warn" title={t('mcp.oauthLocal', 'Sign in to your server first')}>
+        {t(
+          'mcp.oauthLocalText',
+          'AI agents connect to the server. Open this link again after signing in to a server account.',
+        )}
+      </Notice>
+    );
+  if (info.isLoading) return null;
+  if (!info.data) return <ErrorBox error={info.error} />;
+  return (
+    <ConsentForm
+      key={profileId}
+      req={info.data}
+      search={search}
+      profileId={profileId}
+      profiles={profiles.map((p) => ({ id: p.id, name: p.name }))}
+      onProfile={setProfileId}
+    />
+  );
+}
+
+function ConsentForm({
+  req,
+  search,
+  profileId,
+  profiles,
+  onProfile,
+}: {
+  req: OAuthRequest;
+  search: string;
+  profileId: string;
+  profiles: { id: string; name: string }[];
+  onProfile: (id: string) => void;
+}) {
+  const t = useT();
+  const { api } = useData();
+  const existing = req.connection?.grants ?? [];
+  const mine = existing.filter((g) => g.profileId === profileId);
+  const [drafts, setDrafts] = useState<Record<string, GrantDraft>>(() =>
+    Object.fromEntries(
+      MCP_SCOPES.map((s) => {
+        const g = mine.find((x) => x.scope === s);
+        const on = mine.length ? !!g : CONSENT_DEFAULTS.includes(s);
+        return [s, { enabled: on, approval: g?.approval ?? 'required' }];
+      }),
+    ),
+  );
+  const [accountIds, setAccountIds] = useState<string[]>(mine[0]?.accountIds ?? []);
+  const [dateFrom, setDateFrom] = useState(mine[0]?.dateFrom ?? '');
+  const [dateTo, setDateTo] = useState(mine[0]?.dateTo ?? '');
+  const accounts = useQuery({
+    queryKey: ['server', 'accounts', profileId],
+    queryFn: () =>
+      api
+        ?.request<{ items: Schemas['Account'][] }>('GET', '/api/v1/accounts?limit=500', undefined, {
+          'X-Profile-ID': profileId,
+        })
+        .then((r) => r.items.filter((a) => !a.deletedAt)) ?? [],
+  });
+  const decide = useMutation({
+    mutationFn: (approve: boolean) =>
+      api?.request<{ redirectUrl: string }>('POST', `/api/v1/mcp/oauth/authorize${search}`, {
+        approve,
+        grants: approve
+          ? buildGrants(existing, profileId, drafts, { accountIds, dateFrom, dateTo })
+          : undefined,
+      }) ?? Promise.reject(new Error('not connected')),
+    onSuccess: (r) => window.location.assign(r.redirectUrl),
+  });
+  const toggle = (s: McpScope, enabled: boolean) =>
+    setDrafts({ ...drafts, [s]: { approval: drafts[s]?.approval ?? 'required', enabled } });
+  const group = (title: string, scopes: McpScope[]) => (
+    <fieldset className="mt-3">
+      <legend className="text-sm font-semibold">{title}</legend>
+      {scopes.map((s) => (
+        <div key={s} className="flex flex-wrap items-center justify-between gap-2 py-1">
+          <Checkbox
+            checked={drafts[s]?.enabled ?? false}
+            onChange={(e) => toggle(s, e.target.checked)}
+            label={scopeLabel(t, s)}
+            hint={<code>{s}</code>}
+          />
+          {AUTO_SCOPES.includes(s) && drafts[s]?.enabled && (
+            <Select
+              aria-label={t('mcp.approvalFor', 'Approval for {{s}}', { s })}
+              className="h-8 w-56"
+              value={drafts[s]?.approval}
+              onChange={(e) =>
+                setDrafts({
+                  ...drafts,
+                  [s]: { enabled: true, approval: e.target.value as 'required' | 'auto' },
+                })
+              }
+            >
+              <option value="required">{t('mcp.approvalRequired', 'I approve each change')}</option>
+              <option value="auto">
+                {t('mcp.approvalAuto', 'Apply automatically (low risk)')}
+              </option>
+            </Select>
+          )}
+        </div>
+      ))}
+    </fieldset>
+  );
+  const none = !Object.values(drafts).some((d) => d.enabled);
+  return (
+    <div className="mx-auto flex max-w-2xl flex-col gap-4">
+      <PageHeader
+        title={t('mcp.oauthTitle', 'Connect “{{name}}”', { name: req.clientName })}
+        description={t(
+          'mcp.oauthText',
+          '{{host}} asks for access to your finances through MCP. After you approve, it is sent back to {{host}}.',
+          { host: req.redirectHost },
+        )}
+      />
+      <Notice
+        tone="warn"
+        title={t('mcp.privacy', 'Data you expose to an AI agent leaves your control')}
+      >
+        {t(
+          'mcp.oauthPrivacy',
+          'Only approve if you started this connection. What the agent reads is sent to its AI provider. You can change or revoke this connection any time in MCP connections.',
+        )}
+      </Notice>
+      <Card>
+        <p className="text-sm text-muted">
+          {t('mcp.oauthRedirect', 'Redirects to')}{' '}
+          <code className="break-all">{req.redirectUri}</code>
+        </p>
+        {req.connection && (
+          <p className="mt-1 text-sm text-muted">
+            {t(
+              'mcp.oauthExisting',
+              'Already connected: approving replaces its permissions on this profile.',
+            )}
+          </p>
+        )}
+        <Field label={t('mcp.oauthProfile', 'Profile')} className="mt-3">
+          <Select value={profileId} onChange={(e) => onProfile(e.target.value)}>
+            {profiles.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        {group(
+          t('mcp.read', 'Read'),
+          MCP_SCOPES.filter((s) => s.startsWith('read_')),
+        )}
+        {group(
+          t('mcp.write', 'Propose changes'),
+          MCP_SCOPES.filter((s) => !s.startsWith('read_')),
+        )}
+        <fieldset className="mt-3 grid gap-3 border-t border-line pt-3 sm:grid-cols-2">
+          <legend className="sr-only">{t('mcp.scope', 'Restrictions')}</legend>
+          <div className="sm:col-span-2">
+            <p className="text-sm font-semibold">{t('mcp.accounts', 'Accounts')}</p>
+            <p className="mb-1 text-xs text-muted">
+              {t(
+                'mcp.accountsHint',
+                'None selected = all accounts. Restricted clients cannot use tools that span every account.',
+              )}
+            </p>
+            <div className="grid gap-1 sm:grid-cols-2">
+              {(accounts.data ?? []).map((a) => (
+                <Checkbox
+                  key={a.id}
+                  checked={accountIds.includes(a.id)}
+                  onChange={(e) =>
+                    setAccountIds(
+                      e.target.checked
+                        ? [...accountIds, a.id]
+                        : accountIds.filter((x) => x !== a.id),
+                    )
+                  }
+                  label={`${a.name} (${a.currency})`}
+                />
+              ))}
+            </div>
+          </div>
+          <Field label={t('mcp.from', 'Data from (optional)')}>
+            <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+          </Field>
+          <Field label={t('mcp.to', 'Data until (optional)')}>
+            <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+          </Field>
+        </fieldset>
+        <ErrorBox error={decide.error ?? accounts.error} />
+        <div className="mt-4 flex justify-end gap-2">
+          <Button
+            busy={decide.isPending && decide.variables === false}
+            onClick={() => decide.mutate(false)}
+          >
+            {t('mcp.oauthDeny', 'Deny')}
+          </Button>
+          <Button
+            variant="primary"
+            disabled={none}
+            busy={decide.isPending && decide.variables === true}
+            onClick={() => decide.mutate(true)}
+          >
+            {t('mcp.oauthApprove', 'Approve')}
+          </Button>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
 export default function McpPage() {
   const t = useT();
   const { api } = useData();
   const [tab, setTab] = useState('clients');
+  const consent = useLocation().pathname.replace(/\/$/, '') === '/agents/authorize';
   const meta = useQuery({
     queryKey: ['server', 'meta'],
     queryFn: () => api?.getMeta() ?? null,
     enabled: !!api,
   });
+  if (consent) return <OAuthConsent />;
   return (
     <>
       <PageHeader

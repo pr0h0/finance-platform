@@ -72,6 +72,7 @@ func New(deps *app.Deps) http.Handler {
 		}
 	})
 	r.Route("/mcp", func(m chi.Router) { mcp.RegisterTransport(m, deps) })
+	mcp.RegisterOAuth(r, deps) // /.well-known/oauth-*, /oauth/* (OAuth 2.1 for /mcp)
 	return r
 }
 

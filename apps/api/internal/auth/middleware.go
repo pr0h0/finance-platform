@@ -47,7 +47,8 @@ func unsafeMethod(m string) bool {
 // token returned by login / GET /auth/session).
 //
 // Bearer tokens: device/CLI sessions (sessions.kind = 'bearer'). On /mcp paths only, a bearer token
-// may also be an MCP client token (mcp_clients.token_hash = sha256(token), see HashToken); MCP
+// may also be an MCP client token (mcp_clients.token_hash = sha256(token), see HashToken) or an OAuth access
+// token issued for this server's /mcp resource (mcp_oauth_tokens, internal/mcp/oauth.go); MCP
 // principals are never accepted on /api/v1, so an MCP token cannot use the full REST API.
 func Middleware(deps *app.Deps) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
@@ -55,6 +56,10 @@ func Middleware(deps *app.Deps) func(http.Handler) http.Handler {
 			cred := credential{}
 			if h := r.Header.Get("Authorization"); h != "" {
 				tok, ok := strings.CutPrefix(h, "Bearer ")
+				if !ok && strings.HasPrefix(r.URL.Path, "/oauth/") {
+					next.ServeHTTP(w, r) // OAuth token/revoke endpoints read client credentials themselves
+					return
+				}
 				if !ok || tok == "" {
 					httpx.WriteError(w, r, httpx.Unauthorized())
 					return
@@ -75,6 +80,9 @@ func Middleware(deps *app.Deps) func(http.Handler) http.Handler {
 			if !ok {
 				if !cred.viaCookie {
 					// An explicit but invalid bearer token is an error, not anonymous access.
+					if isMCPPath(r.URL.Path) { // RFC 9728: point MCP clients at the OAuth metadata
+						w.Header().Set("WWW-Authenticate", `Bearer error="invalid_token", resource_metadata="`+deps.Config.PublicURL+`/.well-known/oauth-protected-resource/mcp"`)
+					}
 					httpx.WriteError(w, r, httpx.NewError(http.StatusUnauthorized, "invalid_token", "token invalid, expired or revoked"))
 					return
 				}
@@ -117,13 +125,16 @@ func resolve(r *http.Request, deps *app.Deps, cred credential) (authz.Principal,
 	case !errors.Is(err, pgx.ErrNoRows):
 		return p, false, err
 	}
-	if cred.viaCookie || !(r.URL.Path == "/mcp" || strings.HasPrefix(r.URL.Path, "/mcp/")) {
+	if cred.viaCookie || !isMCPPath(r.URL.Path) {
 		return p, false, nil
 	}
 	var clientID uuid.UUID
+	// Static client token, or an OAuth access token whose audience (RFC 8707) is this server's /mcp.
 	err = deps.DB.QueryRow(ctx, `SELECT c.id, c.user_id FROM mcp_clients c JOIN users u ON u.id = c.user_id
-		WHERE c.token_hash = $1 AND c.enabled AND c.revoked_at IS NULL AND (c.expires_at IS NULL OR c.expires_at > now())
-		  AND u.status = 'active' AND u.deleted_at IS NULL`, hash).Scan(&clientID, &p.UserID)
+		WHERE (c.token_hash = $1 OR c.id = (SELECT t.mcp_client_id FROM mcp_oauth_tokens t WHERE t.token_hash = $1 AND t.kind = 'access'
+		    AND t.revoked_at IS NULL AND t.expires_at > now() AND t.resource = $2))
+		  AND c.enabled AND c.revoked_at IS NULL AND (c.expires_at IS NULL OR c.expires_at > now())
+		  AND u.status = 'active' AND u.deleted_at IS NULL`, hash, deps.Config.PublicURL+"/mcp").Scan(&clientID, &p.UserID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return p, false, nil
 	}
@@ -134,3 +145,5 @@ func resolve(r *http.Request, deps *app.Deps, cred credential) (authz.Principal,
 	_, err = deps.DB.Exec(ctx, `UPDATE mcp_clients SET last_used_at = now() WHERE id = $1 AND (last_used_at IS NULL OR last_used_at < now() - interval '1 minute')`, clientID)
 	return p, true, err
 }
+
+func isMCPPath(p string) bool { return p == "/mcp" || strings.HasPrefix(p, "/mcp/") }

@@ -28,6 +28,7 @@ type Client struct {
 	Name        string     `json:"name"`
 	Description string     `json:"description"`
 	TokenPrefix string     `json:"tokenPrefix"`
+	Kind        string     `json:"kind"` // token (static bearer) | oauth (authorized via /oauth/authorize)
 	Enabled     bool       `json:"enabled"`
 	LastUsedAt  *time.Time `json:"lastUsedAt"`
 	ExpiresAt   *time.Time `json:"expiresAt"`
@@ -41,12 +42,12 @@ type ClientCreated struct {
 	Token string `json:"token"`
 }
 
-const clientCols = `id, name, description, token_prefix, enabled, last_used_at, expires_at, revoked_at, created_at`
+const clientCols = `id, name, description, token_prefix, CASE WHEN oauth_client_id IS NULL THEN 'token' ELSE 'oauth' END, enabled, last_used_at, expires_at, revoked_at, created_at`
 
 func (h *handlers) getClient(ctx context.Context, userID, id uuid.UUID) (Client, error) {
 	var c Client
 	err := h.deps.DB.QueryRow(ctx, `SELECT `+clientCols+` FROM mcp_clients WHERE id = $1 AND user_id = $2`, id, userID).Scan(
-		&c.ID, &c.Name, &c.Description, &c.TokenPrefix, &c.Enabled, &c.LastUsedAt, &c.ExpiresAt, &c.RevokedAt, &c.CreatedAt)
+		&c.ID, &c.Name, &c.Description, &c.TokenPrefix, &c.Kind, &c.Enabled, &c.LastUsedAt, &c.ExpiresAt, &c.RevokedAt, &c.CreatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return c, httpx.NotFound("MCP client")
 	}
@@ -209,6 +210,9 @@ func (h *handlers) deleteClient(w http.ResponseWriter, r *http.Request) error {
 	if _, err := tx.Exec(r.Context(), `UPDATE mcp_permission_grants SET revoked_at = now() WHERE mcp_client_id = $1 AND revoked_at IS NULL`, id); err != nil {
 		return err
 	}
+	if _, err := tx.Exec(r.Context(), `UPDATE mcp_oauth_tokens SET revoked_at = now() WHERE mcp_client_id = $1 AND revoked_at IS NULL`, id); err != nil {
+		return err
+	}
 	if _, err := tx.Exec(r.Context(), `UPDATE mcp_proposed_changes SET status = 'expired' WHERE mcp_client_id = $1 AND status IN ('pending','approved')`, id); err != nil {
 		return err
 	}
@@ -245,9 +249,36 @@ func (h *handlers) putGrants(w http.ResponseWriter, r *http.Request) error {
 	if _, err := h.getClient(r.Context(), p.UserID, id); err != nil {
 		return err
 	}
+	if err := h.validateGrants(r.Context(), in.Grants); err != nil {
+		return err
+	}
+	tx, err := h.deps.DB.Begin(r.Context())
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(r.Context())
+	if err := replaceGrants(r.Context(), tx, id, in.Grants); err != nil {
+		return err
+	}
+	if err := tx.Commit(r.Context()); err != nil {
+		return err
+	}
+	c, err := h.getClient(r.Context(), p.UserID, id)
+	if err != nil {
+		return err
+	}
+	httpx.WriteJSON(w, http.StatusOK, c)
+	return nil
+}
+
+// validateGrants checks a grant list (normalizing empty approval to required). A user can only grant
+// what they have: read scopes need viewer, write scopes editor on the profile. approval=auto is
+// allowed only for low-risk scopes.
+func (h *handlers) validateGrants(ctx context.Context, grants []Grant) error {
+	var err error
 	fe := map[string]string{}
 	seen := map[string]bool{}
-	for i, g := range in.Grants {
+	for i, g := range grants {
 		key := func(f string) string { return "grants[" + strconv.Itoa(i) + "]." + f }
 		write := slices.Contains(writeScopes, g.Scope)
 		if !write && !slices.Contains(readScopes, g.Scope) {
@@ -262,13 +293,13 @@ func (h *handlers) putGrants(w http.ResponseWriter, r *http.Request) error {
 		if write {
 			min = authz.RoleEditor
 		}
-		if _, _, err := authz.RequireProfile(r.Context(), h.deps.DB, g.ProfileID, min); err != nil {
+		if _, _, err := authz.RequireProfile(ctx, h.deps.DB, g.ProfileID, min); err != nil {
 			fe[key("profileId")] = "you need " + string(min) + " access to grant " + g.Scope
 			continue
 		}
 		switch g.Approval {
 		case "":
-			in.Grants[i].Approval = "required"
+			grants[i].Approval = "required"
 		case "required":
 		case "auto":
 			if !slices.Contains(lowRiskScopes, g.Scope) {
@@ -293,7 +324,7 @@ func (h *handlers) putGrants(w http.ResponseWriter, r *http.Request) error {
 		}
 		if g.AccountIDs != nil {
 			var n int
-			if err := h.deps.DB.QueryRow(r.Context(), `SELECT count(*) FROM accounts WHERE profile_id = $1 AND deleted_at IS NULL AND id = ANY($2)`,
+			if err := h.deps.DB.QueryRow(ctx, `SELECT count(*) FROM accounts WHERE profile_id = $1 AND deleted_at IS NULL AND id = ANY($2)`,
 				g.ProfileID, g.AccountIDs).Scan(&n); err != nil {
 				return err
 			}
@@ -305,32 +336,21 @@ func (h *handlers) putGrants(w http.ResponseWriter, r *http.Request) error {
 	if len(fe) > 0 {
 		return httpx.Validation(fe)
 	}
-	tx, err := h.deps.DB.Begin(r.Context())
-	if err != nil {
+	return nil
+}
+
+// replaceGrants revokes the client's current grants and inserts the new ones (caller commits).
+func replaceGrants(ctx context.Context, tx pgx.Tx, id uuid.UUID, grants []Grant) error {
+	if _, err := tx.Exec(ctx, `UPDATE mcp_permission_grants SET revoked_at = now() WHERE mcp_client_id = $1 AND revoked_at IS NULL`, id); err != nil {
 		return err
 	}
-	defer tx.Rollback(r.Context())
-	if _, err := tx.Exec(r.Context(), `UPDATE mcp_permission_grants SET revoked_at = now() WHERE mcp_client_id = $1 AND revoked_at IS NULL`, id); err != nil {
-		return err
-	}
-	for _, g := range in.Grants {
-		if _, err := tx.Exec(r.Context(), `INSERT INTO mcp_permission_grants (mcp_client_id, profile_id, scope, account_ids, date_from, date_to, approval)
+	for _, g := range grants {
+		if _, err := tx.Exec(ctx, `INSERT INTO mcp_permission_grants (mcp_client_id, profile_id, scope, account_ids, date_from, date_to, approval)
 			VALUES ($1,$2,$3,$4,$5,$6,$7)`, id, g.ProfileID, g.Scope, g.AccountIDs, g.DateFrom, g.DateTo, g.Approval); err != nil {
 			return err
 		}
 	}
-	if err := changes.Audit(r.Context(), tx, changes.Entry{Action: "mcp.client.grants", EntityType: "mcp_clients", EntityID: &id, After: in.Grants}); err != nil {
-		return err
-	}
-	if err := tx.Commit(r.Context()); err != nil {
-		return err
-	}
-	c, err := h.getClient(r.Context(), p.UserID, id)
-	if err != nil {
-		return err
-	}
-	httpx.WriteJSON(w, http.StatusOK, c)
-	return nil
+	return changes.Audit(ctx, tx, changes.Entry{Action: "mcp.client.grants", EntityType: "mcp_clients", EntityID: &id, After: grants})
 }
 
 func uniqIDs(ids []uuid.UUID) []uuid.UUID {

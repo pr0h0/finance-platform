@@ -172,12 +172,18 @@
   is authoritative for batch statuses (reconciliation + ledger check).
 
 ## Remote MCP (apps/api/internal/mcp)
-- Authentication is a static bearer token per client; no OAuth 2.1 authorization server yet, so Claude
-  Desktop's UI connectors (OAuth-only) need the `mcp-remote` bridge (docs/mcp/README.md).
+- (fixed) OAuth 2.1 authorization server for /mcp (claude.ai / Claude Desktop connectors, Claude Code `/mcp`).
+- OAuth: public clients only (no client secrets); Client ID Metadata Documents (MCP 2025-11-25) are not
+  supported, clients must use DCR. Unused DCR registrations, expired codes and tokens are never cleaned up.
+  A client that retries a refresh with an already rotated refresh token loses the grant (no grace period)
+  and must authorize again. Loopback redirect URIs must match exactly, including the port. Consent needs a
+  signed-in server session in the web app (local-only mode shows a notice). The OAuth `scope` parameter is
+  not used to preselect capabilities (defaults are always read-only).
 - Stateless Streamable HTTP: no server-initiated requests/notifications, no resumable SSE streams.
-- `read_attachments` grant exists but no attachment tool is exposed.
-- `get_income_summary` returns income per month (not per income category). `analytics.IncomeByCategory`
-  (same Query/Rows as SpendingByCategory) now exists for the MCP tool to add the per-category breakdown.
+- `get_attachments` returns content only for files on the local backend without server-side encryption
+  (it reads ATTACHMENTS_DIR directly); S3-stored or ATTACHMENT_ENCRYPTION_KEY-sealed files return metadata
+  with a contentNote until the attachments module exports its blob reader. E2EE attachments: metadata only.
+- (fixed) `get_income_summary` has a per-income-category breakdown (`byCategory`).
 - Budget status, savings goals, budgets and categorization rules are refused for account-restricted clients
   (they span all accounts). Forecasts include only granted accounts.
 - `list_recurring_expenses` converts annualized amounts at today's rate; plan amounts stay native.

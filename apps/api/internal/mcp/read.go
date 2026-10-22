@@ -33,6 +33,7 @@ var readTools = map[string]readFn{
 	"get_account_balance":            accountBalance,
 	"list_transactions":              listTransactions,
 	"get_transaction":                getTransaction,
+	"get_attachments":                getAttachments,
 	"get_spending_by_category":       spendingByCategory,
 	"get_spending_by_merchant":       spendingByMerchant,
 	"compare_periods":                comparePeriods,
@@ -667,7 +668,23 @@ func incomeSummary(ctx context.Context, s *session, def *toolDef, raw json.RawMe
 			total.Add(x.Amount)
 		}
 	}
-	return map[string]any{"rows": rows, "total": total.Money(q.Currency), "from": fin.Fmt(q.From), "to": fin.Fmt(q.To), "meta": m}, nil
+	byCat, err := incomeByCategory(ctx, s, q, m)
+	if err != nil {
+		return nil, err
+	}
+	return map[string]any{"rows": rows, "byCategory": byCat, "total": total.Money(q.Currency), "from": fin.Fmt(q.From), "to": fin.Fmt(q.To), "meta": m}, nil
+}
+
+// incomeByCategory: income per top-level income category (subcategories rolled up), largest first —
+// analytics.IncomeByCategory with groupBy parent, as the web's incomeByCategory.
+func incomeByCategory(ctx context.Context, s *session, q analytics.Query, m *meta) ([]amountRow, error) {
+	q.Interval, q.GroupBy = "none", "parent"
+	r, err := analytics.IncomeByCategory(ctx, s.db, q)
+	if err != nil {
+		return nil, err
+	}
+	m.merge(r.Complete, nil, r.MissingRates)
+	return rowsOf(r, nil), nil
 }
 
 func budgetStatus(ctx context.Context, s *session, def *toolDef, raw json.RawMessage) (any, error) {

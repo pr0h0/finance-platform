@@ -3,14 +3,16 @@
 // human approval, audit of every call. Tool semantics come from packages/mcp-contracts
 // (tools.json) so the future local desktop MCP server (Feature 131, DEFERRED) behaves the same.
 //
-// Owned routes under /api/v1: /mcp/clients, /mcp/proposals, /mcp/tools (REST, humans only) and
-// /mcp (Streamable HTTP protocol endpoint, RegisterTransport). See docs/mcp/README.md.
+// Owned routes under /api/v1: /mcp/clients, /mcp/proposals, /mcp/tools, /mcp/oauth (REST, humans only);
+// /mcp (Streamable HTTP protocol endpoint, RegisterTransport); /.well-known/oauth-* and /oauth/*
+// (OAuth 2.1 authorization server, RegisterOAuth in oauth.go). See docs/mcp/README.md.
 package mcp
 
 import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
@@ -37,6 +39,8 @@ func Register(r chi.Router, deps *app.Deps) {
 	r.With(idem).Post("/mcp/proposals/{id}/approve", httpx.H(h.approve))
 	r.Post("/mcp/proposals/{id}/reject", httpx.H(h.reject))
 	r.Get("/mcp/tools", httpx.H(h.tools))
+	r.Get("/mcp/oauth/authorize", httpx.H(h.describeAuthorize))
+	r.Post("/mcp/oauth/authorize", httpx.H(h.approveAuthorize))
 }
 
 func (h *handlers) tools(w http.ResponseWriter, r *http.Request) error {
@@ -80,8 +84,9 @@ func RegisterTransport(r chi.Router, deps *app.Deps) {
 		}
 		p, ok := authz.FromContext(req.Context())
 		if !ok || p.ActorType != authz.ActorMCP {
-			w.Header().Set("WWW-Authenticate", `Bearer realm="mcp", error="invalid_token"`)
-			httpx.WriteError(w, req, httpx.NewError(http.StatusUnauthorized, "unauthenticated", "an MCP client token is required (Authorization: Bearer fpm_...)"))
+			// RFC 9728 §5.1: tell OAuth clients where to discover the authorization server.
+			w.Header().Set("WWW-Authenticate", `Bearer resource_metadata="`+deps.Config.PublicURL+`/.well-known/oauth-protected-resource/mcp"`)
+			httpx.WriteError(w, req, httpx.NewError(http.StatusUnauthorized, "unauthenticated", "an MCP token is required (OAuth access token or Authorization: Bearer fpm_...)"))
 			return
 		}
 		s, err := newSession(req.Context(), deps.DB, deps.Config.MCPMaxResults, p)
@@ -89,6 +94,7 @@ func RegisterTransport(r chi.Router, deps *app.Deps) {
 			httpx.WriteError(w, req, err)
 			return
 		}
+		s.attachmentsDir = deps.Config.AttachmentsDir
 		handler.ServeHTTP(w, req.WithContext(context.WithValue(req.Context(), sessionKey{}, s)))
 	}))
 }
@@ -108,8 +114,20 @@ func newServer(s *session) *sdk.Server {
 				if err != nil {
 					res = errorPayload(err)
 				}
+				file, _ := res.(*fileResult)
+				if file != nil {
+					res = file.result
+				}
 				b, _ := json.Marshal(res)
-				return &sdk.CallToolResult{Content: []sdk.Content{&sdk.TextContent{Text: string(b)}}, StructuredContent: json.RawMessage(b), IsError: err != nil}, nil
+				content := []sdk.Content{&sdk.TextContent{Text: string(b)}}
+				switch {
+				case file == nil:
+				case strings.HasPrefix(file.mime, "image/"):
+					content = append(content, &sdk.ImageContent{Data: file.data, MIMEType: file.mime})
+				default:
+					content = append(content, &sdk.EmbeddedResource{Resource: &sdk.ResourceContents{URI: file.uri, MIMEType: file.mime, Blob: file.data}})
+				}
+				return &sdk.CallToolResult{Content: content, StructuredContent: json.RawMessage(b), IsError: err != nil}, nil
 			})
 	}
 	return srv

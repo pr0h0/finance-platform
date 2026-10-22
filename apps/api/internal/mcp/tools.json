@@ -191,6 +191,44 @@
   ]
  },
  {
+  "name": "get_attachments",
+  "description": "Attachments (receipts, statements) of a transaction or the profile: metadata. With attachmentId and includeContent, also the file itself (images and PDFs up to 4 MiB) as an image or embedded resource.",
+  "annotations": {
+   "readOnlyHint": true
+  },
+  "inputSchema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "profileId": {
+     "type": "string",
+     "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "transactionId": {
+     "type": "string",
+     "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "attachmentId": {
+     "type": "string",
+     "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "includeContent": {
+     "default": false,
+     "type": "boolean"
+    },
+    "limit": {
+     "default": 50,
+     "type": "integer",
+     "minimum": 1,
+     "maximum": 100
+    }
+   }
+  },
+  "scopes": [
+   "read_attachments"
+  ]
+ },
+ {
   "name": "get_spending_by_category",
   "description": "Expense totals per category (splits counted, transfers excluded).",
   "annotations": {
@@ -371,7 +409,7 @@
  },
  {
   "name": "get_income_summary",
-  "description": "Income totals by source/category and month.",
+  "description": "Income totals per month (rows) and per income category (byCategory, subcategories rolled up into their top-level category). Default: last 12 months.",
   "annotations": {
    "readOnlyHint": true
   },
