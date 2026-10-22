@@ -677,7 +677,7 @@ type PreviewRow struct {
 	SuggestedMerchantID      *uuid.UUID `json:"suggestedMerchantId"`
 	SuggestedSplitTemplateID *uuid.UUID `json:"suggestedSplitTemplateId"`
 	Selected                 bool       `json:"selected"`
-	Issues              []string   `json:"issues"`
+	Issues                   []string   `json:"issues"`
 }
 
 type Preview struct {

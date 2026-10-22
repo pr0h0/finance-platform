@@ -32,7 +32,7 @@ test('xlsx keeps Bosnian characters and decimal strings', () => {
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([[bosnian, '-1234.56']]), 'Izvještaj');
   const back = XLSX.read(XLSX.write(wb, { type: 'array', bookType: 'xlsx' }), { type: 'array' });
   expect(back.SheetNames).toEqual(['Izvještaj']);
-  const rows = XLSX.utils.sheet_to_json<string[]>(back.Sheets['Izvještaj'] as XLSX.WorkSheet, {
+  const rows = XLSX.utils.sheet_to_json<string[]>(back.Sheets.Izvještaj as XLSX.WorkSheet, {
     header: 1,
   });
   expect(rows).toEqual([[bosnian, '-1234.56']]);

@@ -12,10 +12,12 @@ import {
   useNotificationGenerator,
 } from '../../features/notifications/useNotifications.ts';
 import { useFormat } from '../../lib/format.ts';
+import { useT } from '../../lib/i18n.ts';
 
 const tone = { info: 'border-line', warning: 'border-warn/50', critical: 'border-neg/50' } as const;
 
 export default function NotificationsPage() {
+  const t = useT();
   useNotificationGenerator();
   const f = useFormat();
   const snap = useSnapshot();
@@ -38,7 +40,7 @@ export default function NotificationsPage() {
 
   if (list.error)
     return (
-      <Page title="Notifications">
+      <Page title={t('nav.notifications', 'Notifications')}>
         <ErrorText error={list.error} />
       </Page>
     );
@@ -46,7 +48,7 @@ export default function NotificationsPage() {
   const items: Note[] = list.data;
   return (
     <Page
-      title="Notifications"
+      title={t('nav.notifications', 'Notifications')}
       actions={
         <>
           <Button
@@ -59,22 +61,33 @@ export default function NotificationsPage() {
             ) : (
               <Bell aria-hidden className="size-4" />
             )}
-            {enabled ? 'Turn off browser notifications' : 'Browser notifications'}
+            {enabled
+              ? t(
+                  'notifications.page.turnOffBrowserNotifications',
+                  'Turn off browser notifications',
+                )
+              : t('notifications.page.browserNotifications', 'Browser notifications')}
           </Button>
           <Button onClick={() => read.mutate(undefined)} disabled={!items.some((n) => !n.readAt)}>
-            <CheckCheck aria-hidden className="size-4" /> Mark all read
+            <CheckCheck aria-hidden className="size-4" /> {t('notif.readAll', 'Mark all read')}
           </Button>
         </>
       }
     >
       {perm === 'denied' && (
         <p className="text-sm text-muted">
-          Browser notifications are blocked for this site in your browser settings.
+          {t(
+            'notifications.page.browserNotificationsAreBlocked',
+            'Browser notifications are blocked for this site in your browser settings.',
+          )}
         </p>
       )}
       {perm === 'unsupported' && (
         <p className="text-sm text-muted">
-          This browser does not support notifications; they are shown here only.
+          {t(
+            'notifications.page.thisBrowserDoesNot',
+            'This browser does not support notifications; they are shown here only.',
+          )}
         </p>
       )}
       <div className="flex gap-2 text-sm">
@@ -84,7 +97,7 @@ export default function NotificationsPage() {
             checked={unreadOnly}
             onChange={(e) => setUnreadOnly(e.target.checked)}
           />{' '}
-          Unread only
+          {t('notifications.page.unreadOnly', 'Unread only')}
         </label>
       </div>
       <Card>
@@ -100,7 +113,11 @@ export default function NotificationsPage() {
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div>
                       <p className="text-sm font-medium">
-                        {!n.readAt && <span className="sr-only">Unread: </span>}
+                        {!n.readAt && (
+                          <span className="sr-only">
+                            {t('notifications.page.unread', 'Unread:')}{' '}
+                          </span>
+                        )}
                         {n.title}
                       </p>
                       <p className="text-sm text-muted">{n.body}</p>
@@ -110,7 +127,7 @@ export default function NotificationsPage() {
                           <>
                             {' · '}
                             <Link className="text-accent hover:underline" to={link}>
-                              Open
+                              {t('notifications.page.open', 'Open')}
                             </Link>
                           </>
                         )}
@@ -118,7 +135,7 @@ export default function NotificationsPage() {
                     </div>
                     {!n.readAt && (
                       <Button size="sm" variant="ghost" onClick={() => read.mutate(n.id)}>
-                        Mark read
+                        {t('notifications.page.markRead', 'Mark read')}
                       </Button>
                     )}
                   </div>
@@ -128,15 +145,20 @@ export default function NotificationsPage() {
           </ul>
         ) : (
           <Empty>
-            No notifications. Bill reminders, budget alerts and forecast warnings appear here.
+            {t(
+              'notifications.page.noNotificationsBillReminders',
+              'No notifications. Bill reminders, budget alerts and forecast warnings appear here.',
+            )}
           </Empty>
         )}
       </Card>
       <p className="text-xs text-muted">
-        Notifications are created on this device while the app is open. Connected to a server,
-        reminders and alerts can also arrive by email or push while the app is closed.{' '}
+        {t(
+          'notifications.page.deliveryNote',
+          'Notifications are created on this device while the app is open. Connected to a server, reminders and alerts can also arrive by email or push while the app is closed.',
+        )}{' '}
         <Link className="text-accent hover:underline" to="/settings?tab=notifications">
-          Notifications
+          {t('settings.notifications', 'Notifications')}
         </Link>
       </p>
     </Page>
