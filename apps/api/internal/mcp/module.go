@@ -94,7 +94,7 @@ func RegisterTransport(r chi.Router, deps *app.Deps) {
 			httpx.WriteError(w, req, err)
 			return
 		}
-		s.attachmentsDir = deps.Config.AttachmentsDir
+		s.cfg = deps.Config
 		handler.ServeHTTP(w, req.WithContext(context.WithValue(req.Context(), sessionKey{}, s)))
 	}))
 }

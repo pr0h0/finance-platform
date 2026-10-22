@@ -67,7 +67,8 @@ func roundTrip(t *testing.T, b *blobs, wantSealed bool) (key string) {
 
 func TestLocalEncryptionAtRest(t *testing.T) {
 	dir := t.TempDir()
-	b, err := newBlobs(&config.Config{StorageBackend: "local", AttachmentsDir: dir, AttachmentKey: testKey()})
+	secret := testKey()
+	b, err := newBlobs(&config.Config{StorageBackend: "local", AttachmentsDir: dir, AttachmentKey: secret})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -87,6 +88,17 @@ func TestLocalEncryptionAtRest(t *testing.T) {
 	plainOnly, _ := newBlobs(&config.Config{StorageBackend: "local", AttachmentsDir: dir})
 	if _, _, err := plainOnly.open(context.Background(), "local", key, true); err == nil {
 		t.Fatal("opened without key")
+	}
+	// Content (used by MCP) undoes the encryption and enforces its size cap.
+	cfg := &config.Config{StorageBackend: "local", AttachmentsDir: dir, AttachmentKey: secret}
+	if got, err := Content(context.Background(), cfg, "local", key, true, 1<<20); err != nil || string(got) != "%PDF-1.4 synthetic statement content" {
+		t.Fatalf("Content: %q %v", got, err)
+	}
+	if _, err := Content(context.Background(), cfg, "local", key, true, 4); !errors.Is(err, ErrTooLarge) {
+		t.Fatalf("Content cap: %v", err)
+	}
+	if _, err := Content(context.Background(), cfg, "local", "../etc/passwd", false, 10); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("bad key: %v", err)
 	}
 	// Unencrypted files written before the key was set still open.
 	k2 := roundTrip(t, plainOnly, false)

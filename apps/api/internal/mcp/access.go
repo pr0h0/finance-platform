@@ -14,6 +14,7 @@ import (
 
 	"github.com/pr0h0/finance-platform/apps/api/internal/analytics/fin"
 	"github.com/pr0h0/finance-platform/apps/api/internal/authz"
+	"github.com/pr0h0/finance-platform/apps/api/internal/config"
 	"github.com/pr0h0/finance-platform/apps/api/internal/httpx"
 )
 
@@ -54,7 +55,7 @@ func loadGrants(ctx context.Context, q fin.DB, clientID uuid.UUID) ([]Grant, err
 type session struct {
 	db             *pgxpool.Pool
 	maxRows        int
-	attachmentsDir string
+	cfg            *config.Config // attachment storage (get_attachments)
 	clientID       uuid.UUID
 	userID         uuid.UUID
 	grants         []Grant

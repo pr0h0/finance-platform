@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
-	"path/filepath"
-	"regexp"
 	"slices"
 	"strings"
 	"time"
@@ -14,6 +12,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
+	"github.com/pr0h0/finance-platform/apps/api/internal/attachments"
 	"github.com/pr0h0/finance-platform/apps/api/internal/httpx"
 )
 
@@ -22,10 +21,7 @@ import (
 
 const maxAttachmentContent = 4 << 20
 
-var (
-	contentTypes = []string{"image/jpeg", "image/png", "image/gif", "image/webp", "application/pdf"}
-	storageKeyRE = regexp.MustCompile(`^[0-9a-f-]{36}/[0-9a-f-]{36}$`)
-)
+var contentTypes = []string{"image/jpeg", "image/png", "image/gif", "image/webp", "application/pdf"}
 
 // fileResult is a tool result that also carries a file, sent as an MCP image or embedded resource
 // next to the JSON text (the JSON part alone counts against maxResultBytes).
@@ -120,7 +116,7 @@ func getAttachments(ctx context.Context, s *session, def *toolDef, raw json.RawM
 		return out, nil
 	}
 	a := &list[0]
-	data, note := s.readAttachment(a)
+	data, note := s.readAttachment(ctx, a)
 	a.ContentNote = note
 	if data == nil {
 		m.Complete = false
@@ -130,10 +126,9 @@ func getAttachments(ctx context.Context, s *session, def *toolDef, raw json.RawM
 	return &fileResult{result: out, mime: a.ContentType, data: data, uri: "attachment://" + a.ID.String() + "/" + a.FileName}, nil
 }
 
-// readAttachment returns the plaintext content, or nil and the reason it cannot be shared.
-// ponytail: reads local plaintext files directly; server-encrypted or S3-stored files need the
-// attachments module's blob reader once it exports one.
-func (s *session) readAttachment(a *attachmentOut) ([]byte, string) {
+// readAttachment returns the plaintext content (local or S3, server-side encryption undone), or nil
+// and the reason it cannot be shared.
+func (s *session) readAttachment(ctx context.Context, a *attachmentOut) ([]byte, string) {
 	switch {
 	case a.e2ee:
 		return nil, "end-to-end encrypted: only your devices can decrypt it"
@@ -141,14 +136,14 @@ func (s *session) readAttachment(a *attachmentOut) ([]byte, string) {
 		return nil, "only images and PDFs are returned"
 	case a.SizeBytes > maxAttachmentContent:
 		return nil, "file is larger than 4 MiB"
-	case a.backend != "local" || a.serverSealed || s.attachmentsDir == "" || !storageKeyRE.MatchString(a.key):
+	case s.cfg == nil:
 		return nil, "the file's storage is not readable by the MCP server"
 	}
-	data, err := os.ReadFile(filepath.Join(s.attachmentsDir, a.key))
+	data, err := attachments.Content(ctx, s.cfg, a.backend, a.key, a.serverSealed, maxAttachmentContent)
 	if errors.Is(err, os.ErrNotExist) {
 		return nil, "file content is missing on the server"
 	}
-	if err != nil || int64(len(data)) > maxAttachmentContent {
+	if err != nil {
 		return nil, "file could not be read"
 	}
 	return data, "included"

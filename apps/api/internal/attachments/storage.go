@@ -14,6 +14,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/minio/minio-go/v7"
@@ -216,3 +217,34 @@ func (b *blobs) remove(ctx context.Context, backend, key string) error {
 type nopCloser struct{ *bytes.Reader }
 
 func (nopCloser) Close() error { return nil }
+
+var readers sync.Map // *config.Config -> *blobs (one S3 client per configuration)
+
+// ErrTooLarge: Content was asked for at most max bytes and the file is bigger.
+var ErrTooLarge = errors.New("attachment larger than the requested maximum")
+
+// Content returns a stored file's plaintext from any backend, with server-side encryption undone,
+// for other modules (MCP get_attachments). Missing content is os.ErrNotExist.
+func Content(ctx context.Context, cfg *config.Config, backend, key string, sealed bool, max int64) ([]byte, error) {
+	if !keyRE.MatchString(key) {
+		return nil, os.ErrNotExist
+	}
+	v, ok := readers.Load(cfg)
+	if !ok {
+		b, err := newBlobs(cfg)
+		if err != nil {
+			return nil, err
+		}
+		v, _ = readers.LoadOrStore(cfg, b)
+	}
+	f, _, err := v.(*blobs).open(ctx, backend, key, sealed)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	data, err := io.ReadAll(io.LimitReader(f, max+1))
+	if err == nil && int64(len(data)) > max {
+		return nil, ErrTooLarge
+	}
+	return data, err
+}
