@@ -862,6 +862,8 @@ export const bs: Record<string, string> = {
   'transactions.detailDrawer.theAmountOfThis':
     'Iznos ove transakcije ovdje se ne može mijenjati (uvezena, podijeljena ili s više knjiženja).',
   'transactions.detailDrawer.applySelected': 'Primijeni odabrano',
+  'import.wizard.ocrConfirm':
+    'Ove vrijednosti su pročitane OCR-om. Potvrdite da ste svaki odabrani red provjerili prema dokumentu.',
   'transactions.inbox.inboxZero': 'Sve je razvrstano',
   'transactions.inbox.everyTransactionHasA': 'Svaka transakcija ima kategoriju.',
   'transactions.inbox.uncategorizedTransactions': 'Transakcije bez kategorije',
@@ -871,6 +873,8 @@ export const bs: Record<string, string> = {
   'transactions.inbox.acceptCategorylabel': 'Prihvati {{categoryLabel}}',
   'transactions.inbox.enter': 'Enter',
   'transactions.inbox.suggestedFromWhy': 'Predloženo na osnovu: {{why}}',
+  'transactions.inbox.defaultCategoryOf': 'zadane kategorije za {{name}}',
+  'transactions.inbox.applySplitTemplate': 'Primijeni šablon podjele {{name}}',
   'transactions.inbox.findCategory': 'Pronađi kategoriju',
   'transactions.inbox.findCategory2': 'Pronađi kategoriju ( / )',
   'transactions.inbox.skipS': 'Preskoči (s)',

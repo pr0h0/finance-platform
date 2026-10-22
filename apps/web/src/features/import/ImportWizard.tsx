@@ -36,7 +36,6 @@ import {
 import { Badge, Button, ErrorText, Field, inputCls, MoneyText } from '../transactions/ui.tsx';
 import { useAdapters } from './adapters.ts';
 import { balanceStatus } from './checks.ts';
-import { applyMerchantTemplates } from './merchant-templates.ts';
 import { useImportSettings, useRecordCheck } from './store.ts';
 import { type Candidate, callWorker } from './worker-types.ts';
 
@@ -224,7 +223,10 @@ export function ImportWizard({
     if (
       j.result.requiresApproval &&
       !window.confirm(
-        'These values were read by OCR. Confirm you checked every selected row against the document.',
+        t(
+          'import.wizard.ocrConfirm',
+          'These values were read by OCR. Confirm you checked every selected row against the document.',
+        ),
       )
     )
       return;
@@ -235,25 +237,14 @@ export function ImportWizard({
           rawRecordId: row.record.id,
           selected: c?.selected ?? false,
           categoryId: c?.categoryId ?? null,
+          ...(c?.selected && c.merchantId ? { merchantId: c.merchantId } : {}),
+          ...(c?.selected && c.splitTemplateId ? { splitTemplateId: c.splitTemplateId } : {}),
           ...(c && c.description !== row.record.sourceDescription
             ? { description: c.description }
             : {}),
         };
       });
       const batch = await commitWrite.mutateAsync({ batchId: j.preview.batch.id, rows });
-      const templated = j.preview.rows.flatMap((row) => {
-        const c = j.choices?.[row.record.id];
-        return c?.selected && (c.merchantId || c.splitTemplateId)
-          ? [
-              {
-                rawRecordId: row.record.id,
-                merchantId: c.merchantId,
-                splitTemplateId: c.splitTemplateId,
-              },
-            ]
-          : [];
-      });
-      if (templated.length > 0) await applyTemplates.mutateAsync(templated);
       await recordCheck
         .mutateAsync({ batchId: batch.id, status: balanceStatus(j.result) })
         .catch(() => undefined);
@@ -267,7 +258,6 @@ export function ImportWizard({
     (o, v: { batchId: string; rows: Parameters<typeof o.commitImport>[1] }) =>
       o.commitImport(v.batchId, v.rows),
   );
-  const applyTemplates = useWrite(applyMerchantTemplates);
   const saveMerchant = useWrite((o, v: { name: string; defaultCategoryId: string | null }) =>
     o.create('merchants', v),
   );

@@ -47,3 +47,25 @@ test('skipped occurrence is excluded from the forecast', async () => {
   const fc = buildForecast(await f.snap('2026-03-31'), '2026-05-31');
   expect(fc.days.at(-1)?.expected.amount).toBe('2760.00');
 });
+
+test('plan warnings reach the forecast once and mark it incomplete', async () => {
+  const f = await seed();
+  await f.ops.create('planned_transactions', {
+    kind: 'transfer',
+    accountId: f.checking.id,
+    description: 'Savings move',
+    amount: m('100.00'),
+    dueDate: '2026-04-02',
+    confidence: 'certain',
+    recurrence: { rrule: 'FREQ=WEEKLY' },
+  });
+  const s = await f.snap('2026-03-31');
+  const fc = buildForecast(s, '2026-05-31');
+  const w = fc.warnings.filter((x) => x.key === 'engine.forecast.transferNoDestination');
+  expect(w.length).toBe(1);
+  expect(fc.complete).toBe(false);
+  const sim = simulate(s, '2026-05-31', []);
+  expect(sim.scenario.warnings.some((x) => x.key === 'engine.forecast.transferNoDestination')).toBe(
+    true,
+  );
+});

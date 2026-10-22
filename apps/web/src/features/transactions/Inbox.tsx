@@ -7,10 +7,18 @@ import {
   type LedgerTransaction,
   suggestCategory,
 } from '@finplat/finance-engine';
+import { merchantMatcher } from '@finplat/importer-sdk';
 import { Inbox as InboxIcon } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useT } from '../../lib/i18n.ts';
-import { describeError, type Refs, useLedgerEnv, useTransactions, useWrite } from './data.ts';
+import {
+  describeError,
+  type Refs,
+  useEntities,
+  useLedgerEnv,
+  useTransactions,
+  useWrite,
+} from './data.ts';
 import { isUncategorized, primaryAmount } from './model.ts';
 import { Badge, Button, Empty, ErrorText, inputCls, MoneyText } from './ui.tsx';
 
@@ -26,6 +34,22 @@ export function Inbox({ refs, onOpen }: { refs: Refs; onOpen: (t: D.Transaction)
   const assign = useWrite((ops, v: { t: D.Transaction; categoryId: string }) =>
     ops.updateTransaction(v.t.id, { version: v.t.version, categoryId: v.categoryId }),
   );
+  // Feature 125: the merchant's split template, applied only when the user accepts it.
+  const applySplit = useWrite(
+    async (ops, v: { t: D.Transaction; splitTemplateId: string; merchantId: string }) => {
+      const next = await ops.replaceSplits(v.t.id, {
+        version: v.t.version,
+        splitTemplateId: v.splitTemplateId,
+      });
+      if (next.merchantId !== v.merchantId)
+        await ops.updateTransaction(next.id, { version: next.version, merchantId: v.merchantId });
+    },
+  );
+  const splitTemplates = useEntities('split_templates');
+  const matcher = useMemo(
+    () => merchantMatcher(refs.merchants, splitTemplates.data ?? []),
+    [refs.merchants, splitTemplates.data],
+  );
 
   const items = useMemo(
     () =>
@@ -40,20 +64,32 @@ export function Inbox({ refs, onOpen }: { refs: Refs; onOpen: (t: D.Transaction)
   );
   const cur = items[Math.min(cursor, items.length - 1)];
 
+  const matched = useMemo(
+    () => (cur && !cur.merchantId ? matcher(`${cur.description ?? ''} ${cur.payee ?? ''}`) : null),
+    [cur, matcher],
+  );
+  const merchantId = cur?.merchantId ?? matched?.merchantId ?? null;
+  const splitTemplate =
+    matched?.splitTemplateId && cur?.splits.length === 1
+      ? (splitTemplates.data ?? []).find((x) => x.id === matched.splitTemplateId)
+      : undefined;
+
   const suggestion = useMemo(() => {
     if (!cur) return null;
     const s = suggestCategory(history, cur as unknown as LedgerTransaction);
     if (s && refs.category.has(s.value))
       return { categoryId: s.value, why: s.reason, confidence: s.confidence };
-    const m = cur.merchantId ? refs.merchant.get(cur.merchantId) : undefined;
-    if (m?.defaultCategoryId)
+    const m = merchantId ? refs.merchant.get(merchantId) : undefined;
+    if (m?.defaultCategoryId && refs.category.has(m.defaultCategoryId))
       return {
         categoryId: m.defaultCategoryId,
-        why: `default category of ${m.name}`,
+        why: t('transactions.inbox.defaultCategoryOf', 'default category of {{name}}', {
+          name: m.name,
+        }),
         confidence: '',
       };
     return null;
-  }, [cur, history, refs]);
+  }, [cur, history, refs, merchantId, t]);
 
   const kind = cur?.kind === 'income' ? 'income' : 'expense';
   const options = refs.categoryOptions.filter(
@@ -193,6 +229,26 @@ export function Inbox({ refs, onOpen }: { refs: Refs; onOpen: (t: D.Transaction)
               why: suggestion.why,
             })}
           </p>
+        )}
+        {splitTemplate && merchantId && (
+          <Button
+            onClick={async () => {
+              setErr(null);
+              try {
+                await applySplit.mutateAsync({
+                  t: cur,
+                  splitTemplateId: splitTemplate.id,
+                  merchantId,
+                });
+              } catch (e) {
+                setErr(describeError(e));
+              }
+            }}
+          >
+            {t('transactions.inbox.applySplitTemplate', 'Apply split template {{name}}', {
+              name: splitTemplate.name,
+            })}
+          </Button>
         )}
         <input
           ref={search}

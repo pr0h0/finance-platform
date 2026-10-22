@@ -172,6 +172,9 @@ export interface CommitRow {
   selected?: boolean;
   categoryId?: string | null;
   description?: string;
+  /** Feature 125: approved merchant template; the split template replaces categoryId. */
+  merchantId?: string | null;
+  splitTemplateId?: string | null;
 }
 
 export interface LocalAttachmentInput {
@@ -1541,6 +1544,16 @@ export class LocalFinanceService {
         const choice = sel.get(row.record.id);
         if (!(choice?.selected ?? row.outcome === 'new')) continue;
         const r = row.record;
+        if (choice?.merchantId) await this.exists(tx, 'merchants', choice.merchantId, 'merchantId');
+        const tpl = choice?.splitTemplateId
+          ? await this.load<D.SplitTemplate & Syncable>(
+              tx,
+              'split_templates',
+              choice.splitTemplateId,
+              'split template',
+            )
+          : undefined;
+        const userSet = Boolean(choice?.categoryId || tpl);
         const t = await this.insertTransaction(tx, {
           kind: toMinor(r.amount) < 0n ? 'expense' : 'income',
           bookingDate: r.postingDate,
@@ -1550,15 +1563,18 @@ export class LocalFinanceService {
           reference: r.bankReference,
           source: 'import',
           importRecordId: r.id,
-          categorizationSource: choice?.categoryId ? 'user' : 'import',
+          categorizationSource: userSet ? 'user' : 'import',
+          ...(choice?.merchantId ? { merchantId: choice.merchantId } : {}),
           postings: [
             posting(this.newId, r.accountId as string, r.amount, 0, {
               originalAmount: r.originalAmount,
             }),
           ],
-          splits: buildSplits(this.newId, undefined, choice?.categoryId ?? null, r.amount),
+          splits: tpl
+            ? applySplitTemplate(this.newId, tpl, r.amount)
+            : buildSplits(this.newId, undefined, choice?.categoryId ?? null, r.amount),
         });
-        if (!choice?.categoryId) {
+        if (!userSet) {
           const o = await this.ruleOutcome(tx, t as D.Transaction & Syncable, rules);
           if (o) await this.replace(tx, 'transactions', t as D.Transaction & Syncable, o.next);
         }

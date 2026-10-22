@@ -1,7 +1,14 @@
 // Forecast input from a Snapshot: today's balances, already-booked future transactions (certain)
 // and plan occurrences (eventsFromPlans: matched/skipped/paid excluded, overdue moved to today).
 import type * as D from '@finplat/domain';
-import { accountBalances, addDays, fromMinor, type Money, toMinor } from '@finplat/finance-engine';
+import {
+  accountBalances,
+  addDays,
+  fromMinor,
+  type Money,
+  type Notice,
+  toMinor,
+} from '@finplat/finance-engine';
 import {
   eventsFromPlans,
   type Forecast,
@@ -17,7 +24,7 @@ export function forecastInput(
   s: Snapshot,
   to: string,
   accountIds?: readonly string[],
-): ForecastInput {
+): ForecastInput & { planWarnings: Notice[] } {
   const from = s.today;
   const wanted = (a: D.Account) => !a.isArchived && (accountIds ? accountIds.includes(a.id) : true);
   const accs = s.accounts.filter(wanted);
@@ -58,6 +65,10 @@ export function forecastInput(
     to,
   );
   events.push(...planned.events.filter((e) => ids.has(e.accountId)));
+  // One notice per plan (eventsFromPlans repeats it for every occurrence).
+  const planWarnings = [
+    ...new Map(planned.warnings.map((w) => [`${w.key}|${JSON.stringify(w.vars)}`, w])).values(),
+  ];
   const reserve = s.settings['forecast.minimumReserve'] as Money | undefined;
   return {
     from,
@@ -67,14 +78,26 @@ export function forecastInput(
     events,
     convert: s.convert,
     reserve: reserve ?? null,
+    planWarnings,
   };
 }
 
+// Plan problems (no account, transfer without destination) make the forecast incomplete.
+const withPlanWarnings = (f: Forecast, w: readonly Notice[]): Forecast =>
+  w.length ? { ...f, warnings: [...w, ...f.warnings], complete: false } : f;
+
 export function buildForecast(s: Snapshot, to: string, accountIds?: readonly string[]): Forecast {
-  return forecast(forecastInput(s, to, accountIds));
+  const { planWarnings, ...input } = forecastInput(s, to, accountIds);
+  return withPlanWarnings(forecast(input), planWarnings);
 }
 
 /** Simulation only: returns new forecasts, never writes (applyScenario copies the input). */
 export function simulate(s: Snapshot, to: string, adjustments: readonly ScenarioAdjustment[]) {
-  return whatIf(forecastInput(s, to), adjustments);
+  const { planWarnings, ...input } = forecastInput(s, to);
+  const r = whatIf(input, adjustments);
+  return {
+    ...r,
+    baseline: withPlanWarnings(r.baseline, planWarnings),
+    scenario: withPlanWarnings(r.scenario, planWarnings),
+  };
 }
