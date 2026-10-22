@@ -2,7 +2,7 @@
 // analytics, goals, subscriptions, reports, notifications). Theme tokens from index.css.
 import { type MissingRate, type Money, money } from '@finplat/finance-engine';
 import { AlertTriangle, Info } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { type ReactNode, useId } from 'react';
 import { Dialog as UiDialog } from '../../components/ui/index.tsx';
 import { useFormat } from '../../lib/format.ts';
 import { errorText } from '../../lib/i18n.ts';
@@ -42,11 +42,19 @@ export function Card({
   children: ReactNode;
   className?: string;
 }) {
+  const id = useId();
   return (
-    <section className={`rounded-lg border border-line bg-surface p-4 ${className}`}>
+    <section
+      aria-labelledby={title ? id : undefined}
+      className={`rounded-lg border border-line bg-surface p-4 ${className}`}
+    >
       {(title || actions) && (
         <div className="mb-3 flex items-center justify-between gap-2">
-          {title && <h2 className="text-sm font-medium text-muted">{title}</h2>}
+          {title && (
+            <h2 id={id} className="text-sm font-medium text-muted">
+              {title}
+            </h2>
+          )}
           {actions && <div className="no-print flex items-center gap-1">{actions}</div>}
         </div>
       )}
@@ -128,9 +136,9 @@ export function DataBanner({
 
 export function Empty({ children }: { children: ReactNode }) {
   return (
-    <p className="flex items-center gap-2 py-6 text-sm text-muted">
-      <Info aria-hidden className="size-4" />
-      {children}
+    <p className="flex items-start gap-2 py-6 text-sm text-muted">
+      <Info aria-hidden className="mt-0.5 size-4 shrink-0" />
+      <span>{children}</span>
     </p>
   );
 }

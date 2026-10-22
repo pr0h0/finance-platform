@@ -65,8 +65,13 @@
   is effective for registration and shown by `/admin/settings` and `/admin/diagnostics`, but not by `/meta`
   (server.go is foundation-owned).
 - Only the registration policy is changeable at runtime; MCP/FX/backup schedule stay environment settings.
-- Sync push only works for entity types whose owning module called `sync.RegisterEntity`; others are
-  rejected with `unsupported_entity` (honest, not silently dropped). Each module must register its tables.
+- Sync push is registered for accounts, categories, tags, merchants, transactions, transaction/split
+  templates, categorization rules, recurrence schedules, planned transactions, planned occurrences,
+  subscriptions, budgets, budget allocations, savings goals and contributions (integration pass). Still not
+  pushable (rejected with `unsupported_entity`): `import_batches`, `attachments`, `imported_raw_records` —
+  in connected mode use the server import/attachment APIs. Client-chosen child ids (postings, splits) are
+  replaced by server ids and come back in the pulled snapshot; budget allocations created through REST get
+  server ids too.
 - Sync push bodies are bounded by `MAX_BODY_BYTES` (default 1 MiB); clients must split large batches.
 - E2EE: server side only (ciphertext storage, key envelopes, revocation). Client crypto, PDK rotation and
   re-encryption, and converting an existing profile between privacy modes are not implemented; PATCH of
@@ -130,9 +135,11 @@
 - Batch approval is not atomic: it approves ids one by one and stops at the first error.
 
 ## Client data layer (packages/storage, sync-client, api-client, localization)
-- Real-API sync: `/sync/push` currently answers `unsupported_entity` for accounts/tags/transactions (no module
-  calls `sync.RegisterEntity` yet); `packages/sync-client/src/real-server.test.ts` shows it. All sync behaviour
-  is tested against the in-memory mocked server only. E2EE has not been run against the real API.
+- Real-API sync works for every table listed in the API section (`packages/sync-client/src/real-server.test.ts`,
+  run with `FINPLAT_API_URL=http://api:8080 scripts/bun.sh test packages/sync-client/src/real-server.test.ts`
+  while the dev stack is up; plus the Playwright connected-mode journey). E2EE has not been run against the
+  real API. Exchange rates entered on a device are local only (not uploaded), so server-side valuations of a
+  connected profile only see server/provider rates.
 - Activation does not upload imported raw records, import batches or attachment contents (no sync entity for
   them); uploaded imported transactions get `importRecordId = null`. Local imports/attachments made in
   connected mode are queued as ops the server will reject until those entities are syncable (or the web app
@@ -180,11 +187,11 @@
 
 ## Web shell (onboarding, settings, sync, households, devices, MCP, admin)
 
-- Connected mode cannot upload data yet: no API module calls `sync.RegisterEntity`, so every push (and sync
-  activation) is refused with `unsupported_entity`. The UI reports this honestly (activation verification fails,
-  refused changes are listed on /sync) and keeps local data unchanged. Fresh connected profiles still download
-  server data (pull/snapshot work), and server-side endpoints (categories defaults, households, MCP, devices,
-  backups) work directly.
+- Connected mode uploads and downloads ledger, planning, budget, goal and rule data (Playwright journey:
+  register → sync → second device → offline edit → reconnect). Imports and attachments made while connected
+  are still refused by sync (`unsupported_entity`) and listed on /sync; local-to-connected activation with
+  imported data uploads the transactions with `importRecordId = null`. Activation/E2EE were not run in a
+  browser by the integration pass.
 - Activation always creates the server profile with the local profile's id (or reuses it); merging a local profile
   into a different existing server profile is not offered because `RemoteDataSource` maps one id to both sides.
   While connected, local profiles that were not activated are hidden; they reappear after disconnecting.
@@ -198,3 +205,16 @@
 - Bosnian covers the shell strings only; other text falls back to English.
 - No automated accessibility audit (axe) yet; keyboard flows were checked in the Playwright smoke run only.
 - `libsodium` (app lock, backups, E2EE) needs `'wasm-unsafe-eval'` in the gateway CSP `script-src` (added).
+
+## Integration pass (2026-10-22)
+- E2E suite (`tests/e2e`, 8 Playwright journeys) runs in Chromium only; no Firefox/WebKit project.
+- Not covered by E2E: households with two users, admin pages, E2EE activation/unlock, attachments upload,
+  MCP proposal approval (the agent-side write path is covered by Go tests only), app lock.
+- `/api/v1/meta.registrationPolicy` reflects `.env`; the deployed instance uses `first_user`: the first account
+  registered on https://fin.pr0h0.me becomes the admin and later sign-ups are refused. Register yourself first.
+- `ALLOWED_ORIGINS` in the deployed `.env` also contains `http://127.0.0.1:3810` so the stack can be used and
+  tested directly on the host; remove it if you never browse to the loopback port.
+- The Secure session cookie works on `http://127.0.0.1:3810` only in browsers that treat loopback as a secure
+  context (Chromium, Firefox). Non-browser HTTP clients over plain http must use bearer tokens (device login).
+- Fixed during integration: React Query paused every mutation while the browser was offline (network mode
+  `online`), so offline edits silently never saved; now `networkMode: 'always'` (local-first).

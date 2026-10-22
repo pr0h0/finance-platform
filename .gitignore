@@ -11,3 +11,5 @@ playwright-report/
 backups/
 !apps/api/internal/backups/
 .DS_Store
+tests/e2e/screenshots/
+tests/e2e/test-results/

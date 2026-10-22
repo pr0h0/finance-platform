@@ -4,6 +4,7 @@ import type * as D from '@finplat/domain';
 import { fromMinor, toMinor } from '@finplat/finance-engine';
 import { ArrowDown, ArrowUp, Plus, Save, Trash2 } from 'lucide-react';
 import { useState } from 'react';
+import { toast } from '../../components/ui/toast.tsx';
 import { describeError, type Refs, useEntities, useLedgerEnv, useWrite } from './data.ts';
 import { absMoney, type SplitDraft, splitRemainder } from './model.ts';
 import { Button, ErrorText, inputCls, MoneyText } from './ui.tsx';
@@ -68,6 +69,7 @@ export function SplitEditor({ tx, refs }: { tx: D.Transaction; refs: Refs }) {
         })),
       });
       setSaved(true);
+      toast('Splits saved'); // the editor re-mounts with the new version, so also announce it
     } catch (e) {
       setErr(describeError(e));
     }

@@ -1,15 +1,15 @@
 # Next steps
 
-Phase 1 (backend) in PLAN §52 milestone order, each module inside `apps/api/internal/<module>`:
-1. auth/users/profiles/households — sessions, CSRF, registration policy, `auth.Middleware` principal,
-   profile membership; seed default categories on profile creation.
-2. accounts, ledger, transactions, categories, merchants — postings derivation, splits, refunds,
-   transfers, adjustments, balances, search; PLAN §46 cases 1–7.
-3. currency, exchangerates — ECB provider job, historical lookup, manual overrides, `/convert`.
-4. planning, recurrence, budgets, savings — RRULE expansion with month-end clamping, matching.
-5. analytics, forecasting — shared fixtures in `packages/test-fixtures` for TS/Go equivalence.
-6. imports (+ `packages/importer-sdk`, `packages/bank-importers` generic CSV/TSV/XLSX/OFX/QIF/CAMT.053/MT940).
-7. sync, attachments, backups, notifications, automation, audit, admin.
-8. mcp — Streamable HTTP transport at `/mcp` using `packages/mcp-contracts` semantics.
-Phase 2: web app (local mode on IndexedDB `LocalStore`, connected mode, PWA, Playwright journeys).
-Deployment: dedicated cloudflared tunnel `fin.pr0h0.me → 127.0.0.1:3810`.
+Backend (Phase 1) and the web app (Phase 2) are built and pass the integration checks listed at the end of
+`implementation-status.md`. Mobile (Phase 3) and desktop/Tauri (Phase 4) are DEFERRED_TO_PHASE.
+
+Highest value next:
+1. Sync for `import_batches`, `imported_raw_records` and `attachments` (or route connected-mode imports and
+   attachments through the server APIs), and upload device-entered exchange rates.
+2. Browser-test the remaining flows: local → connected activation, E2EE activation/unlock/rotation, households
+   with two users, admin pages, MCP proposal approval, app lock (`tests/e2e`).
+3. Accessibility audit (axe) in the E2E suite; Firefox/WebKit projects.
+4. Go runners for the `budgets`, `forecast` and `aggregation` conformance fixtures; fix the
+   `analytics/fin.Converter` EUR/BAM divergence (known-issues).
+5. Raiffeisen BiH importer once a real statement format is available (BLOCKED_EXTERNAL).
+6. Email/push notifications (SMTP settings exist, delivery is not built).

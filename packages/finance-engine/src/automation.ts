@@ -308,6 +308,7 @@ export function findDuplicates(
     if (!parent.has(b)) parent.set(b, b);
     const ra = find(a);
     const rb = find(b);
+    // biome-ignore lint/complexity/useMathMinMax: compares strings (ids/ISO dates), not numbers
     if (ra !== rb) parent.set(ra < rb ? rb : ra, ra < rb ? ra : rb);
   }
   const groups = new Map<string, Set<string>>();

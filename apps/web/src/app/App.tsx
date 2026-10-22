@@ -13,8 +13,11 @@ import { useApp } from './store.ts';
 import { useThemeAndLang } from './theme.ts';
 
 export const queryClient = new QueryClient({
+  // Local-first: reads and writes go to IndexedDB, so they must not pause while the browser is
+  // offline (React Query's default 'online' network mode would queue every mutation).
   defaultOptions: {
-    queries: { staleTime: 30_000, retry: 1, refetchOnWindowFocus: false },
+    queries: { staleTime: 30_000, retry: 1, refetchOnWindowFocus: false, networkMode: 'always' },
+    mutations: { networkMode: 'always' },
   },
 });
 

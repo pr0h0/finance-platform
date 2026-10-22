@@ -209,7 +209,11 @@ export function Tabs<T extends string>({
   label: string;
 }) {
   return (
-    <div role="tablist" aria-label={label} className="mb-4 flex gap-1 border-b border-line">
+    <div
+      role="tablist"
+      aria-label={label}
+      className="mb-4 flex gap-1 overflow-x-auto border-b border-line"
+    >
       {tabs.map((t, i) => (
         <button
           key={t.id}
@@ -224,7 +228,7 @@ export function Tabs<T extends string>({
             const next = tabs[(i + d + tabs.length) % tabs.length];
             if (next) onChange(next.id);
           }}
-          className={`-mb-px border-b-2 px-3 py-2 text-sm font-medium outline-none focus-visible:ring-2 focus-visible:ring-accent ${value === t.id ? 'border-accent text-accent' : 'border-transparent text-muted hover:text-fg'}`}
+          className={`-mb-px shrink-0 border-b-2 px-3 py-2 text-sm font-medium whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-accent ${value === t.id ? 'border-accent text-accent' : 'border-transparent text-muted hover:text-fg'}`}
         >
           {t.label}
         </button>

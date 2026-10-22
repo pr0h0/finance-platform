@@ -174,7 +174,10 @@ test.skipIf(!URL_)('real server: every synced entity type round-trips', async ()
 
   // B edits metadata, A then edits it again from the merged state
   const tb = await db.svc.getTransaction(tx.id);
-  await db.svc.updateTransaction(tx.id, { version: tb.version, description: 'Weekly shop' } as never);
+  await db.svc.updateTransaction(tx.id, {
+    version: tb.version,
+    description: 'Weekly shop',
+  } as never);
   const sb = await db.engine.sync();
   expect(sb.rejected).toEqual([]);
   await da.engine.sync();

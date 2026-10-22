@@ -169,6 +169,7 @@ export function createRateBook(snapshots: readonly RateSnapshot[]): RateBook {
           ? 'manual'
           : 'fixed';
       return finish(from, to, a.num * b.num, a.den * b.den, {
+        // biome-ignore lint/complexity/useMathMinMax: compares strings (ids/ISO dates), not numbers
         rateDate: a.rateDate < b.rateDate ? a.rateDate : b.rateDate,
         source,
         inverse: a.inverse || b.inverse,

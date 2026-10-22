@@ -226,6 +226,7 @@ export function forecast(input: ForecastInput): Forecast {
     x.date < y.date ? -1 : x.date > y.date ? 1 : x.accountId.localeCompare(y.accountId),
   );
 
+  // biome-ignore lint/complexity/useMathMinMax: compares strings (ids/ISO dates), not numbers
   const meDate = endOfMonth(from) < to ? endOfMonth(from) : to;
   const meIdx = diffDays(meDate, from);
   const safe = (a: ForecastAccount) => a.includeInSafeToSpend !== false;
