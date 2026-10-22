@@ -155,6 +155,12 @@ func TestSubscriptionLifecycle(t *testing.T) {
 	if len(occ.Items) != 3 || occ.Items[0].Amount.Amount() != "9.99" || occ.Items[1].Amount.Amount() != "12.99" {
 		t.Fatalf("occurrences after price change: %+v", occ.Items)
 	}
+	// Renaming the subscription renames its billing plan.
+	api.Must(http.StatusOK, "PATCH", "/subscriptions/"+s.ID.String(), map[string]any{"name": "Streaming Plus", "version": s.Version}, &s)
+	api.Must(http.StatusOK, "GET", "/plans/occurrences?from=2026-12-01&to=2026-12-31", nil, &occ)
+	if len(occ.Items) != 1 || occ.Items[0].Description != "Streaming Plus" {
+		t.Fatalf("plan not renamed: %+v", occ.Items)
+	}
 	// Cancel on Dec 1: no more occurrences after it.
 	api.Must(http.StatusOK, "PATCH", "/subscriptions/"+s.ID.String(), map[string]any{"status": "cancelled", "cancelledAt": "2026-12-01", "version": s.Version}, &s)
 	api.Must(http.StatusOK, "GET", "/plans/occurrences?from=2026-10-01&to=2027-06-30", nil, &occ)

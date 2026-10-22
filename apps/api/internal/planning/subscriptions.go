@@ -273,6 +273,9 @@ func UpdateSubscription(ctx context.Context, tx pgx.Tx, profileID uuid.UUID, cur
 		if !sameID(in.AccountID, p.AccountID) || !sameID(in.CategoryID, p.CategoryID) {
 			pin.AccountID, pin.CategoryID, changed = in.AccountID, in.CategoryID, true
 		}
+		if in.Name != cur.Name && p.Description == cur.Name { // the plan is named after the subscription (as the web app does)
+			pin.Description, changed = in.Name, true
+		}
 		if in.RRule != nil && p.Recurrence != nil && *in.RRule != p.Recurrence.RRule {
 			pin.Recurrence.RRule, changed = *in.RRule, true
 		}
