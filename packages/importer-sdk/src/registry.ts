@@ -1,5 +1,5 @@
-// Importer registry (Feature 110). Only reviewed, bundled importers are registered; there is no
-// mechanism to load importer code at runtime (PLAN §24 plugin security).
+// Importer registry (Feature 110). Only reviewed, bundled importers are registered; user code adapters
+// (Feature 112) never are: they run per call through sandboxedImporter() (sandbox.ts, PLAN §24).
 import { ImportError } from './input.ts';
 import type { BankImporter, DetectionResult, ImporterManifest, ImportInput } from './types.ts';
 import { IMPORTER_SDK_VERSION } from './types.ts';

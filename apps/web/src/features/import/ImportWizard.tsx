@@ -33,6 +33,7 @@ import {
   useWrite,
 } from '../transactions/data.ts';
 import { Badge, Button, ErrorText, Field, inputCls, MoneyText } from '../transactions/ui.tsx';
+import { useAdapters } from './adapters.ts';
 import { balanceStatus } from './checks.ts';
 import { applyMerchantTemplates } from './merchant-templates.ts';
 import { useImportSettings, useRecordCheck } from './store.ts';
@@ -77,7 +78,8 @@ export function ImportWizard({
   initialAccountId?: string;
   onCommitted?: () => void;
 }) {
-  const { ops, locale } = useLedgerEnv();
+  const { ops, locale, profileId } = useLedgerEnv();
+  const adapters = useAdapters(profileId).granted;
   const settings = useImportSettings();
   const txs = useTransactions();
   const accounts = refs.accounts.filter((a) => !a.isArchived);
@@ -143,6 +145,7 @@ export function ImportWizard({
             importerId: importerId || tplImporter,
             template,
             accountCurrency: account.currency,
+            adapter: adapters.find((a) => `custom-${a.id}` === importerId),
           },
           (b, total) =>
             update(j.key, { progress: total ? Math.round((b / total) * 100) : undefined }),
@@ -307,6 +310,11 @@ export function ImportWizard({
                 <option key={m.id} value={m.id}>
                   {m.name}
                   {m.status === 'beta' ? ' (beta)' : ''}
+                </option>
+              ))}
+              {adapters.map((a) => (
+                <option key={a.id} value={`custom-${a.id}`}>
+                  Custom: {a.name} ({a.version})
                 </option>
               ))}
               {MANIFESTS.filter((m) => m.status === 'blocked_external').map((m) => (

@@ -32,7 +32,8 @@
 - The hosted web app talks only to its own server (CSP `connect-src 'self'` + SameSite session cookie);
   entering another server address offers a link to that server's own web app. Connecting one client to
   arbitrary servers is for the desktop/mobile apps (Phase 3/4).
-- XML (CAMT/OFX), JSON, XLSX/XLS and PDF are parsed whole-file (capped by `maxBytes`); only CSV/TSV/QIF/MT940 stream.
+- JSON, XLSX/XLS and PDF are parsed whole-file (capped by `maxBytes`); CSV/TSV/QIF/MT940 stream, CAMT/OFX are tokenized as a stream (one entry in memory) but keep the `maxBytes` cap.
+- Custom code adapters (Feature 112): QuickJS checks its CPU deadline between bytecode steps, so a single huge native call (e.g. `new Array(1e8).fill()`) can overrun it until the heap limit or the page watchdog (3x timeout + 5 s, worker terminated) stops it. Adapters are per device (localStorage); clearing site data deletes them. They only receive decoded text (no binary formats).
 - Generic PDF text import (template) rebuilds rows from text positions; multi-line descriptions keep only their first line. The Raiffeisen BiH importer has its own layout parser and keeps them whole.
 - Raiffeisen BiH: only the "IZVOD - OBAVIJEST" PDF layout is supported (seen on current-account/card statements in KM); other products or currencies are untested. PDF parsing runs only in the web client, so MCP/connected uploads must send the client-parsed result.
 - Merchant templates (Feature 125): in the web import the merchant and split template are applied right after the commit (one update per templated row), not inside the commit write; an interruption leaves those rows with their category only. The web uncategorized inbox (`features/transactions/Inbox.tsx`) suggests merchant default categories but not split templates yet; the REST inbox returns them (`suggestion.splitTemplateId`).
@@ -160,7 +161,7 @@
   account in one file are merged (first opening, last closing balance).
 - Server-side OFX converts `<CURRENCY>` foreign amounts like the TS importer; it does not port the TS
   converter's rounding edge cases beyond half-up (covered by the golden fixture only).
-- Go parsers read whole files in memory (bounded by `MAX_UPLOAD_BYTES`, 100 000 records); no streaming.
+- Go parsers read whole uploads in memory (bounded by `MAX_UPLOAD_BYTES`, 100 000 records; the bytes are stored as evidence anyway). CAMT is decoded as an `encoding/xml` token stream; OFX/QIF/MT940/JSON build whole structures.
 - Commit creates up to 100k transactions in one DB transaction (COPY) but records one sync change per
   transaction (4 round trips each); very large batches can approach the 60 s request timeout.
 - Fuzzy matching is amount + date (±3 days manual, ±1 day imported) only; descriptions are not compared.

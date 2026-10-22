@@ -2,7 +2,12 @@
 // report bytes read; whole-file formats (XLSX, PDF, XML) are capped by their manifest limits.
 /// <reference lib="webworker" />
 import { createRegistry, readTablePreview, setPdfWorkerSrc } from '@finplat/bank-importers';
-import { type ImportContext, inputFromBlob, type SourceFormat } from '@finplat/importer-sdk';
+import {
+  type ImportContext,
+  inputFromBlob,
+  type SourceFormat,
+  sandboxedImporter,
+} from '@finplat/importer-sdk';
 import pdfWorkerUrl from 'pdfjs-dist/legacy/build/pdf.worker.mjs?url';
 import { ocrAssets } from '../../lib/ocr.ts';
 import type { WorkerRequest, WorkerResponse } from './worker-types.ts';
@@ -48,7 +53,11 @@ self.onmessage = async (ev: MessageEvent<WorkerRequest>) => {
         new Error('No importer recognises this file. Choose one, or build a mapping template.'),
         { code: 'not_detected' },
       );
-    const imp = registry.require(importerId);
+    // A custom adapter (Feature 112) runs in the QuickJS sandbox; the UI only sends granted ones.
+    const imp =
+      req.adapter && importerId === `custom-${req.adapter.id}`
+        ? sandboxedImporter(req.adapter)
+        : registry.require(importerId);
     if (imp.manifest.requiresTemplate && req.template === undefined)
       throw Object.assign(
         new Error(

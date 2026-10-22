@@ -6,9 +6,9 @@
 | `generic-tsv` | tsv | stable | yes | needs a template |
 | `generic-xlsx` | xlsx | stable | no (30 MB) | needs a template; cached formula values only |
 | `generic-xls` | xls | beta | no (30 MB) | BIFF via SheetJS; no password-protected files |
-| `generic-ofx` / `generic-qfx` | ofx, qfx | stable | no | OFX 1.x SGML + 2.x XML, bank + credit card; investment statements ignored; only LEDGERBAL (closing) is available so the statement is "unverifiable" |
+| `generic-ofx` / `generic-qfx` | ofx, qfx | stable | tokenized (50 MB cap) | OFX 1.x SGML + 2.x XML, bank + credit card; investment statements ignored; only LEDGERBAL (closing) is available so the statement is "unverifiable" |
 | `generic-qif` | qif | stable | yes | needs `accountCurrency`; day/month order inferred from the whole file (warning when ambiguous); splits kept in raw only |
-| `generic-camt053` / `generic-camt054` | camt053, camt054 | stable | no | any version; OPBD/PRCD and CLBD balances; PDNG entries skipped; batched entries → one record; reversals flip direction |
+| `generic-camt053` / `generic-camt054` | camt053, camt054 | stable | tokenized (50 MB cap) | any version; OPBD/PRCD and CLBD balances; PDNG entries skipped; batched entries → one record; reversals flip direction |
 | `generic-mt940` | mt940 | stable | yes | SWIFT envelope tolerated; `:86:` used verbatim (bank-specific sub-fields are not split) |
 | `generic-json` | json | stable | no | finplat interchange shape below |
 | `generic-pdf-text` | pdf | beta | no (30 MB) | text-layer PDFs only; needs a template; multi-line descriptions keep their first line |

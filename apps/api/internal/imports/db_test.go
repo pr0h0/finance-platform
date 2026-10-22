@@ -351,6 +351,13 @@ func TestHTTP(t *testing.T) {
 	if w = do("POST", "/imports", bytes.NewReader(body), "application/json"); w.Code != 201 {
 		t.Fatalf("client-only stage %d %s", w.Code, w.Body)
 	}
+	// Sandboxed custom adapters of the web client are accepted by prefix.
+	body, _ = json.Marshal(map[string]any{"importerId": "custom-my-bank", "importerVersion": "1.0.0", "accountId": e.acc, "fileName": "custom.csv",
+		"fileSha256": hex.EncodeToString(sum[:]), "source": base64.StdEncoding.EncodeToString(src),
+		"result": Result{Records: []Record{{RowNumber: 1, PostingDate: "2025-03-04", Description: "Custom row", Direction: "credit", Amount: "1.00", Currency: "BAM", Raw: map[string]string{"a": "1"}}}}})
+	if w = do("POST", "/imports", bytes.NewReader(body), "application/json"); w.Code != 201 {
+		t.Fatalf("custom adapter stage %d %s", w.Code, w.Body)
+	}
 	var cbuf bytes.Buffer
 	cmw := multipart.NewWriter(&cbuf)
 	_ = cmw.WriteField("accountId", e.acc.String())

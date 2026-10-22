@@ -1,5 +1,10 @@
 import type { TablePreview } from '@finplat/bank-importers';
-import type { ImportResult, TextEncodingName } from '@finplat/importer-sdk';
+import {
+  type CustomAdapter,
+  DEFAULT_SANDBOX_LIMITS,
+  type ImportResult,
+  type TextEncodingName,
+} from '@finplat/importer-sdk';
 
 export type WorkerRequest =
   | {
@@ -9,6 +14,8 @@ export type WorkerRequest =
       importerId?: string;
       template?: unknown;
       accountCurrency?: string;
+      /** Granted custom adapter to run in the sandbox (importerId = custom-<id>). */
+      adapter?: CustomAdapter;
     }
   | {
       id: number;
@@ -55,10 +62,29 @@ export function callWorker(
   const w = worker;
   const id = ++seq;
   return new Promise((resolve, reject) => {
+    // Custom adapters: the sandbox enforces its CPU deadline, but native builtins can overrun it;
+    // the worker is killed outright if it does not answer in time.
+    const watchdog =
+      req.kind === 'parse' && req.adapter
+        ? setTimeout(
+            () => {
+              w.removeEventListener('message', onMsg);
+              w.terminate();
+              if (worker === w) worker = null;
+              reject(
+                Object.assign(new Error('custom adapter did not finish in time'), {
+                  code: 'adapter_timeout',
+                }),
+              );
+            },
+            DEFAULT_SANDBOX_LIMITS.timeoutMs * 3 + 5000,
+          )
+        : undefined;
     const onMsg = (ev: MessageEvent<WorkerResponse>) => {
       const m = ev.data;
       if (m.id !== id) return;
       if (m.type === 'progress') return onProgress?.(m.bytes, m.total);
+      clearTimeout(watchdog);
       w.removeEventListener('message', onMsg);
       if (m.type === 'error') reject(Object.assign(new Error(m.message), { code: m.code }));
       else resolve(m);

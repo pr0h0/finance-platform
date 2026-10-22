@@ -1,6 +1,7 @@
 // Import center (PLAN §23–25, Features 101, 110–130 UI).
 import { useState } from 'react';
 import { useSearchParams } from 'react-router';
+import { Adapters } from '../../features/import/Adapters.tsx';
 import { Coverage } from '../../features/import/Coverage.tsx';
 import { History } from '../../features/import/History.tsx';
 import { ImportWizard, MANIFESTS } from '../../features/import/ImportWizard.tsx';
@@ -14,6 +15,7 @@ const TABS = [
   { id: 'coverage', label: 'Coverage' },
   { id: 'mapping', label: 'Mapping editor' },
   { id: 'importers', label: 'Importers' },
+  { id: 'adapters', label: 'Custom adapters' },
 ] as const;
 type Tab = (typeof TABS)[number]['id'];
 
@@ -56,6 +58,7 @@ export default function ImportPage() {
       )}
       {tab === 'coverage' && <Coverage refs={refs} />}
       {tab === 'mapping' && <MappingEditor />}
+      {tab === 'adapters' && <Adapters />}
       {tab === 'importers' && (
         <ul className="divide-y divide-line rounded-lg border border-line bg-surface">
           {MANIFESTS.map((m) => (

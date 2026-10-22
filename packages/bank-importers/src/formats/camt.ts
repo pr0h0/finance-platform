@@ -1,13 +1,13 @@
 // ISO 20022 CAMT.053 (account statement) and CAMT.054 (debit/credit notification), any version.
 import {
   type BankImporter,
-  decodeBytes,
+  DEFAULT_MAX_BYTES,
+  decodeStream,
   ImportError,
   type ImportIssue,
   ResultBuilder,
-  readAll,
 } from '@finplat/importer-sdk';
-import { children, find, type Node, parseMarkup, textAt } from './markup.ts';
+import { children, find, MarkupStream, type Node, textAt } from './markup.ts';
 import { compactDate, headText, manifest } from './util.ts';
 
 const OPENING = new Set(['OPBD', 'PRCD']);
@@ -57,14 +57,32 @@ export function camtImporter(kind: '053' | '054'): BankImporter {
     },
     async parse(input, ctx) {
       const out = new ResultBuilder(m, format, ctx);
-      const root = parseMarkup(decodeBytes(await readAll(input, ctx), ctx.encoding ?? 'auto'));
-      const doc = find(root, 'Document');
-      const body = find(doc, container);
-      if (!body) throw new ImportError('invalid_camt', `missing Document/${container}`);
+      const max = ctx.maxBytes ?? DEFAULT_MAX_BYTES;
+      if (input.size > max)
+        throw new ImportError('file_too_large', `file is ${input.size} bytes; limit ${max}`);
+      // Streamed: each Ntry is turned into a record when it closes and then dropped, so memory holds
+      // one entry plus the statement headers (Id and Acct precede Ntry in every CAMT version).
       let row = 0;
+      const stmtCtx = (s: Node) => ({
+        ref: textAt(s, 'Id'),
+        acct: textAt(s, 'Acct/Id/IBAN') ?? textAt(s, 'Acct/Id/Othr/Id'),
+        ccy: textAt(s, 'Acct/Ccy') ?? ctx.accountCurrency,
+      });
+      const parser = new MarkupStream({
+        onClose(n, up) {
+          const s = up[up.length - 1];
+          if (n.name !== 'Ntry' || s?.name !== item || up[up.length - 2]?.name !== container)
+            return false;
+          row++;
+          addEntry(out, n, row, stmtCtx(s));
+          return true;
+        },
+      });
+      for await (const chunk of decodeStream(input, ctx)) parser.write(chunk);
+      const body = find(find(parser.end(), 'Document'), container);
+      if (!body) throw new ImportError('invalid_camt', `missing Document/${container}`);
       for (const s of children(body, item)) {
-        const ref = textAt(s, 'Id');
-        const acct = textAt(s, 'Acct/Id/IBAN') ?? textAt(s, 'Acct/Id/Othr/Id');
+        const { ref, acct } = stmtCtx(s);
         const acctCcy = textAt(s, 'Acct/Ccy');
         const open = balance(s, OPENING);
         const close = balance(s, CLOSING);
@@ -77,10 +95,6 @@ export function camtImporter(kind: '053' | '054'): BankImporter {
           ...(open ? { openingBalance: open.amount } : {}),
           ...(close ? { closingBalance: close.amount } : {}),
         });
-        for (const e of children(s, 'Ntry')) {
-          row++;
-          addEntry(out, e, row, { ref, acct, ccy: acctCcy ?? ctx.accountCurrency });
-        }
       }
       return out.finish();
     },

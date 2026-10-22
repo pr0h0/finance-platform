@@ -551,27 +551,23 @@ type camtStmt struct {
 		} `xml:"Id"`
 		Ccy string `xml:"Ccy"`
 	} `xml:"Acct"`
-	Bal []struct {
-		Tp struct {
-			CdOrPrtry struct {
-				Cd string `xml:"Cd"`
-			} `xml:"CdOrPrtry"`
-		} `xml:"Tp"`
-		Amt       camtAmt `xml:"Amt"`
-		CdtDbtInd string  `xml:"CdtDbtInd"`
-	} `xml:"Bal"`
+	Bal    []camtBal
 	FrToDt struct {
 		FrDtTm string `xml:"FrDtTm"`
 		FrDt   string `xml:"FrDt"`
 		ToDtTm string `xml:"ToDtTm"`
 		ToDt   string `xml:"ToDt"`
 	} `xml:"FrToDt"`
-	Ntry []camtEntry `xml:"Ntry"`
 }
 
-type camtDoc struct {
-	Stmts  []camtStmt `xml:"BkToCstmrStmt>Stmt"`
-	Ntfcns []camtStmt `xml:"BkToCstmrDbtCdtNtfctn>Ntfctn"`
+type camtBal struct {
+	Tp struct {
+		CdOrPrtry struct {
+			Cd string `xml:"Cd"`
+		} `xml:"CdOrPrtry"`
+	} `xml:"Tp"`
+	Amt       camtAmt `xml:"Amt"`
+	CdtDbtInd string  `xml:"CdtDbtInd"`
 }
 
 func parseCAMT(kind string) func(b []byte, pc ParseContext) (Result, error) {
@@ -579,7 +575,6 @@ func parseCAMT(kind string) func(b []byte, pc ParseContext) (Result, error) {
 		if bytes.Contains(bytes.ToUpper(b[:min(len(b), 4096)]), []byte("<!DOCTYPE")) {
 			return Result{}, errors.New("camt: DOCTYPE/DTD is not allowed")
 		}
-		var doc camtDoc
 		dec := xml.NewDecoder(bytes.NewReader(b))
 		dec.CharsetReader = func(label string, in io.Reader) (io.Reader, error) {
 			switch strings.ToLower(label) {
@@ -590,52 +585,114 @@ func parseCAMT(kind string) func(b []byte, pc ParseContext) (Result, error) {
 			}
 			return nil, fmt.Errorf("unsupported XML encoding %q", label)
 		}
-		if err := dec.Decode(&doc); err != nil {
-			return Result{}, fmt.Errorf("camt: %w", err)
-		}
-		stmts, container := doc.Stmts, "BkToCstmrStmt"
+		container, item := "BkToCstmrStmt", "Stmt"
 		if kind == "054" {
-			stmts, container = doc.Ntfcns, "BkToCstmrDbtCdtNtfctn"
+			container, item = "BkToCstmrDbtCdtNtfctn", "Ntfctn"
 		}
-		if stmts == nil {
-			return Result{}, fmt.Errorf("missing Document/%s", container)
-		}
+		// Token stream: each statement is read child by child and each Ntry is decoded and handed
+		// to the builder on its own, so only one entry is held as a struct at a time.
 		out := newBuilder()
-		row := 0
-		for _, s := range stmts {
-			acct := firstNonEmpty(s.Acct.Id.IBAN, s.Acct.Id.Othr.Id)
-			st := Statement{Ref: s.Id, AccountRef: acct, Currency: s.Acct.Ccy,
-				PeriodStart: compactDate(firstNonEmpty(s.FrToDt.FrDtTm, s.FrToDt.FrDt)), PeriodEnd: compactDate(firstNonEmpty(s.FrToDt.ToDtTm, s.FrToDt.ToDt))}
-			var openCcy, closeCcy string
-			for _, set := range []map[string]bool{{"OPBD": true, "PRCD": true}, {"CLBD": true}} {
-				for _, bal := range s.Bal {
-					v := strings.TrimSpace(bal.Amt.Value)
-					if !set[bal.Tp.CdOrPrtry.Cd] || v == "" {
-						continue
+		row, found := 0, false
+		var path []string
+		for {
+			tok, err := dec.Token()
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				return Result{}, fmt.Errorf("camt: %w", err)
+			}
+			switch t := tok.(type) {
+			case xml.StartElement:
+				if t.Name.Local == item && len(path) == 2 && path[0] == "Document" && path[1] == container {
+					found = true
+					if err := camtStatement(dec, out, &row, pc); err != nil {
+						return Result{}, fmt.Errorf("camt: %w", err)
 					}
-					if bal.CdtDbtInd == "DBIT" && strings.ContainsAny(v, "123456789") {
-						v = "-" + v
-					}
-					if set["OPBD"] {
-						st.OpeningBalance, openCcy = v, bal.Amt.Ccy
-					} else {
-						st.ClosingBalance, closeCcy = v, bal.Amt.Ccy
-					}
-					break
+					continue
 				}
+				if path = append(path, t.Name.Local); len(path) > 256 {
+					return Result{}, errors.New("camt: nesting too deep")
+				}
+			case xml.EndElement:
+				path = path[:len(path)-1]
 			}
-			if st.Currency == "" {
-				st.Currency = firstNonEmpty(openCcy, closeCcy)
-			}
-			out.statements = append(out.statements, st)
-			ccy := firstNonEmpty(s.Acct.Ccy, pc.AccountCurrency)
-			for _, e := range s.Ntry {
-				row++
-				addCAMTEntry(out, e, row, s.Id, acct, ccy)
-			}
+		}
+		if !found {
+			return Result{}, fmt.Errorf("missing Document/%s", container)
 		}
 		return out.finish(), nil
 	}
+}
+
+// camtStatement consumes one Stmt/Ntfctn element (its start tag already read). Id and Acct precede
+// Ntry in every CAMT version, so entries see the statement's reference and account.
+func camtStatement(dec *xml.Decoder, out *builder, row *int, pc ParseContext) error {
+	var s camtStmt
+	for {
+		tok, err := dec.Token()
+		if err != nil {
+			return err
+		}
+		switch t := tok.(type) {
+		case xml.EndElement:
+			out.statements = append(out.statements, camtStatementInfo(&s))
+			return nil
+		case xml.StartElement:
+			switch t.Name.Local {
+			case "Ntry":
+				var e camtEntry
+				if err := dec.DecodeElement(&e, &t); err != nil {
+					return err
+				}
+				*row++
+				addCAMTEntry(out, e, *row, s.Id, firstNonEmpty(s.Acct.Id.IBAN, s.Acct.Id.Othr.Id), firstNonEmpty(s.Acct.Ccy, pc.AccountCurrency))
+			case "Id":
+				err = dec.DecodeElement(&s.Id, &t)
+			case "Acct":
+				err = dec.DecodeElement(&s.Acct, &t)
+			case "FrToDt":
+				err = dec.DecodeElement(&s.FrToDt, &t)
+			case "Bal":
+				var bal camtBal
+				err = dec.DecodeElement(&bal, &t)
+				s.Bal = append(s.Bal, bal)
+			default:
+				err = dec.Skip()
+			}
+			if err != nil {
+				return err
+			}
+		}
+	}
+}
+
+func camtStatementInfo(s *camtStmt) Statement {
+	acct := firstNonEmpty(s.Acct.Id.IBAN, s.Acct.Id.Othr.Id)
+	st := Statement{Ref: s.Id, AccountRef: acct, Currency: s.Acct.Ccy,
+		PeriodStart: compactDate(firstNonEmpty(s.FrToDt.FrDtTm, s.FrToDt.FrDt)), PeriodEnd: compactDate(firstNonEmpty(s.FrToDt.ToDtTm, s.FrToDt.ToDt))}
+	var openCcy, closeCcy string
+	for _, set := range []map[string]bool{{"OPBD": true, "PRCD": true}, {"CLBD": true}} {
+		for _, bal := range s.Bal {
+			v := strings.TrimSpace(bal.Amt.Value)
+			if !set[bal.Tp.CdOrPrtry.Cd] || v == "" {
+				continue
+			}
+			if bal.CdtDbtInd == "DBIT" && strings.ContainsAny(v, "123456789") {
+				v = "-" + v
+			}
+			if set["OPBD"] {
+				st.OpeningBalance, openCcy = v, bal.Amt.Ccy
+			} else {
+				st.ClosingBalance, closeCcy = v, bal.Amt.Ccy
+			}
+			break
+		}
+	}
+	if st.Currency == "" {
+		st.Currency = firstNonEmpty(openCcy, closeCcy)
+	}
+	return st
 }
 
 func addCAMTEntry(out *builder, e camtEntry, row int, ref, acct, ccy string) {

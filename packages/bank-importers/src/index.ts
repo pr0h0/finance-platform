@@ -15,7 +15,7 @@ export {
 } from './banks/raiffeisen-bih/index.ts';
 export { camtImporter } from './formats/camt.ts';
 export { jsonImporter } from './formats/json.ts';
-export { decodeEntities, parseMarkup } from './formats/markup.ts';
+export { decodeEntities, MarkupStream, parseMarkup } from './formats/markup.ts';
 export { mt940Importer } from './formats/mt940.ts';
 export { ofxImporter } from './formats/ofx.ts';
 export {

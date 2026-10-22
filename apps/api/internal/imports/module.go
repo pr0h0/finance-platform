@@ -324,7 +324,8 @@ func (h *handlers) create(w http.ResponseWriter, r *http.Request) error {
 		if len(errs) > 0 {
 			return httpx.Validation(errs)
 		}
-		if findImporter(in.ImporterID) == nil && !isClientOnly(in.ImporterID) {
+		// custom-*: a sandboxed user adapter of the web client (Feature 112); its rows are validated here like any client result.
+		if findImporter(in.ImporterID) == nil && !isClientOnly(in.ImporterID) && !strings.HasPrefix(in.ImporterID, "custom-") {
 			return httpx.Validation(map[string]string{"importerId": "unknown importer"})
 		}
 		if in.ReprocessedFromBatchID != nil {

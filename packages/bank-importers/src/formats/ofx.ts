@@ -2,15 +2,15 @@
 import { convert, convertInverse } from '@finplat/finance-engine';
 import {
   type BankImporter,
-  decodeBytes,
+  DEFAULT_MAX_BYTES,
+  decodeStream,
   ImportError,
   type ImportIssue,
   isKnownCurrency,
   ResultBuilder,
-  readAll,
   toCurrencyScale,
 } from '@finplat/importer-sdk';
-import { children, find, findAll, type Node, parseMarkup, textAt } from './markup.ts';
+import { find, findAll, MarkupStream, type Node, textAt } from './markup.ts';
 import { compactDate, ext, headText, manifest } from './util.ts';
 
 /** OFX amounts are signed with '.' or ',' as decimal separator and no grouping. */
@@ -47,45 +47,50 @@ export function ofxImporter(qfx: boolean): BankImporter {
     },
     async parse(input, ctx) {
       const out = new ResultBuilder(m, format, ctx);
-      const bytes = await readAll(input, ctx);
+      const max = ctx.maxBytes ?? DEFAULT_MAX_BYTES;
+      if (input.size > max)
+        throw new ImportError('file_too_large', `file is ${input.size} bytes; limit ${max}`);
       // OFX 1.x declares CHARSET:1252 etc.; the auto detector covers UTF-8 and CE code pages.
-      const text = decodeBytes(bytes, ctx.encoding ?? 'auto');
-      const body = text.slice(Math.max(0, text.search(/<OFX>/i)));
-      if (!/<OFX>/i.test(body)) throw new ImportError('invalid_ofx', 'no <OFX> element');
-      const sgml = !/<\?xml/i.test(text.slice(0, 200));
-      const root = parseMarkup(sgml ? upperTags(body) : body, { sgml });
+      const sgml = !/<\?xml/i.test((await headText(input, 200)).slice(0, 200));
+      // Streamed: each STMTTRN becomes a record when it closes and is dropped; CURDEF and the
+      // account precede BANKTRANLIST in STMTRS/CCSTMTRS, so the statement context is known by then.
+      let row = 0;
+      const acctOf = (s: Node) =>
+        textAt(s, 'BANKACCTFROM/ACCTID') ?? textAt(s, 'CCACCTFROM/ACCTID');
+      const curOf = (s: Node) => textAt(s, 'CURDEF') ?? ctx.accountCurrency ?? '';
+      const parser = new MarkupStream({
+        sgml,
+        upperNames: sgml, // SGML OFX tags are case-insensitive
+        onClose(n, up) {
+          const s = up[up.length - 2];
+          if (n.name !== 'STMTTRN' || up[up.length - 1]?.name !== 'BANKTRANLIST') return false;
+          if (s?.name !== 'STMTRS' && s?.name !== 'CCSTMTRS') return false;
+          row++;
+          addTrn(out, n, row, curOf(s), acctOf(s));
+          return true;
+        },
+      });
+      for await (const chunk of decodeStream(input, ctx)) parser.write(chunk);
+      const root = parser.end();
+      if (!root.children.some((c) => c.name.toUpperCase() === 'OFX'))
+        throw new ImportError('invalid_ofx', 'no <OFX> element');
       const stmts = [...findAll(root, 'STMTRS'), ...findAll(root, 'CCSTMTRS')];
       if (stmts.length === 0)
         out.errors.push({ code: 'no_statement', message: 'no bank or card statement' });
-      let row = 0;
       for (const s of stmts) {
-        const cur = textAt(s, 'CURDEF') ?? ctx.accountCurrency ?? '';
-        const acct = textAt(s, 'BANKACCTFROM/ACCTID') ?? textAt(s, 'CCACCTFROM/ACCTID');
         const list = find(s, 'BANKTRANLIST');
         const closing = ofxAmount(textAt(s, 'LEDGERBAL/BALAMT'));
         out.statements.push({
-          accountRef: acct,
-          currency: cur,
+          accountRef: acctOf(s),
+          currency: curOf(s),
           periodStart: compactDate(textAt(list, 'DTSTART')),
           periodEnd: compactDate(textAt(list, 'DTEND')),
           ...(closing ? { closingBalance: closing } : {}),
         });
-        for (const t of children(list, 'STMTTRN')) {
-          row++;
-          addTrn(out, t, row, cur, acct);
-        }
       }
       return out.finish();
     },
   };
-}
-
-// SGML OFX tags are case-insensitive; normalise tag names (not text) to upper case.
-function upperTags(s: string): string {
-  return s.replace(
-    /<(\/?)([A-Za-z0-9.]+)/g,
-    (_, slash: string, n: string) => `<${slash}${n.toUpperCase()}`,
-  );
 }
 
 function addTrn(out: ResultBuilder, t: Node, row: number, cur: string, acct?: string): void {

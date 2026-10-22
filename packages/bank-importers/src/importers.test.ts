@@ -17,6 +17,7 @@ import {
   excelNumberText,
   itemsToRows,
   jsonImporter,
+  MarkupStream,
   mt940Importer,
   ofxImporter,
   parseMarkup,
@@ -463,6 +464,60 @@ describe('JSON', () => {
   test('rejects other shapes', async () => {
     const bad = inputFromBytes('x.json', new TextEncoder().encode('{"format":"other"}'));
     await expect(jsonImporter().parse(bad, {})).rejects.toThrow('finplat-import');
+  });
+});
+
+describe('streaming XML (CAMT / OFX)', () => {
+  // Same file delivered in tiny chunks: tokens, entities and multi-byte characters split anywhere.
+  const chunked = (path: string, size: number) => {
+    const bytes = importFixture(path);
+    return {
+      fileName: path.split('/').pop() as string,
+      size: bytes.length,
+      stream: () =>
+        new ReadableStream<Uint8Array>({
+          start(c) {
+            for (let i = 0; i < bytes.length; i += size) c.enqueue(bytes.slice(i, i + size));
+            c.close();
+          },
+        }),
+    };
+  };
+  test('chunk boundaries do not change the result', async () => {
+    const cases: [BankImporter, string, ImportContext][] = [
+      [camtImporter('053'), 'camt/camt053.xml', {}],
+      [camtImporter('054'), 'camt/camt054.xml', {}],
+      [ofxImporter(false), 'ofx/statement-v1.ofx', {}],
+      [ofxImporter(false), 'ofx/statement-v2.ofx', {}],
+      [ofxImporter(true), 'ofx/statement.qfx', {}],
+    ];
+    for (const [imp, path, ctx] of cases) {
+      const whole = await parse(imp, path, ctx);
+      expect(whole.records.length).toBeGreaterThan(0);
+      for (const size of [1, 7, 64])
+        expect(await imp.parse(chunked(path, size), ctx)).toEqual(whole);
+    }
+  });
+  test('entries are dropped from the tree once handled', () => {
+    let seen = 0;
+    const p = new MarkupStream({
+      onClose: (n) => n.name === 'Ntry' && ++seen > 0,
+    });
+    for (const c of [
+      '<Doc><Stmt><Id>S1</Id>',
+      '<Ntry><Amt>1</Am',
+      't></Ntry><Ntry/>',
+      '</Stmt></Doc>',
+    ])
+      p.write(c);
+    const root = p.end();
+    expect(seen).toBe(2);
+    expect(root.children[0]?.children[0]?.children.map((c) => c.name)).toEqual(['Id']);
+    expect(() => new MarkupStream().end()).not.toThrow();
+    expect(() => new MarkupStream().write('<a><!DOCTYPE x [')).toThrow('DOCTYPE');
+    const cut = new MarkupStream();
+    cut.write('<a><!DOC'); // too short to classify yet: buffered, rejected at the end
+    expect(() => cut.end()).toThrow('DOCTYPE');
   });
 });
 
