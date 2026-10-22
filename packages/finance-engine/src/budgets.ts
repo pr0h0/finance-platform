@@ -14,8 +14,11 @@
 //   remaining = limit - actual - (includePlanned ? planned : 0)
 //   utilization = (actual + (includePlanned ? planned : 0)) / limit, 4 decimals half_up; null if limit <= 0
 //   alert = highest alert threshold <= utilization, else null
-// Rollover (per line, from the previous period, actual only): leftover = prev limit - prev actual;
+// Rollover (per line, chained from the first period, actual only): leftover = prev limit - prev actual;
 //   none -> 0, carry_surplus -> max(leftover, 0), carry_deficit -> min(leftover, 0), carry_both -> leftover.
+//   A period with a stored period allocation (server period close; matched by `periodStart`, or by
+//   `budgetPeriodId` through `periodIds`) uses that row's amount and its frozen rolloverAmount instead.
+//   Policy = the period row's, else the default allocation's, else the budget's.
 // Totals = the null-category line when present, else the sum of category lines.
 import {
   type AggregateOptions,
@@ -44,8 +47,10 @@ export interface BudgetLike {
 
 export interface AllocationLike {
   budgetPeriodId?: string | null;
+  periodStart?: string | null; // start date of budgetPeriodId (sent by the server)
   categoryId: string | null;
   amount: Money;
+  rolloverAmount?: Money | null; // frozen carry of a stored period row
   rolloverPolicy?: RolloverPolicy | null;
 }
 
@@ -176,16 +181,16 @@ export function budgetStatus(input: BudgetStatusInput): BudgetStatus {
   };
   const { flows: fs, missingRates } = flows(input.transactions, opts);
   const under = ancestry(input.categories);
-  const lineKeys = [...new Set(input.allocations.map((a) => a.categoryId))];
-  const periodIdByStart = new Map((input.periodIds ?? []).map((p) => [p.startDate, p.id]));
-
-  const allocFor = (p: Period, cat: string | null): AllocationLike | undefined => {
-    const pid = periodIdByStart.get(p.start);
-    return (
-      (pid && input.allocations.find((a) => a.categoryId === cat && a.budgetPeriodId === pid)) ||
-      input.allocations.find((a) => a.categoryId === cat && !a.budgetPeriodId)
-    );
-  };
+  const startById = new Map((input.periodIds ?? []).map((p) => [p.id, p.startDate]));
+  // period rows by "start|category"; rows of unknown periods are ignored
+  const periodRows = new Map<string, AllocationLike>();
+  for (const a of input.allocations) {
+    if (!a.budgetPeriodId) continue;
+    const start = a.periodStart ?? startById.get(a.budgetPeriodId);
+    if (start && start <= target.start) periodRows.set(`${start}|${a.categoryId}`, a);
+  }
+  const defaults = input.allocations.filter((a) => !a.budgetPeriodId);
+  const lineKeys = [...new Set([...defaults, ...periodRows.values()].map((a) => a.categoryId))];
 
   // actual[periodIndex][lineKey]
   const actual = periods.map(() => new Map<string | null, bigint>());
@@ -218,13 +223,19 @@ export function budgetStatus(input: BudgetStatusInput): BudgetStatus {
     let carry = 0n;
     let limit = 0n;
     let act = 0n;
+    const def = defaults.find((a) => a.categoryId === k);
     for (let i = 0; i < periods.length; i++) {
       const p = periods[i] as Period;
-      const a = allocFor(p, k);
+      const stored = periodRows.get(`${p.start}|${k}`);
+      const a = stored ?? def;
+      if (stored) carry = stored.rolloverAmount ? toMinor(stored.rolloverAmount) : 0n;
       limit = (a ? toMinor(a.amount) : 0n) + carry;
       act = (actual[i] as Map<string | null, bigint>).get(k) ?? 0n;
       if (p === target) break;
-      carry = rolloverAmount(a?.rolloverPolicy ?? b.rolloverPolicy, limit - act);
+      carry = rolloverAmount(
+        stored?.rolloverPolicy ?? def?.rolloverPolicy ?? b.rolloverPolicy,
+        limit - act,
+      );
     }
     const plan = planned.get(k) ?? 0n;
     const spent = act + (b.includePlanned ? plan : 0n);

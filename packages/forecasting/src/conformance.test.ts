@@ -45,6 +45,7 @@ describe('conformance: forecast', () => {
         shortfalls: f.shortfalls,
         monthEnd: f.monthEnd,
         safeToSpend: f.safeToSpend,
+        ...('safeToSpendUntil' in rest ? { safeToSpendUntil: f.safeToSpendUntil } : {}),
         complete: f.complete,
       }).toEqual(rest as never);
       for (const d of days) {

@@ -53,17 +53,23 @@ type AllocationRow struct {
 	Amount         money.Money `json:"amount"`
 	RolloverAmount money.Money `json:"rolloverAmount"`
 	RolloverPolicy *string     `json:"rolloverPolicy"`
+	// PeriodStart is the start date of the stored period (budgetPeriodId) so clients can apply a
+	// period row's frozen rolloverAmount without syncing budget_periods. Read-only.
+	PeriodStart *string `json:"periodStart"`
 }
 
 func getAllocation(ctx context.Context, tx pgx.Tx, profileID, id uuid.UUID) (AllocationRow, error) {
 	var a AllocationRow
 	var amt, roll pgtype.Numeric
 	var cur string
-	err := tx.QueryRow(ctx, `SELECT id, profile_id, version, server_version, created_at, updated_at, deleted_at, budget_id,
-		budget_period_id, category_id, amount, currency, rollover_amount, rollover_policy
-		FROM budget_allocations WHERE id = $1 AND profile_id = $2 AND deleted_at IS NULL`, id, profileID).
+	var start *time.Time
+	err := tx.QueryRow(ctx, `SELECT a.id, a.profile_id, a.version, a.server_version, a.created_at, a.updated_at, a.deleted_at, a.budget_id,
+		a.budget_period_id, a.category_id, a.amount, a.currency, a.rollover_amount, a.rollover_policy, p.start_date
+		FROM budget_allocations a LEFT JOIN budget_periods p ON p.id = a.budget_period_id
+		WHERE a.id = $1 AND a.profile_id = $2 AND a.deleted_at IS NULL`, id, profileID).
 		Scan(&a.ID, &a.ProfileID, &a.Version, &a.ServerVersion, &a.CreatedAt, &a.UpdatedAt, &a.DeletedAt, &a.BudgetID,
-			&a.BudgetPeriodID, &a.CategoryID, &amt, &cur, &roll, &a.RolloverPolicy)
+			&a.BudgetPeriodID, &a.CategoryID, &amt, &cur, &roll, &a.RolloverPolicy, &start)
+	a.PeriodStart = fin.FmtPtr(start)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return a, httpx.NotFound("allocation")
 	}

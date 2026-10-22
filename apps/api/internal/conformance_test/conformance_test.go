@@ -1,8 +1,7 @@
 // Package conformance_test runs the shared engine fixtures in packages/test-fixtures/conformance
 // against the Go implementations (TypeScript runners: packages/finance-engine/src/
-// engine-conformance.test.ts and packages/forecasting/src/conformance.test.ts). Families without an
-// exported Go function yet are skipped with the function they wait for; their fixtures are still
-// decoded and every money value is validated, so a malformed fixture fails here too.
+// engine-conformance.test.ts and packages/forecasting/src/conformance.test.ts). Every family and op
+// runs; TestFixturesWellFormed also validates every money value, so a malformed fixture fails here.
 package conformance_test
 
 import (
@@ -326,21 +325,5 @@ func TestBudgetPeriods(t *testing.T) {
 	}
 	if n == 0 {
 		t.Fatal("no periods cases")
-	}
-}
-
-// Families (or ops) whose Go side has no pure function over in-memory data yet: the Go code is
-// DB-bound (analytics, budget status) or its forecast semantics differ (see docs/known-issues.md).
-// The fixtures are the contract; these are listed, not hidden.
-func TestPendingFamilies(t *testing.T) {
-	for name, waitsFor := range map[string]string{
-		"budgets":  "status cases: budgets.ComputeStatus over in-memory transactions (periods cases run in TestBudgetPeriods)",
-		"forecast": "forecasting.Project with the TS account semantics (credit limits, native-currency account shortfalls, safe accounts) and EventsFromPlans",
-	} {
-		t.Run(name, func(t *testing.T) {
-			var v any
-			load(t, name, &v)
-			t.Skipf("Go runner pending: needs %s", waitsFor)
-		})
 	}
 }

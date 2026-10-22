@@ -43,13 +43,12 @@
 - (fixed) fp1 fingerprint is implemented identically in Go; both pass packages/test-fixtures/imports/fingerprint.json.
 
 ## Shared TS engine (packages/finance-engine, forecasting)
-- Go conformance runner (`apps/api/internal/conformance_test`) runs recurrence, subscriptions, fx_lookup,
-  budget periods and (DB-seeded) aggregation byCategory/byMerchant/balances/savingsRate. Still skipped:
-  aggregation income-by-category (REST has no such report), cashflow and netWorth (different Go result shapes),
-  budget `status` and forecast fixtures. `real-server.test.ts` (run by `scripts/e2e.sh`) adds an end-to-end
-  web-vs-REST check for budget status totals, net worth with a manual USD rate and the merchant ranking.
-- (fixed) `analytics/fin.Converter` now delegates rate selection to `exchangerates.Lookup`; the EUR/BAM fixed-parity
-  conformance cases run in the Go runner.
+- (fixed) The Go conformance runner (`apps/api/internal/conformance_test`) now runs every family and op with
+  nothing skipped: recurrence, subscriptions, fx_lookup (both Go paths), budget periods and status, forecast and
+  planEvents, aggregation (incl. income by category, cashflow, net worth). Aggregation and budget status seed the
+  fixture ledger into Postgres, so these runners skip when the dev database is down.
+- `real-server.test.ts` (run by `scripts/e2e.sh`) adds an end-to-end web-vs-REST check for budget status totals,
+  net worth with a manual USD rate and the merchant ranking; it was not re-run after the parity changes.
 - Rule regexes run on the JS engine; only the RE2-compatible subset is guaranteed to behave like Go. Patterns
   are capped at 256 chars (no other ReDoS protection on the client).
 - Budget `utilization` is `null` when the limit is <= 0 (OpenAPI `BudgetStatus` types it as non-null Decimal).
@@ -111,7 +110,9 @@
 - No holiday calendar: business-day adjustment only moves Saturday/Sunday.
 - Plan occurrences moved by a date override more than 62 days away from their rule date are not found by
   range queries (expansion window). `PUT /plans/{id}/occurrences/{date}` keeps working.
-- Forecasts value future amounts at today's rate (constant-rate assumption, listed in `assumptions`).
+- Forecasts value future amounts at today's rate (constant-rate assumption, listed in `assumptions`) and,
+  like the web, use only each account's main-currency balance and events (other currencies held in a
+  multi-currency account are left out with a warning).
 - Annual planning returns smoothed monthly amounts; it does not write them into budget allocations.
 - Budget `alert` uses actual spending only; `projectedUtilization` shows actual + planned.
 - Anomaly and recurring detection use fixed thresholds (documented in docs/architecture/planning-analytics.md);
@@ -128,15 +129,20 @@
 - (fixed) Rules run automatically on REST/MCP-created transactions and server import commits
   (`ledger.AutoCategorize`, set by the automation module). Transactions arriving by sync push are not
   re-categorized: the device already ran its rules (manual entries and imports).
-- Financial parity web vs REST/MCP is only partly shown: aggregation (category, merchant, balances, savings
-  rate) runs in both runners; budget `status` and `forecast` fixtures are still skipped (the Go budget-status code
-  is DB-bound, and `forecasting.Project` differs from the TS engine: no credit-limit rule, shortfalls tracked in
-  the forecast currency rather than per account in native currency, no safe-to-spend account selection). Until
-  ported, MCP/REST answers and web numbers can differ on those features.
-- Budget rollover differs: the TS engine (web) chains rollover through every period since the budget start;
-  REST/MCP only carry an amount after an explicit `POST /budgets/{id}/periods/close` (the stored next-period
-  allocation rows now sync to clients, but the web ignores their `rolloverAmount`). Limits and actuals agree;
-  `rolloverIn`/remaining can differ for budgets with a rollover policy.
+- (fixed) Financial parity web vs REST/MCP: budget status, forecast (scenario rules, credit limits, per-account
+  shortfalls in account currency, safe-to-spend accounts and horizon) and aggregation now use one rule set and
+  pass the same fixtures on both sides. Remaining input differences: the server values planned budget amounts
+  at min(due date, today) while the web uses the due-date rate lookup (same rate unless rates exist for future
+  dates); forecasts on the server read balances from Postgres, the web from its sync cache.
+- (fixed) Budget rollover is chained on both sides; a period close freezes the stored carry, and the synced
+  period allocation row carries `periodStart` so the web applies it. Period rows written before this change
+  have no `periodStart` in the client cache: the web falls back to the chained value for them (equal unless
+  older transactions changed after the close) until the row is re-synced.
+- Chained rollover counts every period since the budget start: a budget created with an old start date and
+  no history carries the full unused allocation of those periods (carry_surplus/carry_both).
+- Forecast behaviour changes from aligning with the web: plans without an account and events in another
+  currency than their account are left out (warning) instead of moving the total; only stored pending
+  occurrences become overdue (rule dates that were never stored are not assumed to happen today).
 - (fixed) Budgets created/edited by REST or MCP now reach the web with their limits (`budget_allocations` sync
   changes). Profile settings and exchange rates now sync in connected mode (REST side data of the sync engine).
   A device-entered manual rate for a pair/date that the profile already has on the server is dropped in favour
@@ -170,7 +176,8 @@
   Desktop's UI connectors (OAuth-only) need the `mcp-remote` bridge (docs/mcp/README.md).
 - Stateless Streamable HTTP: no server-initiated requests/notifications, no resumable SSE streams.
 - `read_attachments` grant exists but no attachment tool is exposed.
-- `get_income_summary` returns income per month (not per income category).
+- `get_income_summary` returns income per month (not per income category). `analytics.IncomeByCategory`
+  (same Query/Rows as SpendingByCategory) now exists for the MCP tool to add the per-category breakdown.
 - Budget status, savings goals, budgets and categorization rules are refused for account-restricted clients
   (they span all accounts). Forecasts include only granted accounts.
 - `list_recurring_expenses` converts annualized amounts at today's rate; plan amounts stay native.

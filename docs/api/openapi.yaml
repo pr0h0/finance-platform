@@ -7276,22 +7276,25 @@ components:
                   - $ref: "#/components/schemas/Uuid"
                   - type: "null"
               limit:
+                description: "Allocation + rolloverIn (rollover chained from the first period; see docs/architecture/planning-analytics.md)."
                 $ref: "#/components/schemas/Money"
               rolloverIn:
                 $ref: "#/components/schemas/Money"
               actual:
                 $ref: "#/components/schemas/Money"
               planned:
+                description: "Pending planned expenses in the period (shown even when includePlanned is false)."
                 $ref: "#/components/schemas/Money"
               remaining:
+                description: "limit - actual - planned (planned only when includePlanned)."
                 $ref: "#/components/schemas/Money"
               utilization:
-                description: "actual / (limit + rolloverIn), 4 decimals; null when that is <= 0."
+                description: "(actual + planned when includePlanned) / limit, 4 decimals; null when limit <= 0."
                 oneOf:
                   - $ref: "#/components/schemas/Decimal"
                   - type: "null"
               projectedUtilization:
-                description: "(actual + planned) / (limit + rolloverIn)."
+                description: "(actual + planned) / limit."
                 oneOf:
                   - $ref: "#/components/schemas/Decimal"
                   - type: "null"
@@ -7453,7 +7456,7 @@ components:
         to:
           $ref: "#/components/schemas/Date"
         start:
-          description: "Total starting balance (today, all included accounts)."
+          description: "Total starting balance before any event today (all included accounts, valued at today's rate)."
           $ref: "#/components/schemas/Money"
         days:
           type: "array"
@@ -7510,12 +7513,12 @@ components:
               amount:
                 $ref: "#/components/schemas/Money"
               accountId:
-                description: "null = all included accounts together"
+                description: "Account whose balance falls below its floor (0, or minus the credit limit for liabilities with a limit); amount is in that account's currency. Always set."
                 oneOf:
                   - $ref: "#/components/schemas/Uuid"
                   - type: "null"
               until:
-                description: "Last negative day; null = still negative at the end of the range."
+                description: "Last day below the floor; null = still below at the end of the range."
                 oneOf:
                   - $ref: "#/components/schemas/Date"
                   - type: "null"

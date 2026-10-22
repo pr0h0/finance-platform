@@ -46,16 +46,16 @@ func TestPeriodFor(t *testing.T) {
 
 func TestCarry(t *testing.T) {
 	m := func(s string) money.Money { return money.MustParse(s, "BAM") }
-	cases := []struct{ policy, limit, in, actual, want string }{
-		{"carry_surplus", "500.00", "0.00", "420.00", "80.00"},
-		{"carry_surplus", "500.00", "0.00", "520.00", "0.00"},
-		{"carry_deficit", "500.00", "0.00", "520.00", "-20.00"},
-		{"carry_deficit", "500.00", "0.00", "420.00", "0.00"},
-		{"carry_both", "500.00", "30.00", "600.00", "-70.00"},
-		{"none", "500.00", "0.00", "100.00", "0.00"},
+	cases := []struct{ policy, leftover, want string }{
+		{"carry_surplus", "80.00", "80.00"},
+		{"carry_surplus", "-20.00", "0.00"},
+		{"carry_deficit", "-20.00", "-20.00"},
+		{"carry_deficit", "80.00", "0.00"},
+		{"carry_both", "-70.00", "-70.00"},
+		{"none", "400.00", "0.00"},
 	}
 	for _, c := range cases {
-		if got := Carry(c.policy, m(c.limit), m(c.in), m(c.actual)); got.Amount() != c.want {
+		if got := RolloverAmount(c.policy, m(c.leftover)); got.Amount() != c.want {
 			t.Errorf("%+v: got %s", c, got.Amount())
 		}
 	}
@@ -74,7 +74,7 @@ func TestBudgetActualVsPlanned(t *testing.T) {
 
 	var b Budget
 	api.Must(http.StatusCreated, "POST", "/budgets", map[string]any{
-		"name": "Monthly", "periodType": "monthly", "startDate": "2026-01-01", "currency": "BAM", "rolloverPolicy": "carry_surplus",
+		"name": "Monthly", "periodType": "monthly", "startDate": "2026-10-01", "currency": "BAM", "rolloverPolicy": "carry_surplus",
 		"alertThresholds": []string{"0.5", "0.8", "1.0"},
 		"allocations": []map[string]any{
 			{"categoryId": food, "amount": map[string]string{"amount": "500.00", "currency": "BAM"}},
@@ -113,28 +113,37 @@ func TestBudgetActualVsPlanned(t *testing.T) {
 	if foodLine.Actual.Amount() != "119.56" || foodLine.Planned.Amount() != "150.00" || foodLine.Remaining.Amount() != "230.44" {
 		t.Fatalf("food line: %+v", foodLine)
 	}
-	if *foodLine.Utilization != "0.2391" || foodLine.Alert != nil || *foodLine.ProjectedUtilization != "0.5391" {
+	// includePlanned (default): utilization counts actual + planned.
+	if *foodLine.Utilization != "0.5391" || foodLine.Alert == nil || *foodLine.Alert != "0.5" || *foodLine.ProjectedUtilization != "0.5391" {
 		t.Fatalf("food utilization: %+v", foodLine)
 	}
 	if all.Actual.Amount() != "169.56" || all.Planned.Amount() != "150.00" || st.Totals.Remaining.Amount() != "1180.44" {
 		t.Fatalf("overall line: %+v totals %+v", all, st.Totals)
 	}
 
-	// Close October: carry_surplus moves 500 - 119.56 = 380.44 into November.
-	api.Must(http.StatusOK, "POST", "/budgets/"+b.ID.String()+"/periods/close?date=2026-10-15", nil, &st)
-	api.Must(http.StatusConflict, "POST", "/budgets/"+b.ID.String()+"/periods/close?date=2026-10-15", nil, nil)
-	api.Must(http.StatusOK, "GET", "/budgets/"+b.ID.String()+"/status?date=2026-11-10", nil, &st)
-	for _, l := range st.Lines {
-		if l.CategoryID != nil && *l.CategoryID == food && (l.RolloverIn.Amount() != "380.44" || l.Limit.Amount() != "500.00") {
-			t.Fatalf("november food line: %+v", l)
+	novFood := func(want string) {
+		t.Helper()
+		api.Must(http.StatusOK, "GET", "/budgets/"+b.ID.String()+"/status?date=2026-11-10", nil, &st)
+		for _, l := range st.Lines {
+			if l.CategoryID != nil && *l.CategoryID == food && (l.RolloverIn.Amount() != want || l.Limit.Amount() != "880.44") {
+				t.Fatalf("november food line: %+v", l)
+			}
 		}
 	}
-	// Alerts: 0.5 threshold reached when actual >= 250.
+	// Chained rollover (no close needed): carry_surplus moves 500 - 119.56 = 380.44 into November.
+	novFood("380.44")
+	// Closing October stores the same carry; it is then frozen.
+	api.Must(http.StatusOK, "POST", "/budgets/"+b.ID.String()+"/periods/close?date=2026-10-15", nil, &st)
+	api.Must(http.StatusConflict, "POST", "/budgets/"+b.ID.String()+"/periods/close?date=2026-10-15", nil, nil)
+	novFood("380.44")
+	// A late October expense changes October but not the closed carry.
 	fintest.Txn(t, pool, profile, "expense", "2026-10-20", acc, "-200.00", "BAM", &food, "Feast")
+	novFood("380.44")
 	api.Must(http.StatusOK, "GET", "/budgets/"+b.ID.String()+"/status?date=2026-10-20", nil, &st)
 	for _, l := range st.Lines {
-		if l.CategoryID != nil && *l.CategoryID == food && (l.Alert == nil || *l.Alert != "0.5") {
-			t.Fatalf("expected 0.5 alert: %+v", l)
+		// (319.56 + 150) / 500 = 0.9391
+		if l.CategoryID != nil && *l.CategoryID == food && (l.Alert == nil || *l.Alert != "0.8") {
+			t.Fatalf("expected 0.8 alert: %+v", l)
 		}
 	}
 	alerts, err := CurrentAlerts(fintest.Ctx(user), pool, profile, fin.MustDate("2026-10-20"))

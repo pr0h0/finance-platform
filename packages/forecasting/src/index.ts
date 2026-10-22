@@ -14,7 +14,9 @@
 // with expected balance below its floor (0, or -creditLimit for liabilities with a limit;
 // liabilities without a limit never alert): {first date, lowest balance in the run}.
 // monthEnd = expected total on the last day of from's month (or `to` if earlier).
-// safeToSpend = max(0, min conservative total over safe-to-spend accounts - reserve).
+// safeToSpend = max(0, min conservative total over safe-to-spend accounts from `from` through
+// safeToSpendUntil - reserve); safeToSpendUntil = the day before the first expected income after
+// `from` (positive, certain|expected, not a transfer leg or what-if), capped at from+31 days and `to`.
 
 import type { Confidence } from '@finplat/domain';
 import {
@@ -91,6 +93,7 @@ export interface Forecast {
   shortfalls: { date: string; amount: Money; accountId: string }[];
   monthEnd: Money;
   safeToSpend: Money;
+  safeToSpendUntil: string;
   assumptions: string[];
   complete: boolean;
   warnings: string[];
@@ -112,6 +115,24 @@ export function scenarioAmount(e: ForecastEvent, s: Scenario): bigint | null {
   }
   if (income) return pick(e.amountMax);
   return likely ? pick(e.amountMin) : null;
+}
+
+const isIncome = (e: ForecastEvent) =>
+  toMinor(e.amount) > 0n &&
+  (e.confidence === 'certain' || e.confidence === 'expected') &&
+  e.source !== 'transfer' &&
+  e.source !== 'scenario';
+
+/** Safe-to-spend horizon: the day before the first expected income after `from`, ≤ from+31, ≤ to. */
+export function safeUntil(from: string, to: string, events: readonly ForecastEvent[]): string {
+  const cap = addDays(from, 31);
+  let until = cap < to ? cap : to;
+  for (const e of events)
+    if (isIncome(e) && e.date > from && e.date <= to) {
+      const d = addDays(e.date, -1);
+      if (d < until) until = d;
+    }
+  return until;
 }
 
 export function forecast(input: ForecastInput): Forecast {
@@ -230,8 +251,9 @@ export function forecast(input: ForecastInput): Forecast {
   const meDate = endOfMonth(from) < to ? endOfMonth(from) : to;
   const meIdx = diffDays(meDate, from);
   const safe = (a: ForecastAccount) => a.includeInSafeToSpend !== false;
+  const until = safeUntil(from, to, input.events);
   let minCons: bigint | null = null;
-  for (let di = 0; di < days.length; di++) {
+  for (let di = 0; di < days.length && (days[di] as string) <= until; di++) {
     const v = total(1, di, safe);
     if (minCons === null || v < minCons) minCons = v;
   }
@@ -252,6 +274,7 @@ export function forecast(input: ForecastInput): Forecast {
     shortfalls,
     monthEnd: (out[meIdx] as ForecastDay).expected,
     safeToSpend: fromMinor(sts > 0n ? sts : 0n, currency),
+    safeToSpendUntil: until,
     assumptions: [
       'Starting balances are current ledger balances before any event on the start date.',
       'Expected: certain and expected events at their planned amounts.',
@@ -259,7 +282,7 @@ export function forecast(input: ForecastInput): Forecast {
       'Optimistic: all income at its maximum; only certain and expected expenses at their minimum.',
       `Foreign-currency balances are converted to ${currency} at the ${from} rate for the whole period.`,
       'Planned occurrences already matched, skipped or paid are not counted again.',
-      `Safe-to-spend = lowest conservative balance of safe-to-spend accounts through ${to} minus the reserve.`,
+      `Safe-to-spend = lowest conservative balance of safe-to-spend accounts through ${until} (the day before the next expected income, at most 31 days) minus the reserve.`,
       'Forecasts are estimates, not guaranteed outcomes.',
     ],
     complete: warnings.length === 0,

@@ -1,6 +1,7 @@
 package forecasting
 
 import (
+	"fmt"
 	"sort"
 	"time"
 
@@ -8,72 +9,66 @@ import (
 
 	"github.com/pr0h0/finance-platform/apps/api/internal/analytics/fin"
 	"github.com/pr0h0/finance-platform/apps/api/internal/money"
+	"github.com/pr0h0/finance-platform/apps/api/internal/planning"
 )
 
-// Scenario rules for uncertain events (documented in docs/architecture/planning-analytics.md):
+// Projection rules, identical to the TS engine (packages/forecasting/src/index.ts; shared cases in
+// packages/test-fixtures/conformance/forecast.json, documented in docs/architecture/planning-analytics.md).
 //
-//	                 income included          expense included              variable amount
-//	expected         certain, expected        certain, expected, possible   planned amount
-//	conservative     certain only             every confidence              income min / expense max
-//	optimistic       certain..possible        certain, expected             income max / expense min
+// Scenario rules for a dated event with signed amount a (optional AmountMin/AmountMax magnitudes):
 //
-// Ledger transactions already booked in the future and what-if adjustments are certain.
-// Transfers follow the expense rule on both legs so a transfer never half-happens.
+//	expected:     included when confidence is certain|expected; amount a.
+//	conservative: income only when certain (AmountMin ?? a); expenses always (AmountMax ?? a).
+//	optimistic:   income always (AmountMax ?? a); expenses only when certain|expected (AmountMin ?? a).
+//	transfers (both legs) use the expected rule in every scenario, so moving money between
+//	included accounts never changes the total.
+//
+// Balances: Account.Balance is the balance before any event on From, in the account currency;
+// each day's value is the end-of-day balance. Totals are in the forecast currency, every account
+// valued at the From rate (constant-rate assumption); accounts without a rate are left out and the
+// forecast is incomplete. Events whose currency differs from their account's are ignored (warning).
+// Lowest = minimum expected total (earliest on ties). Shortfalls = per account, each run of days
+// whose expected balance is below its floor (0, or -creditLimit for liabilities with a limit;
+// liabilities without a limit never alert): first date and lowest balance in the account currency.
+// MonthEnd = expected total on the last day of From's month (or To if earlier).
+// SafeToSpend = max(0, lowest conservative total of the safe-to-spend accounts from From through
+// SafeToSpendUntil - reserve); SafeToSpendUntil = the day before the first expected income after
+// From, capped at From+31 days and To.
 
-// Event is a dated money movement on one account (AccountID nil = not tied to an included
-// account; it moves only the total). Amounts are signed, in the forecast currency.
+// Event is a dated money movement on one account. Amount is signed, in the account currency.
 type Event struct {
-	Date         time.Time
-	AccountID    *uuid.UUID
-	Expected     *money.Money // nil = excluded from that scenario
-	Conservative *money.Money
-	Optimistic   *money.Money
-	Description  string
-	Confidence   string
-	SourceID     uuid.UUID
-	Kind         string // income | expense | transfer | posted | adjustment
+	Date        time.Time
+	AccountID   uuid.UUID
+	Amount      money.Money
+	AmountMin   *money.Money // positive magnitudes
+	AmountMax   *money.Money
+	Confidence  string
+	Source      string // planned | recurring | installment | transfer | goal | scenario | posted
+	SourceID    uuid.UUID
+	Description string
 }
 
-// Scenarios builds the three scenario amounts from a plan occurrence (amount positive magnitude).
-// sign: +1 inflow, -1 outflow.
-func Scenarios(sign int, kind, confidence string, amount money.Money, amin, amax *money.Money) (exp, cons, opt *money.Money) {
-	signed := func(m money.Money) *money.Money {
-		if sign < 0 {
-			m = m.Neg()
-		}
-		return &m
-	}
-	low, high := amount, amount
-	if amin != nil {
-		low = *amin
-	}
-	if amax != nil {
-		high = *amax
-	}
-	if kind == "income" {
-		if fin.OneOf(confidence, "certain", "expected") {
-			exp = signed(amount)
-		}
-		if confidence == "certain" {
-			cons = signed(low)
-		}
-		if fin.OneOf(confidence, "certain", "expected", "possible") {
-			opt = signed(high)
-		}
-		return
-	}
-	if fin.OneOf(confidence, "certain", "expected", "possible") {
-		exp = signed(amount)
-	}
-	cons = signed(high)
-	if fin.OneOf(confidence, "certain", "expected") {
-		opt = signed(low)
-	}
-	return
+// Account is one account of the forecast.
+type Account struct {
+	ID                   uuid.UUID
+	Currency             string
+	Balance              money.Money
+	AccountType          string
+	CreditLimit          *money.Money
+	IncludeInSafeToSpend bool
 }
 
-// Certain is an event amount included in every scenario.
-func Certain(m money.Money) (exp, cons, opt *money.Money) { return &m, &m, &m }
+// Input to Project. Convert values an account-currency amount in Currency at the From rate
+// (ok=false: no rate).
+type Input struct {
+	From, To  time.Time
+	Currency  string
+	Accounts  []Account
+	Events    []Event
+	Convert   func(money.Money) (money.Money, bool)
+	Reserve   *money.Money         // in Currency; nil = none
+	DailyOnly func(time.Time) bool // nil = every day in Days; otherwise only matching days are listed
+}
 
 type DayEvent struct {
 	Description string      `json:"description"`
@@ -99,11 +94,11 @@ type Point struct {
 }
 
 type Shortfall struct {
-	Date      string      `json:"date"`      // first day below zero
-	Amount    money.Money `json:"amount"`    // lowest balance during the shortfall
-	AccountID *uuid.UUID  `json:"accountId"` // nil = all included accounts together
-	Until     *string     `json:"until"`     // last negative day (nil = still negative at the end)
-	Scenario  string      `json:"scenario"`
+	Date      string      `json:"date"`      // first day below the account's floor
+	Amount    money.Money `json:"amount"`    // lowest balance during the run, account currency
+	AccountID *uuid.UUID  `json:"accountId"` // always set (per-account rule)
+	Until     *string     `json:"until"`     // last day below the floor (nil = still below at the end)
+	Scenario  string      `json:"scenario"`  // always "expected"
 }
 
 // Forecast is OpenAPI Forecast.
@@ -126,151 +121,330 @@ type Forecast struct {
 	MissingRates       []fin.MissingRate `json:"missingRates"`
 }
 
-// Input to Project.
-type Input struct {
-	From, To  time.Time
-	Currency  string
-	Start     map[uuid.UUID]money.Money // included accounts, in Currency
-	Events    []Event
-	Reserve   money.Money
-	MonthEnd  time.Time            // date whose expected balance is reported as monthEnd
-	DailyOnly func(time.Time) bool // nil = every day in Days; otherwise only matching days are listed
+var liabilityTypes = map[string]bool{"credit_card": true, "loan": true, "mortgage": true, "other_liability": true}
+
+func likely(confidence string) bool { return confidence == "certain" || confidence == "expected" }
+
+// ScenarioAmount is the signed amount of e in a scenario (expected | conservative | optimistic),
+// or nil when the event is excluded from it.
+func ScenarioAmount(e Event, scenario string) *money.Money {
+	v := e.Amount
+	if scenario == "expected" || e.Source == "transfer" {
+		if likely(e.Confidence) {
+			return &v
+		}
+		return nil
+	}
+	income := v.Sign() > 0
+	pick := func(m *money.Money) *money.Money {
+		if m == nil {
+			return &v
+		}
+		x := *m
+		if !income {
+			x = x.Neg()
+		}
+		return &x
+	}
+	if scenario == "conservative" {
+		if income {
+			if e.Confidence == "certain" {
+				return pick(e.AmountMin)
+			}
+			return nil
+		}
+		return pick(e.AmountMax)
+	}
+	if income {
+		return pick(e.AmountMax)
+	}
+	if likely(e.Confidence) {
+		return pick(e.AmountMin)
+	}
+	return nil
+}
+
+// isIncome: an expected inflow that is not a transfer leg or a simulation (ends the safe-to-spend horizon).
+func isIncome(e Event) bool {
+	return e.Amount.Sign() > 0 && likely(e.Confidence) && e.Source != "transfer" && e.Source != "scenario"
+}
+
+// SafeUntil is the safe-to-spend horizon: the day before the first expected income after from,
+// at most from+31 days and to.
+func SafeUntil(from, to time.Time, events []Event) time.Time {
+	until := to
+	if lim := from.AddDate(0, 0, 31); lim.Before(until) {
+		until = lim
+	}
+	for _, e := range events {
+		if isIncome(e) && e.Date.After(from) && !e.Date.After(to) {
+			if d := e.Date.AddDate(0, 0, -1); d.Before(until) {
+				until = d
+			}
+		}
+	}
+	return until
+}
+
+var scenarios = [3]string{"expected", "conservative", "optimistic"}
+
+func dayKind(e Event) string {
+	switch e.Source {
+	case "transfer":
+		return "transfer"
+	case "posted":
+		return "posted"
+	case "scenario":
+		return "adjustment"
+	}
+	if e.Amount.Sign() > 0 {
+		return "income"
+	}
+	return "expense"
 }
 
 // Project runs the day-by-day projection. It is pure: same input, same output, no I/O.
 func Project(in Input) Forecast {
 	cur := in.Currency
-	f := Forecast{Currency: cur, From: fin.Fmt(in.From), To: fin.Fmt(in.To), Days: []Day{}, Shortfalls: []Shortfall{}, Reserve: in.Reserve}
+	n := fin.DaysBetween(in.From, in.To) + 1
+	if n < 1 {
+		n = 1
+	}
+	f := Forecast{Currency: cur, From: fin.Fmt(in.From), To: fin.Fmt(in.To), Days: []Day{}, Shortfalls: []Shortfall{}, Warnings: []string{},
+		Reserve: fin.Zero(cur)}
+	accIdx := map[uuid.UUID]int{}
+	for i, a := range in.Accounts {
+		accIdx[a.ID] = i
+	}
+	// deltas[scenario][account][day]
+	var deltas [3][]map[int]*fin.Accumulator
+	for s := range deltas {
+		deltas[s] = make([]map[int]*fin.Accumulator, len(in.Accounts))
+		for a := range in.Accounts {
+			deltas[s][a] = map[int]*fin.Accumulator{}
+		}
+	}
 	events := append([]Event(nil), in.Events...)
 	sort.SliceStable(events, func(i, j int) bool { return events[i].Date.Before(events[j].Date) })
-
-	ids := make([]uuid.UUID, 0, len(in.Start))
-	for id := range in.Start {
-		ids = append(ids, id)
-	}
-	sort.Slice(ids, func(i, j int) bool { return ids[i].String() < ids[j].String() })
-	exp := map[uuid.UUID]*fin.Accumulator{}
-	var totE, totC, totO fin.Accumulator
-	for _, id := range ids {
-		a := &fin.Accumulator{}
-		a.Add(in.Start[id])
-		exp[id] = a
-		totE.Add(in.Start[id])
-		totC.Add(in.Start[id])
-		totO.Add(in.Start[id])
-	}
-	f.Start = totE.Money(cur)
-	type run struct {
-		idx  int
-		last time.Time
-		open bool
-	}
-	runs := map[string]*run{}
-	track := func(key string, acc *uuid.UUID, scenario string, bal money.Money, d time.Time) {
-		r := runs[key]
-		switch {
-		case bal.Sign() < 0:
-			if r == nil || !r.open {
-				f.Shortfalls = append(f.Shortfalls, Shortfall{Date: fin.Fmt(d), Amount: bal, AccountID: acc, Scenario: scenario})
-				r = &run{idx: len(f.Shortfalls) - 1, open: true}
-				runs[key] = r
-			}
-			if s := &f.Shortfalls[r.idx]; cmpM(bal, s.Amount) < 0 {
-				s.Amount = bal
-			}
-			r.last = d
-		case r != nil && r.open:
-			r.open = false
-			last := fin.Fmt(r.last)
-			f.Shortfalls[r.idx].Until = &last
+	dayEvents := map[int][]DayEvent{}
+	for _, e := range events {
+		if e.Date.Before(in.From) || e.Date.After(in.To) {
+			continue
 		}
-	}
-
-	f.MonthEnd = totE.Money(cur)
-	first := true
-	i := 0
-	for d := in.From; !d.After(in.To); d = d.AddDate(0, 0, 1) {
-		day := Day{Date: fin.Fmt(d), Events: []DayEvent{}}
-		for ; i < len(events) && !events[i].Date.After(d); i++ {
-			e := events[i]
-			if e.Expected != nil {
-				totE.Add(*e.Expected)
-				if e.AccountID != nil {
-					if a, ok := exp[*e.AccountID]; ok {
-						a.Add(*e.Expected)
-					}
+		ai, ok := accIdx[e.AccountID]
+		if !ok {
+			f.Warnings = append(f.Warnings, fmt.Sprintf("event %s on %s ignored: account not in forecast", e.SourceID, fin.Fmt(e.Date)))
+			continue
+		}
+		if e.Amount.Currency() != in.Accounts[ai].Currency {
+			f.Warnings = append(f.Warnings, fmt.Sprintf("event %s on %s ignored: currency differs from account", e.SourceID, fin.Fmt(e.Date)))
+			continue
+		}
+		di := fin.DaysBetween(in.From, e.Date)
+		for si, s := range scenarios {
+			if v := ScenarioAmount(e, s); v != nil {
+				m := deltas[si][ai]
+				if m[di] == nil {
+					m[di] = &fin.Accumulator{}
 				}
-			}
-			if e.Conservative != nil {
-				totC.Add(*e.Conservative)
-			}
-			if e.Optimistic != nil {
-				totO.Add(*e.Optimistic)
-			}
-			shown := e.Expected
-			if shown == nil {
-				shown = e.Conservative
-			}
-			if shown == nil {
-				shown = e.Optimistic
-			}
-			if shown != nil {
-				day.Events = append(day.Events, DayEvent{Description: e.Description, Amount: *shown, Confidence: e.Confidence, SourceID: e.SourceID,
-					AccountID: e.AccountID, Kind: e.Kind, InExpected: e.Expected != nil})
+				m[di].Add(*v)
 			}
 		}
-		day.Expected, day.Conservative, day.Optimistic = totE.Money(cur), totC.Money(cur), totO.Money(cur)
-		if first || cmpM(day.Expected, f.Lowest.Amount) < 0 {
+		acc := e.AccountID
+		dayEvents[di] = append(dayEvents[di], DayEvent{Description: e.Description, Amount: e.Amount, Confidence: e.Confidence, SourceID: e.SourceID,
+			AccountID: &acc, Kind: dayKind(e), InExpected: ScenarioAmount(e, "expected") != nil})
+	}
+
+	// series[scenario][account][day]: end-of-day balance, account currency.
+	var series [3][][]money.Money
+	for si := range scenarios {
+		series[si] = make([][]money.Money, len(in.Accounts))
+		for ai, a := range in.Accounts {
+			var bal fin.Accumulator
+			bal.Add(a.Balance)
+			row := make([]money.Money, n)
+			for di := 0; di < n; di++ {
+				if d := deltas[si][ai][di]; d != nil {
+					bal.Add(d.Money(a.Currency))
+				}
+				row[di] = bal.Money(a.Currency)
+			}
+			series[si][ai] = row
+		}
+	}
+	valued := make([]bool, len(in.Accounts))
+	for ai, a := range in.Accounts {
+		if a.Currency == cur {
+			valued[ai] = true
+		} else if _, ok := in.Convert(fin.Zero(a.Currency)); ok {
+			valued[ai] = true
+		} else {
+			f.Warnings = append(f.Warnings, fmt.Sprintf("account %s (%s) left out: no %s/%s rate", a.ID, a.Currency, a.Currency, cur))
+		}
+	}
+	rep := func(ai int, m money.Money) money.Money {
+		if in.Accounts[ai].Currency == cur {
+			return m
+		}
+		v, _ := in.Convert(m)
+		return v
+	}
+	total := func(si, di int, safeOnly bool) money.Money {
+		var t fin.Accumulator
+		for ai, a := range in.Accounts {
+			if valued[ai] && (!safeOnly || a.IncludeInSafeToSpend) {
+				t.Add(rep(ai, series[si][ai][di]))
+			}
+		}
+		return t.Money(cur)
+	}
+	var start fin.Accumulator
+	for ai, a := range in.Accounts {
+		if valued[ai] {
+			start.Add(rep(ai, a.Balance))
+		}
+	}
+	f.Start = start.Money(cur)
+
+	meDate := fin.MonthEnd(in.From)
+	if in.To.Before(meDate) {
+		meDate = in.To
+	}
+	until := SafeUntil(in.From, in.To, events)
+	var minSafe *money.Money
+	for di := 0; di < n; di++ {
+		d := in.From.AddDate(0, 0, di)
+		day := Day{Date: fin.Fmt(d), Expected: total(0, di, false), Conservative: total(1, di, false), Optimistic: total(2, di, false),
+			Events: dayEvents[di]}
+		if day.Events == nil {
+			day.Events = []DayEvent{}
+		}
+		if di == 0 || cmpM(day.Expected, f.Lowest.Amount) < 0 {
 			f.Lowest = Point{Date: day.Date, Amount: day.Expected}
 		}
-		if first || cmpM(day.Conservative, f.LowestConservative.Amount) < 0 {
+		if di == 0 || cmpM(day.Conservative, f.LowestConservative.Amount) < 0 {
 			f.LowestConservative = Point{Date: day.Date, Amount: day.Conservative}
 		}
-		first = false
-		for _, id := range ids {
-			id := id
-			track("e:"+id.String(), &id, "expected", exp[id].Money(cur), d)
+		if !d.After(until) {
+			if s := total(1, di, true); minSafe == nil || cmpM(s, *minSafe) < 0 {
+				minSafe = &s
+			}
 		}
-		track("e:total", nil, "expected", day.Expected, d)
-		track("c:total", nil, "conservative", day.Conservative, d)
-		if d.Equal(in.MonthEnd) {
+		if d.Equal(meDate) {
 			f.MonthEnd = day.Expected
 		}
 		if in.DailyOnly == nil || in.DailyOnly(d) {
 			f.Days = append(f.Days, day)
 		}
 	}
-	if in.MonthEnd.After(in.To) {
-		f.MonthEnd = totE.Money(cur)
+
+	for ai, a := range in.Accounts {
+		liability := liabilityTypes[a.AccountType]
+		if liability && a.CreditLimit == nil {
+			continue
+		}
+		floor := fin.Zero(a.Currency)
+		if liability {
+			floor = a.CreditLimit.Neg()
+		}
+		var run *Shortfall
+		for di, v := range series[0][ai] {
+			if cmpM(v, floor) < 0 {
+				if run == nil {
+					id := a.ID
+					run = &Shortfall{Date: fin.Fmt(in.From.AddDate(0, 0, di)), Amount: v, AccountID: &id, Scenario: "expected"}
+				} else if cmpM(v, run.Amount) < 0 {
+					run.Amount = v
+				}
+			} else if run != nil {
+				last := fin.Fmt(in.From.AddDate(0, 0, di-1))
+				run.Until = &last
+				f.Shortfalls = append(f.Shortfalls, *run)
+				run = nil
+			}
+		}
+		if run != nil {
+			f.Shortfalls = append(f.Shortfalls, *run)
+		}
 	}
+	sort.SliceStable(f.Shortfalls, func(i, j int) bool {
+		if f.Shortfalls[i].Date != f.Shortfalls[j].Date {
+			return f.Shortfalls[i].Date < f.Shortfalls[j].Date
+		}
+		return f.Shortfalls[i].AccountID.String() < f.Shortfalls[j].AccountID.String()
+	})
+
+	if in.Reserve != nil {
+		if in.Reserve.Currency() == cur {
+			f.Reserve = *in.Reserve
+		} else if v, ok := in.Convert(*in.Reserve); ok {
+			f.Reserve = v
+		} else {
+			f.Warnings = append(f.Warnings, fmt.Sprintf("reserve ignored: no %s/%s rate", in.Reserve.Currency(), cur))
+		}
+	}
+	f.SafeToSpend = fin.Zero(cur)
+	if minSafe != nil {
+		if s, _ := minSafe.Sub(f.Reserve); s.Sign() > 0 {
+			f.SafeToSpend = s
+		}
+	}
+	f.SafeToSpendUntil = fin.Fmt(until)
+	f.Complete = len(f.Warnings) == 0
 	return f
 }
 
-// SafeToSpend = lowest conservative balance between from and until (inclusive) minus the reserve,
-// floored at zero: spending that much today still keeps every committed and uncertain outflow
-// covered under the conservative assumptions until `until`.
-func SafeToSpend(f Forecast, until time.Time) money.Money {
-	low := f.Start
-	for _, d := range f.Days {
-		if fin.MustDate(d.Date).After(until) {
-			break
+// EventsFromPlans turns pending plan occurrences (planning.Pending with includeOverdue) into
+// events, exactly like the TS eventsFromPlans: income +amount on the account, expense -amount,
+// transfer -amount on the account and +amount on the destination. Plans without an account are
+// not forecast (warning). Overdue occurrences say so in their description.
+func EventsFromPlans(plans []planning.Plan, occ []planning.Occurrence) ([]Event, []string) {
+	byID := map[uuid.UUID]planning.Plan{}
+	for _, p := range plans {
+		byID[p.ID] = p
+	}
+	var events []Event
+	var warnings []string
+	for _, o := range occ {
+		p := byID[o.PlannedTransactionID]
+		if p.AccountID == nil {
+			warnings = append(warnings, fmt.Sprintf("plan %s has no account and is not forecast", p.ID))
+			continue
 		}
-		if cmpM(d.Conservative, low) < 0 {
-			low = d.Conservative
+		source := "planned"
+		switch {
+		case p.Kind == "transfer":
+			source = "transfer"
+		case p.InstallmentTotal != nil:
+			source = "installment"
+		case p.RecurrenceID != nil:
+			source = "recurring"
+		}
+		desc := p.Description
+		if o.Overdue {
+			desc += " (overdue since " + o.NominalDate + ")"
+		}
+		base := Event{Date: o.Day, Confidence: p.Confidence, Source: source, SourceID: p.ID, Description: desc, AmountMin: p.AmountMin, AmountMax: p.AmountMax}
+		out := base
+		out.AccountID, out.Amount = *p.AccountID, o.Amount.Neg()
+		if p.Kind == "income" {
+			out.Amount = o.Amount
+		}
+		events = append(events, out)
+		if p.Kind == "transfer" {
+			if p.ToAccountID == nil {
+				warnings = append(warnings, fmt.Sprintf("transfer plan %s has no destination account", p.ID))
+				continue
+			}
+			in := base
+			in.AccountID, in.Amount = *p.ToAccountID, o.Amount
+			events = append(events, in)
 		}
 	}
-	s, _ := low.Sub(f.Reserve)
-	if s.Sign() < 0 {
-		return fin.Zero(f.Currency)
-	}
-	return s
+	return events, warnings
 }
 
 func cmpM(a, b money.Money) int {
 	c, _ := a.Cmp(b)
 	return c
-}
-
-func sameAcc(a, b *uuid.UUID) bool {
-	return (a == nil && b == nil) || (a != nil && b != nil && *a == *b)
 }

@@ -1134,6 +1134,69 @@
         }
       },
       "expected": "0.6667"
+    },
+    {
+      "name": "quarterly cash flow in EUR (BAM converted at the inverse fixed parity)",
+      "op": "cashflow",
+      "params": {
+        "from": "2026-07-01",
+        "to": "2026-12-31",
+        "currency": "EUR",
+        "granularity": "quarter"
+      },
+      "expected": {
+        "periods": [
+          {
+            "period": "2026-Q3",
+            "income": {
+              "amount": "0.00",
+              "currency": "EUR"
+            },
+            "expense": {
+              "amount": "20.45",
+              "currency": "EUR"
+            },
+            "net": {
+              "amount": "-20.45",
+              "currency": "EUR"
+            },
+            "savingsRate": null
+          },
+          {
+            "period": "2026-Q4",
+            "income": {
+              "amount": "1022.58",
+              "currency": "EUR"
+            },
+            "expense": {
+              "amount": "122.44",
+              "currency": "EUR"
+            },
+            "net": {
+              "amount": "900.14",
+              "currency": "EUR"
+            },
+            "savingsRate": "0.8803"
+          }
+        ],
+        "totals": {
+          "income": {
+            "amount": "1022.58",
+            "currency": "EUR"
+          },
+          "expense": {
+            "amount": "142.89",
+            "currency": "EUR"
+          },
+          "net": {
+            "amount": "879.69",
+            "currency": "EUR"
+          },
+          "savingsRate": "0.8603"
+        },
+        "complete": true,
+        "missingRates": []
+      }
     }
   ]
 }

@@ -541,6 +541,290 @@
       }
     },
     {
+      "name": "FX and month boundary: EUR account and EUR reserve valued at the start rate, shortfalls in each account's own currency (card past its credit limit), safe-to-spend ends the day before certain income (conservative at its minimum)",
+      "op": "forecast",
+      "input": {
+        "from": "2026-10-30",
+        "to": "2026-11-05",
+        "currency": "BAM",
+        "reserve": {
+          "amount": "10.00",
+          "currency": "EUR"
+        },
+        "accounts": [
+          {
+            "id": "chk",
+            "currency": "BAM",
+            "balance": {
+              "amount": "100.00",
+              "currency": "BAM"
+            },
+            "accountType": "checking",
+            "creditLimit": null,
+            "includeInSafeToSpend": true
+          },
+          {
+            "id": "eur",
+            "currency": "EUR",
+            "balance": {
+              "amount": "50.00",
+              "currency": "EUR"
+            },
+            "accountType": "checking",
+            "creditLimit": null,
+            "includeInSafeToSpend": true
+          },
+          {
+            "id": "card",
+            "currency": "BAM",
+            "balance": {
+              "amount": "-900.00",
+              "currency": "BAM"
+            },
+            "accountType": "credit_card",
+            "creditLimit": {
+              "amount": "1000.00",
+              "currency": "BAM"
+            },
+            "includeInSafeToSpend": false
+          }
+        ],
+        "events": [
+          {
+            "date": "2026-10-31",
+            "accountId": "eur",
+            "amount": {
+              "amount": "-80.00",
+              "currency": "EUR"
+            },
+            "amountMin": null,
+            "amountMax": null,
+            "confidence": "certain",
+            "source": "recurring",
+            "sourceId": "eur-rent",
+            "description": "Rent EUR"
+          },
+          {
+            "date": "2026-10-31",
+            "accountId": "card",
+            "amount": {
+              "amount": "-150.00",
+              "currency": "BAM"
+            },
+            "amountMin": null,
+            "amountMax": null,
+            "confidence": "certain",
+            "source": "planned",
+            "sourceId": "card-buy",
+            "description": "Card purchase"
+          },
+          {
+            "date": "2026-11-02",
+            "accountId": "chk",
+            "amount": {
+              "amount": "500.00",
+              "currency": "BAM"
+            },
+            "amountMin": {
+              "amount": "450.00",
+              "currency": "BAM"
+            },
+            "amountMax": null,
+            "confidence": "certain",
+            "source": "recurring",
+            "sourceId": "salary",
+            "description": "Salary"
+          },
+          {
+            "date": "2026-11-03",
+            "accountId": "card",
+            "amount": {
+              "amount": "200.00",
+              "currency": "BAM"
+            },
+            "amountMin": null,
+            "amountMax": null,
+            "confidence": "expected",
+            "source": "transfer",
+            "sourceId": "card-pay",
+            "description": "Card payment"
+          },
+          {
+            "date": "2026-11-03",
+            "accountId": "chk",
+            "amount": {
+              "amount": "-200.00",
+              "currency": "BAM"
+            },
+            "amountMin": null,
+            "amountMax": null,
+            "confidence": "expected",
+            "source": "transfer",
+            "sourceId": "card-pay",
+            "description": "Card payment"
+          },
+          {
+            "date": "2026-11-04",
+            "accountId": "eur",
+            "amount": {
+              "amount": "100.00",
+              "currency": "EUR"
+            },
+            "amountMin": null,
+            "amountMax": null,
+            "confidence": "possible",
+            "source": "planned",
+            "sourceId": "eur-gift",
+            "description": "Gift EUR"
+          }
+        ]
+      },
+      "expected": {
+        "lowest": {
+          "date": "2026-10-31",
+          "amount": {
+            "amount": "-1008.67",
+            "currency": "BAM"
+          }
+        },
+        "shortfalls": [
+          {
+            "date": "2026-10-31",
+            "amount": {
+              "amount": "-1050.00",
+              "currency": "BAM"
+            },
+            "accountId": "card"
+          },
+          {
+            "date": "2026-10-31",
+            "amount": {
+              "amount": "-30.00",
+              "currency": "EUR"
+            },
+            "accountId": "eur"
+          }
+        ],
+        "monthEnd": {
+          "amount": "-1008.67",
+          "currency": "BAM"
+        },
+        "safeToSpend": {
+          "amount": "21.77",
+          "currency": "BAM"
+        },
+        "safeToSpendUntil": "2026-11-01",
+        "complete": true,
+        "days": [
+          {
+            "date": "2026-10-30",
+            "expected": {
+              "amount": "-702.21",
+              "currency": "BAM"
+            },
+            "conservative": {
+              "amount": "-702.21",
+              "currency": "BAM"
+            },
+            "optimistic": {
+              "amount": "-702.21",
+              "currency": "BAM"
+            }
+          },
+          {
+            "date": "2026-10-31",
+            "expected": {
+              "amount": "-1008.67",
+              "currency": "BAM"
+            },
+            "conservative": {
+              "amount": "-1008.67",
+              "currency": "BAM"
+            },
+            "optimistic": {
+              "amount": "-1008.67",
+              "currency": "BAM"
+            }
+          },
+          {
+            "date": "2026-11-01",
+            "expected": {
+              "amount": "-1008.67",
+              "currency": "BAM"
+            },
+            "conservative": {
+              "amount": "-1008.67",
+              "currency": "BAM"
+            },
+            "optimistic": {
+              "amount": "-1008.67",
+              "currency": "BAM"
+            }
+          },
+          {
+            "date": "2026-11-02",
+            "expected": {
+              "amount": "-508.67",
+              "currency": "BAM"
+            },
+            "conservative": {
+              "amount": "-558.67",
+              "currency": "BAM"
+            },
+            "optimistic": {
+              "amount": "-508.67",
+              "currency": "BAM"
+            }
+          },
+          {
+            "date": "2026-11-03",
+            "expected": {
+              "amount": "-508.67",
+              "currency": "BAM"
+            },
+            "conservative": {
+              "amount": "-558.67",
+              "currency": "BAM"
+            },
+            "optimistic": {
+              "amount": "-508.67",
+              "currency": "BAM"
+            }
+          },
+          {
+            "date": "2026-11-04",
+            "expected": {
+              "amount": "-508.67",
+              "currency": "BAM"
+            },
+            "conservative": {
+              "amount": "-558.67",
+              "currency": "BAM"
+            },
+            "optimistic": {
+              "amount": "-313.09",
+              "currency": "BAM"
+            }
+          },
+          {
+            "date": "2026-11-05",
+            "expected": {
+              "amount": "-508.67",
+              "currency": "BAM"
+            },
+            "conservative": {
+              "amount": "-558.67",
+              "currency": "BAM"
+            },
+            "optimistic": {
+              "amount": "-313.09",
+              "currency": "BAM"
+            }
+          }
+        ]
+      }
+    },
+    {
       "name": "plan events: matched occurrences excluded, overrides applied, overdue pending moved to the start, transfers produce two legs, cancelled plans ignored",
       "op": "planEvents",
       "input": {

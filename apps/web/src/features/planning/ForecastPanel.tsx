@@ -55,7 +55,7 @@ export function ForecastSummary({
       <Stat
         label="Safe to spend"
         value={<Amount value={fc.safeToSpend} />}
-        hint="Lowest conservative balance minus reserve"
+        hint={`Lowest conservative balance until ${f.date(fc.safeToSpendUntil)}, minus reserve`}
       />
       <Stat
         label={`End of forecast (${f.date(fc.to)})`}

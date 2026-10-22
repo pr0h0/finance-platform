@@ -23,42 +23,51 @@ func bam(s string) money.Money { return money.MustParse(s, "BAM") }
 
 func TestScenarioRules(t *testing.T) {
 	lo, hi := bam("80.00"), bam("120.00")
-	e, c, o := Scenarios(-1, "expense", "possible", bam("100.00"), &lo, &hi)
-	if e.Amount() != "-100.00" || c.Amount() != "-120.00" || o != nil {
-		t.Fatalf("possible expense: %v %v %v", e, c, o)
+	amt := func(m *money.Money) string {
+		if m == nil {
+			return "nil"
+		}
+		return m.Amount()
 	}
-	e, c, o = Scenarios(1, "income", "expected", bam("100.00"), &lo, &hi)
-	if e.Amount() != "100.00" || c != nil || o.Amount() != "120.00" {
-		t.Fatalf("expected income: %v %v %v", e, c, o)
-	}
-	e, c, o = Scenarios(-1, "expense", "speculative", bam("100.00"), nil, nil)
-	if e != nil || c.Amount() != "-100.00" || o != nil {
-		t.Fatalf("speculative expense: %v %v %v", e, c, o)
+	for _, c := range []struct {
+		amount, conf, source string
+		e, c, o              string
+	}{
+		{"-100.00", "possible", "planned", "nil", "-120.00", "nil"},
+		{"100.00", "expected", "planned", "100.00", "nil", "120.00"},
+		{"-100.00", "speculative", "planned", "nil", "-120.00", "nil"},
+		{"100.00", "speculative", "planned", "nil", "nil", "120.00"},
+		{"100.00", "certain", "planned", "100.00", "80.00", "120.00"},
+		{"-100.00", "expected", "transfer", "-100.00", "-100.00", "-100.00"},
+		{"-100.00", "possible", "transfer", "nil", "nil", "nil"},
+	} {
+		e := Event{Amount: bam(c.amount), Confidence: c.conf, Source: c.source, AmountMin: &lo, AmountMax: &hi}
+		got := [3]string{amt(ScenarioAmount(e, "expected")), amt(ScenarioAmount(e, "conservative")), amt(ScenarioAmount(e, "optimistic"))}
+		if got != [3]string{c.e, c.c, c.o} {
+			t.Errorf("%+v: got %v", c, got)
+		}
 	}
 }
 
 func TestProjectPure(t *testing.T) {
 	acc := uuid.New()
 	ev := func(d string, amt string) Event {
-		m := bam(amt)
-		e, c, o := Certain(m)
-		return Event{Date: fin.MustDate(d), AccountID: &acc, Expected: e, Conservative: c, Optimistic: o}
+		return Event{Date: fin.MustDate(d), AccountID: acc, Amount: bam(amt), Confidence: "certain", Source: "planned"}
 	}
 	f := Project(Input{From: fin.MustDate("2026-10-01"), To: fin.MustDate("2026-10-31"), Currency: "BAM",
-		Start: map[uuid.UUID]money.Money{acc: bam("100.00")}, Events: []Event{ev("2026-10-05", "-150.00"), ev("2026-10-07", "100.00"), ev("2026-10-20", "-60.00")},
-		Reserve: bam("0.00"), MonthEnd: fin.MustDate("2026-10-31")})
+		Accounts: []Account{{ID: acc, Currency: "BAM", Balance: bam("100.00"), AccountType: "checking", IncludeInSafeToSpend: true}},
+		Events:   []Event{ev("2026-10-05", "-150.00"), ev("2026-10-07", "100.00"), ev("2026-10-20", "-60.00")},
+		Convert:  func(m money.Money) (money.Money, bool) { return m, false }})
 	if len(f.Days) != 31 || f.Lowest.Amount.Amount() != "-50.00" || f.Lowest.Date != "2026-10-05" || f.MonthEnd.Amount() != "-10.00" {
 		t.Fatalf("projection: lowest %+v monthEnd %v", f.Lowest, f.MonthEnd)
 	}
-	// account + total shortfalls, each two runs: Oct 5-6 and Oct 20..end.
-	var accRuns int
-	for _, s := range f.Shortfalls {
-		if s.AccountID != nil && s.Scenario == "expected" {
-			accRuns++
-		}
-	}
-	if accRuns != 2 || *f.Shortfalls[0].Until != "2026-10-06" {
+	// two runs: Oct 5-6 and Oct 20..end.
+	if len(f.Shortfalls) != 2 || *f.Shortfalls[0].Until != "2026-10-06" || f.Shortfalls[1].Until != nil || f.Shortfalls[1].Amount.Amount() != "-10.00" {
 		t.Fatalf("shortfalls: %+v", f.Shortfalls)
+	}
+	// income on Oct 7 ends the safe-to-spend horizon on Oct 6.
+	if f.SafeToSpendUntil != "2026-10-06" || f.SafeToSpend.Amount() != "0.00" || !f.Complete {
+		t.Fatalf("safe to spend %v until %s", f.SafeToSpend, f.SafeToSpendUntil)
 	}
 }
 

@@ -56,6 +56,7 @@ type aggFixture struct {
 		Name string `json:"name"`
 	} `json:"merchants"`
 	Transactions []aggTxn `json:"transactions"`
+	Rates        []fxRate `json:"rates"`
 	Cases        []struct {
 		Name   string `json:"name"`
 		Op     string `json:"op"`
@@ -70,6 +71,7 @@ type aggFixture struct {
 			AsOf              string   `json:"asOf"`
 			Income            *wire    `json:"income"`
 			Expense           *wire    `json:"expense"`
+			Granularity       string   `json:"granularity"`
 		} `json:"params"`
 		Expected json.RawMessage `json:"expected"`
 	} `json:"cases"`
@@ -210,14 +212,69 @@ func TestAggregation(t *testing.T) {
 					t.Errorf("got %v want %v", deref(got), deref(want))
 				}
 				return
-			case "cashflow", "netWorth":
-				t.Skipf("Go runner pending: %s returns a different result shape (analytics.IncomeVsExpenses/NetWorth rows)", c.Op)
-			}
-			if c.Op == "byCategory" && p.Kind == "income" {
-				t.Skip("Go runner pending: REST has no income-by-category report (only spending)")
 			}
 			txs := append(append([]aggTxn(nil), f.Transactions...), p.ExtraTransactions...)
 			profile, keyOf, id := seedAggregation(t, pool, f, txs)
+			insertRates(t, pool, profile, f.Rates)
+			compareJSON := func(got any) {
+				t.Helper()
+				gj, _ := json.Marshal(got)
+				var w any
+				if err := json.Unmarshal(c.Expected, &w); err != nil {
+					t.Fatal(err)
+				}
+				wj, _ := json.Marshal(w)
+				var g any
+				_ = json.Unmarshal(gj, &g)
+				gj, _ = json.Marshal(g) // canonical key order on both sides
+				if string(gj) != string(wj) {
+					t.Errorf("got  %s\nwant %s", gj, wj)
+				}
+			}
+			switch c.Op {
+			case "cashflow":
+				gran := p.Granularity
+				if gran == "" {
+					gran = "month"
+				}
+				r, err := analytics.Cashflow(ctx, pool, analytics.Query{P: fin.Profile{ID: profile, BaseCurrency: "BAM", Timezone: "UTC", Today: day(t, p.To)},
+					From: day(t, p.From), To: day(t, p.To), Currency: p.Currency, Interval: gran})
+				if err != nil {
+					t.Fatal(err)
+				}
+				type per struct {
+					Period      string  `json:"period,omitempty"`
+					Income      wire    `json:"income"`
+					Expense     wire    `json:"expense"`
+					Net         wire    `json:"net"`
+					SavingsRate *string `json:"savingsRate"`
+				}
+				w := func(m analytics.CashflowPeriod) per {
+					return per{m.Period, wire{m.Income.Amount(), m.Income.Currency()}, wire{m.Expense.Amount(), m.Expense.Currency()},
+						wire{m.Net.Amount(), m.Net.Currency()}, m.SavingsRate}
+				}
+				out := struct {
+					Periods      []per `json:"periods"`
+					Totals       per   `json:"totals"`
+					Complete     bool  `json:"complete"`
+					MissingRates []any `json:"missingRates"`
+				}{Periods: []per{}, Totals: w(r.Totals), Complete: r.Complete, MissingRates: []any{}}
+				for _, x := range r.Periods {
+					out.Periods = append(out.Periods, w(x))
+				}
+				for _, m := range r.MissingRates {
+					out.MissingRates = append(out.MissingRates, m)
+				}
+				compareJSON(out)
+				return
+			case "netWorth":
+				r, err := analytics.NetWorthAt(ctx, pool, profile, day(t, p.AsOf), p.Currency)
+				if err != nil {
+					t.Fatal(err)
+				}
+				compareJSON(r)
+				return
+			}
 			if c.Op == "balances" {
 				asOf := time.Date(9999, 12, 31, 0, 0, 0, 0, time.UTC)
 				if p.AsOf != "" {
@@ -259,7 +316,11 @@ func TestAggregation(t *testing.T) {
 			var err error
 			switch c.Op {
 			case "byCategory":
-				res, err = analytics.SpendingByCategory(ctx, pool, q)
+				if p.Kind == "income" {
+					res, err = analytics.IncomeByCategory(ctx, pool, q)
+				} else {
+					res, err = analytics.SpendingByCategory(ctx, pool, q)
+				}
 			case "byMerchant":
 				res, err = analytics.SpendingByMerchant(ctx, pool, q)
 			default:

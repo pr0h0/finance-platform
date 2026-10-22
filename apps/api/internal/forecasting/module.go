@@ -45,11 +45,12 @@ type Options struct {
 	MonthsOnly  bool // long-term: list month-end days only
 }
 
-// overdueLookback: pending occurrences this many days past due are assumed to still happen today.
-const overdueLookback = 60
-
-// Build loads balances, future ledger postings and planned occurrences and projects them daily.
-// Matched/skipped/paid occurrences are resolved and never counted (financial invariant 19).
+// Build loads balances, booked future postings and plan occurrences and projects them daily with
+// the shared engine rules (Project). The inputs mirror the web (apps/web/src/features/planning/
+// forecast.ts): every non-archived account (or the requested ones), each account's balance in its
+// own currency at the end of yesterday, today's and later postings as certain events, pending plan
+// occurrences (planning.Pending: matched/skipped/paid never counted, financial invariant 19; stored
+// pending occurrences in the past are moved to today).
 func Build(ctx context.Context, db fin.DB, p fin.Profile, o Options) (Forecast, error) {
 	today := p.Today
 	to := today.AddDate(0, 0, o.Days)
@@ -57,22 +58,24 @@ func Build(ctx context.Context, db fin.DB, p fin.Profile, o Options) (Forecast, 
 	conv := fin.NewConverter(db, p.ID)
 	var warnings []string
 	assumptions := []string{
-		"Balances start from all transactions booked up to today (" + fin.Fmt(today) + ").",
-		"Foreign-currency balances and future amounts are valued at today's exchange rate; rates are assumed constant.",
-		"Expected: income certain/expected, expenses certain/expected/possible. Conservative: only certain income (at its minimum), every expense (at its maximum). Optimistic: income up to possible (at its maximum), expenses certain/expected (at their minimum).",
-		"Planned occurrences already matched to a transaction, paid manually or skipped are not counted again.",
-		fmt.Sprintf("Pending occurrences up to %d days overdue are assumed to happen today.", overdueLookback),
+		"Starting balances are ledger balances in each account's own currency before any event today (" + fin.Fmt(today) + ").",
+		"Expected: certain and expected events at their planned amounts.",
+		"Conservative: only certain income (at its minimum); every expense, including possible and speculative ones, at its maximum.",
+		"Optimistic: all income at its maximum; only certain and expected expenses at their minimum.",
+		"Foreign-currency balances are converted to " + cur + " at today's rate for the whole period; rates are assumed constant.",
+		"Planned occurrences already matched to a transaction, paid manually or skipped are not counted again; stored pending occurrences in the past are assumed to happen today.",
+		"Shortfalls are per account in its own currency: below zero, or below minus the credit limit for liability accounts with a limit.",
 		"Uncertain forecasts are estimates, not guaranteed outcomes.",
 	}
 
-	accounts, err := fin.Accounts(ctx, db, p.ID)
+	all, err := fin.Accounts(ctx, db, p.ID)
 	if err != nil {
 		return Forecast{}, err
 	}
-	included := map[uuid.UUID]fin.Account{}
+	var accs []fin.Account
 	if o.AccountIDs != nil {
 		byID := map[uuid.UUID]fin.Account{}
-		for _, a := range accounts {
+		for _, a := range all {
 			byID[a.ID] = a
 		}
 		for _, id := range o.AccountIDs {
@@ -80,139 +83,107 @@ func Build(ctx context.Context, db fin.DB, p fin.Profile, o Options) (Forecast, 
 			if !ok {
 				return Forecast{}, httpx.Validation(map[string]string{"accountId": "account not found in this profile"})
 			}
-			included[id] = a
-		}
-	} else {
-		for _, a := range accounts {
-			if !a.Archived && a.IncludeSafe && a.Classification == "asset" {
-				included[a.ID] = a
+			if !a.Archived {
+				accs = append(accs, a)
 			}
 		}
-		assumptions = append(assumptions, "Accounts: non-archived asset accounts marked for safe-to-spend.")
+	} else {
+		for _, a := range all {
+			if !a.Archived {
+				accs = append(accs, a)
+			}
+		}
+		assumptions = append(assumptions, "Accounts: every non-archived account; safe-to-spend uses the accounts marked for it.")
 	}
-	start := map[uuid.UUID]money.Money{}
-	for id := range included {
-		start[id] = fin.Zero(cur)
-	}
-	bals, err := fin.Balances(ctx, db, p.ID, today)
+	included := map[uuid.UUID]bool{}
+	accounts := make([]Account, 0, len(accs))
+	bals, err := fin.Balances(ctx, db, p.ID, today.AddDate(0, 0, -1))
 	if err != nil {
 		return Forecast{}, err
 	}
-	for _, b := range bals {
-		if _, ok := included[b.AccountID]; !ok {
-			continue
+	for _, a := range accs {
+		included[a.ID] = true
+		fa := Account{ID: a.ID, Currency: a.Currency, Balance: fin.Zero(a.Currency), AccountType: a.Type, CreditLimit: a.CreditLimit, IncludeInSafeToSpend: a.IncludeSafe}
+		for _, b := range bals {
+			if b.AccountID == a.ID && b.Amount.Currency() == a.Currency {
+				fa.Balance = b.Amount
+			}
 		}
-		v, _, err := conv.Convert(ctx, b.Amount, cur, today)
-		if err != nil {
-			return Forecast{}, err
-		}
-		s, _ := start[b.AccountID].Add(v)
-		start[b.AccountID] = s
+		accounts = append(accounts, fa)
 	}
 
 	var events []Event
-	conv1 := func(m money.Money) (money.Money, error) {
-		v, _, err := conv.Convert(ctx, m, cur, today)
-		return v, err
-	}
-	future, err := fin.FuturePostings(ctx, db, p.ID, today, to)
+	future, err := fin.FuturePostings(ctx, db, p.ID, today.AddDate(0, 0, -1), to)
 	if err != nil {
 		return Forecast{}, err
 	}
 	for _, fp := range future {
-		if _, ok := included[fp.AccountID]; !ok {
+		if !included[fp.AccountID] {
 			continue
 		}
-		v, err := conv1(fp.Amount)
-		if err != nil {
-			return Forecast{}, err
+		src := "posted"
+		if fp.Kind == "transfer" || fp.Kind == "fx" {
+			src = "transfer"
 		}
-		acc := fp.AccountID
-		e, c, op := Certain(v)
-		events = append(events, Event{Date: fp.Date, AccountID: &acc, Expected: e, Conservative: c, Optimistic: op, Description: fp.Description,
-			Confidence: "certain", SourceID: fp.TransactionID, Kind: "posted"})
+		desc := fp.Description
+		if desc == "" {
+			desc = "Booked transaction"
+		}
+		events = append(events, Event{Date: fp.Date, AccountID: fp.AccountID, Amount: fp.Amount, Confidence: "certain", Source: src,
+			SourceID: fp.TransactionID, Description: desc})
 	}
 
-	occ, err := planning.Expand(ctx, db, p.ID, today.AddDate(0, 0, -overdueLookback), to, today, nil)
+	plans, err := planning.ListPlans(ctx, db, p.ID, uuid.Nil, 100_000, []string{"active"})
 	if err != nil {
 		return Forecast{}, err
 	}
-	overdue, unassigned := 0, 0
 	removed := map[uuid.UUID]bool{}
 	for _, a := range o.Adjustments {
 		if a.RemovePlannedTransactionID != nil {
 			removed[*a.RemovePlannedTransactionID] = true
 		}
 	}
-	for _, oc := range occ {
-		if oc.Resolved() || removed[oc.PlannedTransactionID] {
-			continue
+	kept := plans[:0]
+	for _, pl := range plans {
+		if !removed[pl.ID] && (pl.AccountID == nil || included[*pl.AccountID]) {
+			kept = append(kept, pl)
 		}
-		day := oc.Day
-		if day.Before(today) {
-			day = today
+	}
+	stored, err := planning.LoadStored(ctx, db, p.ID, kept)
+	if err != nil {
+		return Forecast{}, err
+	}
+	occ, err := planning.Pending(kept, stored, today, to, true)
+	if err != nil {
+		return Forecast{}, err
+	}
+	planEvents, planWarnings := EventsFromPlans(kept, occ)
+	warnings = append(warnings, planWarnings...)
+	overdue := 0
+	for _, oc := range occ {
+		if oc.Overdue {
 			overdue++
 		}
-		amt, err := conv1(oc.Amount)
-		if err != nil {
-			return Forecast{}, err
-		}
-		var amin, amax *money.Money
-		if oc.AmountMin != nil {
-			v, err := conv1(*oc.AmountMin)
-			if err != nil {
-				return Forecast{}, err
-			}
-			amin = &v
-		}
-		if oc.AmountMax != nil {
-			v, err := conv1(*oc.AmountMax)
-			if err != nil {
-				return Forecast{}, err
-			}
-			amax = &v
-		}
-		add := func(acc *uuid.UUID, sign int, kind string) {
-			e, c, op := Scenarios(sign, kind, oc.Confidence, amt, amin, amax)
-			events = append(events, Event{Date: day, AccountID: acc, Expected: e, Conservative: c, Optimistic: op, Description: oc.Description,
-				Confidence: oc.Confidence, SourceID: oc.PlannedTransactionID, Kind: oc.Kind})
-		}
-		inc := func(id *uuid.UUID) bool {
-			if id == nil {
-				return false
-			}
-			_, ok := included[*id]
-			return ok
-		}
-		switch oc.Kind {
-		case "income", "expense":
-			sign := -1
-			if oc.Kind == "income" {
-				sign = 1
-			}
-			switch {
-			case oc.AccountID == nil:
-				unassigned++
-				add(nil, sign, oc.Kind)
-			case inc(oc.AccountID):
-				add(oc.AccountID, sign, oc.Kind)
-			}
-		case "transfer":
-			if inc(oc.AccountID) {
-				add(oc.AccountID, -1, "expense")
-			}
-			if inc(oc.ToAccountID) {
-				add(oc.ToAccountID, 1, "expense") // same inclusion rule as the outgoing leg
-			}
+	}
+	for _, e := range planEvents {
+		if included[e.AccountID] {
+			events = append(events, e)
 		}
 	}
 	if overdue > 0 {
 		warnings = append(warnings, fmt.Sprintf("%d overdue planned item(s) are assumed to happen today; match or skip them to refine the forecast.", overdue))
 	}
-	if unassigned > 0 {
-		warnings = append(warnings, fmt.Sprintf("%d planned item(s) have no account; they change the total only.", unassigned))
-	}
 
+	// What-if additions (removals were applied above). An adjustment without an account goes to the
+	// first included safe-to-spend account.
+	var defaultAcc *uuid.UUID
+	for _, a := range accounts {
+		if a.IncludeInSafeToSpend {
+			id := a.ID
+			defaultAcc = &id
+			break
+		}
+	}
 	for i, a := range o.Adjustments {
 		if a.RemovePlannedTransactionID != nil && a.Amount == nil {
 			continue
@@ -220,10 +191,12 @@ func Build(ctx context.Context, db fin.DB, p fin.Profile, o Options) (Forecast, 
 		if a.Amount == nil {
 			return Forecast{}, httpx.Validation(map[string]string{fmt.Sprintf("adjustments[%d].amount", i): "required"})
 		}
-		if a.AccountID != nil {
-			if _, ok := included[*a.AccountID]; !ok {
-				return Forecast{}, httpx.Validation(map[string]string{fmt.Sprintf("adjustments[%d].accountId", i): "account is not part of this forecast"})
-			}
+		acc := a.AccountID
+		if acc == nil {
+			acc = defaultAcc
+		}
+		if acc == nil || !included[*acc] {
+			return Forecast{}, httpx.Validation(map[string]string{fmt.Sprintf("adjustments[%d].accountId", i): "account is not part of this forecast"})
 		}
 		d := today
 		if a.Date != "" {
@@ -231,9 +204,18 @@ func Build(ctx context.Context, db fin.DB, p fin.Profile, o Options) (Forecast, 
 				return Forecast{}, httpx.Validation(map[string]string{fmt.Sprintf("adjustments[%d].date", i): err.Error()})
 			}
 		}
-		v, err := conv1(*a.Amount)
-		if err != nil {
-			return Forecast{}, err
+		amt := *a.Amount
+		for _, x := range accounts {
+			if x.ID == *acc && x.Currency != amt.Currency() {
+				v, ok, err := conv.Convert(ctx, amt, x.Currency, today)
+				if err != nil {
+					return Forecast{}, err
+				}
+				if !ok {
+					return Forecast{}, httpx.Validation(map[string]string{fmt.Sprintf("adjustments[%d].amount", i): "no exchange rate to the account currency"})
+				}
+				amt = v
+			}
 		}
 		dates := []time.Time{d}
 		if a.RRule != "" {
@@ -251,70 +233,50 @@ func Build(ctx context.Context, db fin.DB, p fin.Profile, o Options) (Forecast, 
 			desc = "What-if adjustment"
 		}
 		for _, x := range dates {
-			if x.Before(today) || x.After(to) {
-				continue
-			}
-			e, c, op := Certain(v)
-			events = append(events, Event{Date: x, AccountID: a.AccountID, Expected: e, Conservative: c, Optimistic: op, Description: desc,
-				Confidence: "certain", Kind: "adjustment"})
+			events = append(events, Event{Date: x, AccountID: *acc, Amount: amt, Confidence: "certain", Source: "scenario", Description: desc})
 		}
 	}
 	if len(o.Adjustments) > 0 {
 		assumptions = append(assumptions, "Simulation: what-if adjustments are applied as certain; no records were changed.")
 	}
 
-	reserve := fin.Zero(cur)
+	var reserve *money.Money
 	if o.Reserve != nil {
-		if reserve, err = conv1(*o.Reserve); err != nil {
-			return Forecast{}, err
-		}
+		reserve = o.Reserve
 	} else {
 		var setting money.Money
 		if ok, err := fin.Setting(ctx, db, p.ID, "forecast.minimumReserve", &setting); err == nil && ok {
-			if reserve, err = conv1(setting); err != nil {
-				return Forecast{}, err
-			}
+			reserve = &setting
 		}
 	}
-	assumptions = append(assumptions, "Safe-to-spend keeps a minimum reserve of "+reserve.String()+" (profile setting forecast.minimumReserve or ?reserve=).")
 
-	in := Input{From: today, To: to, Currency: cur, Start: start, Events: events, Reserve: reserve, MonthEnd: fin.MonthEnd(today)}
+	var convErr error
+	in := Input{From: today, To: to, Currency: cur, Accounts: accounts, Events: events, Reserve: reserve,
+		Convert: func(m money.Money) (money.Money, bool) {
+			v, ok, err := conv.Convert(ctx, m, cur, today)
+			if err != nil && convErr == nil {
+				convErr = err
+			}
+			return v, ok && err == nil
+		}}
 	if o.MonthsOnly {
 		in.DailyOnly = func(d time.Time) bool { return d.Equal(fin.MonthEnd(d)) || d.Equal(to) }
 	}
 	f := Project(in)
-	until := to
-	if lim := today.AddDate(0, 0, 31); lim.Before(until) {
-		until = lim
+	if convErr != nil {
+		return Forecast{}, convErr
 	}
-	for _, e := range events {
-		if e.Kind == "income" && e.Expected != nil && e.Expected.Sign() > 0 && e.Date.After(today) {
-			if d := e.Date.AddDate(0, 0, -1); d.Before(until) {
-				until = d
-			}
-		}
-	}
-	if !o.MonthsOnly {
-		f.SafeToSpend = SafeToSpend(f, until)
-	} else {
-		f.SafeToSpend = fin.Zero(cur)
-	}
-	f.SafeToSpendUntil = fin.Fmt(until)
-	f.Assumptions = assumptions
-	f.Warnings = append(warnings, missingWarning(conv)...)
+	f.Assumptions = append(assumptions,
+		"Safe-to-spend = lowest conservative balance of the safe-to-spend accounts through "+f.SafeToSpendUntil+
+			" (the day before the next expected income, at most 31 days) minus the reserve of "+f.Reserve.String()+
+			" (profile setting forecast.minimumReserve or ?reserve=).")
+	f.Warnings = append(f.Warnings, warnings...)
 	f.MissingRates = conv.Missing()
-	f.Complete = conv.Complete()
-	if len(included) == 0 {
+	f.Complete = f.Complete && conv.Complete()
+	if len(accounts) == 0 {
 		f.Warnings = append(f.Warnings, "no accounts are included in this forecast")
 	}
 	return f, nil
-}
-
-func missingWarning(c *fin.Converter) []string {
-	if c.Complete() {
-		return nil
-	}
-	return []string{"some amounts have no exchange rate and are excluded; add rates to complete the forecast"}
 }
 
 // Register mounts this module's routes on the /api/v1 router.

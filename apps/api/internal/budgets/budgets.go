@@ -435,144 +435,326 @@ type Status struct {
 	MissingRates []fin.MissingRate `json:"missingRates"`
 }
 
-// ComputeStatus reports, per allocation, the completed spending (actual: expense splits minus
-// refunds in the category or its subcategories), the still-open planned spending (committed:
-// pending, unmatched expense occurrences due in the period — a matched occurrence counts only
-// through its real transaction, never twice), and remaining = limit + rollover - actual - planned.
-// Utilization = actual / (limit + rollover); alert = highest threshold reached by utilization.
-// All amounts are valued in the budget currency at each transaction's booking-date rate.
-func ComputeStatus(ctx context.Context, db fin.DB, b Budget, d, today time.Time) (Status, error) {
-	ps, pe, ok := PeriodFor(b, d)
-	if !ok {
-		return Status{}, httpx.Validation(map[string]string{"date": "outside the budget's date range"})
-	}
-	st := Status{BudgetID: b.ID, PeriodStart: fin.Fmt(ps), PeriodEnd: fin.Fmt(pe), PeriodStatus: "open", Lines: []Line{}}
-	var periodID *uuid.UUID
-	var pstatus string
-	err := db.QueryRow(ctx, `SELECT id, status FROM budget_periods WHERE budget_id = $1 AND profile_id = $2 AND start_date = $3 AND deleted_at IS NULL`,
-		b.ID, b.ProfileID, ps).Scan(&periodID, &pstatus)
-	if err == nil {
-		st.PeriodStatus = pstatus
-	} else if !errors.Is(err, pgx.ErrNoRows) {
-		return st, err
-	}
-	allocs := b.Allocations
-	if periodID != nil {
-		specific, err := loadAllocations(ctx, db, &b, periodID)
-		if err != nil {
-			return st, err
+// Spend is an amount valued in the budget currency: net spending (expense +, refund -) for actuals,
+// a positive magnitude for planned expenses.
+type Spend struct {
+	Date       time.Time
+	CategoryID *uuid.UUID
+	Amount     money.Money
+}
+
+// StatusInput is everything Compute needs, already loaded and valued in the budget currency.
+type StatusInput struct {
+	Budget            Budget                  // Allocations = the default (budgetPeriodId null) rows
+	PeriodAllocations map[string][]Allocation // stored per-period rows (written by period close), by period start
+	PeriodStatus      string                  // status of the target period ("open" when not stored)
+	Categories        map[uuid.UUID]fin.Category
+	Spent             []Spend // from the first period start through the target period end
+	Planned           []Spend // pending planned expenses; only those in the target period count
+	Date              time.Time
+}
+
+// Periods lists [start, end] of every period from the budget start through the one containing until.
+func Periods(b Budget, until time.Time) [][2]time.Time {
+	var out [][2]time.Time
+	for d := fin.MustDate(b.StartDate); !d.After(until); {
+		ps, pe, ok := PeriodFor(b, d)
+		if !ok || pe.Before(d) {
+			break
 		}
-		byCat := map[string]int{}
-		for i, a := range allocs {
-			byCat[catKey(a.CategoryID)] = i
-		}
-		allocs = append([]Allocation(nil), allocs...)
-		for _, a := range specific {
-			if i, ok := byCat[catKey(a.CategoryID)]; ok {
-				allocs[i] = a
-			} else {
-				allocs = append(allocs, a)
-			}
+		out = append(out, [2]time.Time{ps, pe})
+		d = pe.AddDate(0, 0, 1)
+	}
+	return out
+}
+
+// RolloverAmount: none -> 0, carry_surplus -> max(leftover, 0), carry_deficit -> min(leftover, 0),
+// carry_both -> leftover.
+func RolloverAmount(policy string, leftover money.Money) money.Money {
+	switch {
+	case policy == "carry_both",
+		policy == "carry_surplus" && leftover.Sign() > 0,
+		policy == "carry_deficit" && leftover.Sign() < 0:
+		return leftover
+	}
+	return fin.Zero(leftover.Currency())
+}
+
+// Compute is the budget status rule shared with the TS engine (finance-engine budgetStatus;
+// conformance budgets.json), documented in docs/architecture/planning-analytics.md:
+//
+//	per line (allocation; a category line covers the category and its descendants, a null-category
+//	line all spending): actual = net spending in the period; planned = pending planned expenses in
+//	the period (shown even when includePlanned is false);
+//	limit = allocation + rolloverIn; remaining = limit - actual - (includePlanned ? planned : 0);
+//	utilization = (actual + (includePlanned ? planned : 0)) / limit, 4 decimals half-up, null when
+//	limit <= 0; alert = highest threshold <= utilization.
+//	Rollover is chained from the first period, actual only: rolloverIn(p) = RolloverAmount(policy,
+//	limit(p-1) - actual(p-1)), except that a period with a stored period allocation (written when the
+//	previous period was closed) uses that row's amount and frozen rolloverAmount. Policy = the period
+//	row's, else the default allocation's, else the budget's.
+//	Totals = the null-category line when present, else the sum of the category lines.
+func Compute(in StatusInput) (Status, bool) {
+	b := in.Budget
+	cur := b.Currency
+	periods := Periods(b, in.Date)
+	if len(periods) == 0 {
+		return Status{}, false
+	}
+	target := len(periods) - 1
+	ps, pe := periods[target][0], periods[target][1]
+	if in.Date.Before(ps) || in.Date.After(pe) {
+		return Status{}, false
+	}
+	pstatus := in.PeriodStatus
+	if pstatus == "" {
+		pstatus = "open"
+	}
+	st := Status{BudgetID: b.ID, PeriodStart: fin.Fmt(ps), PeriodEnd: fin.Fmt(pe), PeriodStatus: pstatus, Lines: []Line{}}
+
+	defaults := map[string]Allocation{}
+	var keys []*uuid.UUID
+	seen := map[string]bool{}
+	addKey := func(c *uuid.UUID) {
+		if k := catKey(c); !seen[k] {
+			seen[k] = true
+			keys = append(keys, c)
 		}
 	}
-	cats, err := fin.Categories(ctx, db, b.ProfileID)
-	if err != nil {
-		return st, err
+	for _, a := range b.Allocations {
+		defaults[catKey(a.CategoryID)] = a
+		addKey(a.CategoryID)
 	}
-	conv := fin.NewConverter(db, b.ProfileID)
-	flows, err := fin.Flows(ctx, db, b.ProfileID, ps, pe, nil)
-	if err != nil {
-		return st, err
-	}
-	type valued struct {
-		cat *uuid.UUID
-		amt money.Money
-	}
-	var spent []valued
-	for _, f := range flows {
-		if f.Kind == "income" {
-			continue
-		}
-		m, _, err := conv.Convert(ctx, f.Spending(), b.Currency, f.Date)
-		if err != nil {
-			return st, err
-		}
-		spent = append(spent, valued{f.CategoryID, m})
-	}
-	var committed []valued
-	if b.IncludePlanned {
-		occ, err := planning.Expand(ctx, db, b.ProfileID, ps, pe, today, nil)
-		if err != nil {
-			return st, err
-		}
-		for _, o := range occ {
-			if o.Kind != "expense" || o.Resolved() {
-				continue
-			}
-			on := o.Day
-			if on.After(today) {
-				on = today // future rates are unknown: value at today's rate
-			}
-			m, _, err := conv.Convert(ctx, o.Amount, b.Currency, on)
-			if err != nil {
-				return st, err
-			}
-			committed = append(committed, valued{o.CategoryID, m})
+	for _, p := range periods {
+		for _, a := range in.PeriodAllocations[fin.Fmt(p[0])] {
+			addKey(a.CategoryID)
 		}
 	}
 	match := func(lineCat *uuid.UUID, c *uuid.UUID) bool {
-		return lineCat == nil || (c != nil && fin.IsWithin(cats, *c, *lineCat))
+		return lineCat == nil || (c != nil && fin.IsWithin(in.Categories, *c, *lineCat))
 	}
+	periodOf := func(d time.Time) int {
+		i := sort.Search(len(periods), func(i int) bool { return !periods[i][1].Before(d) })
+		if i < len(periods) && !d.Before(periods[i][0]) {
+			return i
+		}
+		return -1
+	}
+	actual := make([]map[string]*fin.Accumulator, len(periods))
+	for i := range actual {
+		actual[i] = map[string]*fin.Accumulator{}
+	}
+	for _, s := range in.Spent {
+		i := periodOf(s.Date)
+		if i < 0 {
+			continue
+		}
+		for _, k := range keys {
+			if match(k, s.CategoryID) {
+				ck := catKey(k)
+				if actual[i][ck] == nil {
+					actual[i][ck] = &fin.Accumulator{}
+				}
+				actual[i][ck].Add(s.Amount)
+			}
+		}
+	}
+	sum := func(m map[string]*fin.Accumulator, k string) money.Money {
+		if a := m[k]; a != nil {
+			return a.Money(cur)
+		}
+		return fin.Zero(cur)
+	}
+	planned := map[string]*fin.Accumulator{}
+	for _, s := range in.Planned {
+		if s.Date.Before(ps) || s.Date.After(pe) {
+			continue
+		}
+		for _, k := range keys {
+			if match(k, s.CategoryID) {
+				ck := catKey(k)
+				if planned[ck] == nil {
+					planned[ck] = &fin.Accumulator{}
+				}
+				planned[ck].Add(s.Amount)
+			}
+		}
+	}
+
 	var overall *Line
-	var tot Totals
 	var tl, ta, tp, tr fin.Accumulator
-	for _, a := range allocs {
-		var act, plan fin.Accumulator
-		for _, s := range spent {
-			if match(a.CategoryID, s.cat) {
-				act.Add(s.amt)
+	for _, k := range keys {
+		ck := catKey(k)
+		carry := fin.Zero(cur)
+		var limit, act money.Money
+		policy := b.RolloverPolicy
+		for i, p := range periods {
+			a, stored := Allocation{}, false
+			for _, x := range in.PeriodAllocations[fin.Fmt(p[0])] {
+				if catKey(x.CategoryID) == ck {
+					a, stored = x, true
+				}
 			}
-		}
-		for _, c := range committed {
-			if match(a.CategoryID, c.cat) {
-				plan.Add(c.amt)
+			def, hasDef := defaults[ck]
+			if !stored {
+				a = def
+				if !hasDef {
+					a = Allocation{Amount: fin.Zero(cur), RolloverAmount: fin.Zero(cur)}
+				}
+			} else {
+				carry = a.RolloverAmount
 			}
+			policy = b.RolloverPolicy
+			switch {
+			case a.RolloverPolicy != nil:
+				policy = *a.RolloverPolicy
+			case hasDef && def.RolloverPolicy != nil:
+				policy = *def.RolloverPolicy
+			}
+			limit, _ = a.Amount.Add(carry)
+			act = sum(actual[i], ck)
+			if i == target {
+				break
+			}
+			left, _ := limit.Sub(act)
+			carry = RolloverAmount(policy, left)
 		}
-		l := Line{CategoryID: a.CategoryID, Limit: a.Amount, RolloverIn: a.RolloverAmount, Actual: act.Money(b.Currency), Planned: plan.Money(b.Currency),
-			rolloverPolicy: b.RolloverPolicy}
-		if a.RolloverPolicy != nil {
-			l.rolloverPolicy = *a.RolloverPolicy
+		plan := sum(planned, ck)
+		spent := act
+		if b.IncludePlanned {
+			spent, _ = act.Add(plan)
 		}
-		avail, _ := l.Limit.Add(l.RolloverIn)
-		rem, _ := avail.Sub(l.Actual)
-		l.Remaining, _ = rem.Sub(l.Planned)
-		if avail.Sign() > 0 {
-			u := fin.Ratio(l.Actual, avail, 4)
+		l := Line{CategoryID: k, Limit: limit, RolloverIn: carry, Actual: act, Planned: plan, rolloverPolicy: policy}
+		l.Remaining, _ = limit.Sub(spent)
+		if limit.Sign() > 0 {
+			u := fin.Ratio(spent, limit, 4)
 			l.Utilization = &u
-			proj, _ := l.Actual.Add(l.Planned)
-			pu := fin.Ratio(proj, avail, 4)
+			proj, _ := act.Add(plan)
+			pu := fin.Ratio(proj, limit, 4)
 			l.ProjectedUtilization = &pu
 			l.Alert = highestThreshold(b.AlertThresholds, u)
-		} else if l.Actual.Sign() > 0 && len(b.AlertThresholds) > 0 {
-			l.Alert = highestThreshold(b.AlertThresholds, "1000000")
 		}
 		st.Lines = append(st.Lines, l)
-		if a.CategoryID == nil {
+		if k == nil {
 			overall = &st.Lines[len(st.Lines)-1]
 		} else {
-			tl.Add(avail)
+			tl.Add(l.Limit)
 			ta.Add(l.Actual)
 			tp.Add(l.Planned)
 			tr.Add(l.Remaining)
 		}
 	}
 	if overall != nil {
-		avail, _ := overall.Limit.Add(overall.RolloverIn)
-		tot = Totals{Limit: avail, Actual: overall.Actual, Planned: overall.Planned, Remaining: overall.Remaining}
+		st.Totals = Totals{Limit: overall.Limit, Actual: overall.Actual, Planned: overall.Planned, Remaining: overall.Remaining}
 	} else {
-		tot = Totals{Limit: tl.Money(b.Currency), Actual: ta.Money(b.Currency), Planned: tp.Money(b.Currency), Remaining: tr.Money(b.Currency)}
+		st.Totals = Totals{Limit: tl.Money(cur), Actual: ta.Money(cur), Planned: tp.Money(cur), Remaining: tr.Money(cur)}
 	}
-	st.Totals = tot
+	st.Complete = true
+	st.MissingRates = []fin.MissingRate{}
+	return st, true
+}
+
+// LoadSpent returns net spending (expense +, refund -) booked in [from, to], valued in cur at each
+// booking date's rate. Amounts without a rate are left out and recorded in conv.
+func LoadSpent(ctx context.Context, db fin.DB, profileID uuid.UUID, from, to time.Time, cur string, conv *fin.Converter) ([]Spend, error) {
+	flows, err := fin.Flows(ctx, db, profileID, from, to, nil)
+	if err != nil {
+		return nil, err
+	}
+	var out []Spend
+	for _, f := range flows {
+		if f.Kind == "income" {
+			continue
+		}
+		m, ok, err := conv.Convert(ctx, f.Spending(), cur, f.Date)
+		if err != nil {
+			return nil, err
+		}
+		if ok && m.Sign() != 0 {
+			out = append(out, Spend{f.Date, f.CategoryID, m})
+		}
+	}
+	return out, nil
+}
+
+// ComputeStatus loads the budget's stored periods, spending since its start and the pending planned
+// expenses of the period containing d, and applies Compute. All amounts are valued in the budget
+// currency at each transaction's booking-date rate (planned ones at min(due date, today)).
+func ComputeStatus(ctx context.Context, db fin.DB, b Budget, d, today time.Time) (Status, error) {
+	ps, pe, ok := PeriodFor(b, d)
+	if !ok {
+		return Status{}, httpx.Validation(map[string]string{"date": "outside the budget's date range"})
+	}
+	in := StatusInput{Budget: b, PeriodAllocations: map[string][]Allocation{}, Date: d}
+	rows, err := db.Query(ctx, `SELECT a.id, a.budget_period_id, a.category_id, a.amount, a.currency, a.rollover_amount, a.rollover_policy, p.start_date, p.status
+		FROM budget_periods p LEFT JOIN budget_allocations a ON a.budget_period_id = p.id AND a.profile_id = p.profile_id AND a.deleted_at IS NULL
+		WHERE p.budget_id = $1 AND p.profile_id = $2 AND p.deleted_at IS NULL AND p.start_date <= $3`, b.ID, b.ProfileID, ps)
+	if err != nil {
+		return Status{}, err
+	}
+	for rows.Next() {
+		var aid *uuid.UUID
+		var a Allocation
+		var amt, roll pgtype.Numeric
+		var c *string
+		var start time.Time
+		var status string
+		if err := rows.Scan(&aid, &a.BudgetPeriodID, &a.CategoryID, &amt, &c, &roll, &a.RolloverPolicy, &start, &status); err != nil {
+			rows.Close()
+			return Status{}, err
+		}
+		if start.Equal(ps) {
+			in.PeriodStatus = status
+		}
+		if aid == nil {
+			continue
+		}
+		a.ID = *aid
+		if a.Amount, err = fin.NumericMoney(amt, *c); err == nil {
+			a.RolloverAmount, err = fin.NumericMoney(roll, *c)
+		}
+		if err != nil {
+			rows.Close()
+			return Status{}, err
+		}
+		k := fin.Fmt(start)
+		in.PeriodAllocations[k] = append(in.PeriodAllocations[k], a)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return Status{}, err
+	}
+	if in.Categories, err = fin.Categories(ctx, db, b.ProfileID); err != nil {
+		return Status{}, err
+	}
+	conv := fin.NewConverter(db, b.ProfileID)
+	if in.Spent, err = LoadSpent(ctx, db, b.ProfileID, fin.MustDate(b.StartDate), pe, b.Currency, conv); err != nil {
+		return Status{}, err
+	}
+	occ, err := planning.Expand(ctx, db, b.ProfileID, ps, pe, today, nil)
+	if err != nil {
+		return Status{}, err
+	}
+	for _, o := range occ {
+		if o.Kind != "expense" || o.Resolved() {
+			continue
+		}
+		on := o.Day
+		if on.After(today) {
+			on = today // future rates are unknown: value at today's rate
+		}
+		m, ok, err := conv.Convert(ctx, o.Amount, b.Currency, on)
+		if err != nil {
+			return Status{}, err
+		}
+		if ok {
+			in.Planned = append(in.Planned, Spend{o.Day, o.CategoryID, m})
+		}
+	}
+	st, ok := Compute(in)
+	if !ok {
+		return st, httpx.Validation(map[string]string{"date": "outside the budget's date range"})
+	}
 	st.Complete = conv.Complete()
 	st.MissingRates = conv.Missing()
 	return st, nil
@@ -605,21 +787,6 @@ func highestThreshold(ts []string, util string) *string {
 		}
 	}
 	return hit
-}
-
-// Carry returns the amount carried into the next period: leftover = limit + rolloverIn - actual,
-// then carry_surplus keeps only a positive leftover, carry_deficit only a negative one (overspend
-// reduces the next limit), carry_both keeps either, none carries nothing.
-func Carry(policy string, limit, rolloverIn, actual money.Money) money.Money {
-	avail, _ := limit.Add(rolloverIn)
-	left, _ := avail.Sub(actual)
-	switch {
-	case policy == "carry_both",
-		policy == "carry_surplus" && left.Sign() > 0,
-		policy == "carry_deficit" && left.Sign() < 0:
-		return left
-	}
-	return fin.Zero(limit.Currency())
 }
 
 // ClosePeriod closes the period containing d and writes the rollover into the next period.
@@ -655,8 +822,9 @@ func ClosePeriod(ctx context.Context, tx pgx.Tx, b Budget, d, today time.Time) (
 		defaults[catKey(a.CategoryID)] = a
 	}
 	for _, l := range st.Lines {
-		carry := Carry(l.rolloverPolicy, l.Limit, l.RolloverIn, l.Actual)
-		limit := l.Limit
+		left, _ := l.Limit.Sub(l.Actual)
+		carry := RolloverAmount(l.rolloverPolicy, left)
+		limit := fin.Zero(b.Currency)
 		if a, ok := defaults[catKey(l.CategoryID)]; ok {
 			limit = a.Amount
 		}

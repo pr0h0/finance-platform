@@ -99,12 +99,13 @@ type Account struct {
 	IncludeNetWorth bool
 	IncludeSafe     bool
 	Archived        bool
+	CreditLimit     *money.Money // account currency; nil = no limit
 }
 
 // Accounts returns the profile's non-deleted accounts.
 func Accounts(ctx context.Context, db DB, profileID uuid.UUID) ([]Account, error) {
 	rows, err := db.Query(ctx, `SELECT a.id, a.name, a.account_type, t.classification, a.currency,
-		a.include_in_net_worth, a.include_in_safe_to_spend, a.is_archived
+		a.include_in_net_worth, a.include_in_safe_to_spend, a.is_archived, a.credit_limit
 		FROM accounts a JOIN account_types t ON t.code = a.account_type
 		WHERE a.profile_id = $1 AND a.deleted_at IS NULL ORDER BY a.sort_order, a.name, a.id`, profileID)
 	if err != nil {
@@ -114,10 +115,14 @@ func Accounts(ctx context.Context, db DB, profileID uuid.UUID) ([]Account, error
 	var out []Account
 	for rows.Next() {
 		var a Account
-		if err := rows.Scan(&a.ID, &a.Name, &a.Type, &a.Classification, &a.Currency, &a.IncludeNetWorth, &a.IncludeSafe, &a.Archived); err != nil {
+		var limit pgtype.Numeric
+		if err := rows.Scan(&a.ID, &a.Name, &a.Type, &a.Classification, &a.Currency, &a.IncludeNetWorth, &a.IncludeSafe, &a.Archived, &limit); err != nil {
 			return nil, err
 		}
 		a.Currency = strings.TrimSpace(a.Currency)
+		if a.CreditLimit, err = OptMoney(limit, a.Currency); err != nil {
+			return nil, err
+		}
 		out = append(out, a)
 	}
 	return out, rows.Err()
@@ -163,10 +168,12 @@ type FuturePosting struct {
 	Date          time.Time
 	Amount        money.Money
 	Description   string
+	Kind          string
 }
 
+// FuturePostings returns postings of live transactions booked in (after, until].
 func FuturePostings(ctx context.Context, db DB, profileID uuid.UUID, after, until time.Time) ([]FuturePosting, error) {
-	rows, err := db.Query(ctx, `SELECT t.id, p.account_id, t.booking_date, p.amount, p.currency, t.description
+	rows, err := db.Query(ctx, `SELECT t.id, p.account_id, t.booking_date, p.amount, p.currency, CASE WHEN t.description <> '' THEN t.description ELSE t.payee END, t.kind
 		FROM postings p JOIN transactions t ON t.id = p.transaction_id
 		WHERE p.profile_id = $1 AND t.profile_id = $1 AND p.deleted_at IS NULL AND t.deleted_at IS NULL
 		  AND t.status <> 'void' AND t.booking_date > $2 AND t.booking_date <= $3
@@ -180,7 +187,7 @@ func FuturePostings(ctx context.Context, db DB, profileID uuid.UUID, after, unti
 		var f FuturePosting
 		var n pgtype.Numeric
 		var cur string
-		if err := rows.Scan(&f.TransactionID, &f.AccountID, &f.Date, &n, &cur, &f.Description); err != nil {
+		if err := rows.Scan(&f.TransactionID, &f.AccountID, &f.Date, &n, &cur, &f.Description, &f.Kind); err != nil {
 			return nil, err
 		}
 		if f.Amount, err = NumericMoney(n, cur); err != nil {

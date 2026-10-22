@@ -47,13 +47,22 @@ monthly / yearly+BYMONTH), `BYMONTHDAY` (negative = from month end), `BYMONTH`, 
   `periodAnchorDay` (clamped to month length, e.g. salary on the 25th), custom (start..end).
 - Allocation with `categoryId = null` is an overall limit for all spending; a category allocation includes
   its subcategories.
-- **actual** = completed spending in the period (expense splits − refund splits). **planned** =
-  pending, unmatched expense occurrences due in the period (when `includePlanned`). **remaining** =
-  limit + rolloverIn − actual − planned. utilization = actual / (limit + rolloverIn); alert = highest
-  threshold reached. Budgets never require allocating all income.
-- Rollover on period close: leftover = limit + rolloverIn − actual; `carry_surplus` keeps a positive
-  leftover, `carry_deficit` a negative one, `carry_both` either, `none` nothing. Stored as the next
-  period's allocation `rolloverAmount`.
+- Status rule (Go `budgets.Compute`, TS `budgetStatus`; conformance `budgets.json` runs both). Per line:
+  **actual** = completed net spending in the period (expense splits − refund splits). **planned** =
+  pending, unmatched expense occurrences due in the period (always shown). **limit** = allocation +
+  rolloverIn. **remaining** = limit − actual − (includePlanned ? planned : 0). **utilization** =
+  (actual + (includePlanned ? planned : 0)) / limit, 4 decimals half-up, null when limit ≤ 0; alert =
+  highest threshold ≤ utilization (`projectedUtilization`, REST only, is always (actual + planned) / limit).
+  Totals = the overall (null-category) line when present, else the sum of the category lines.
+  Budgets never require allocating all income.
+- **Rollover** (PLAN §42, optional per budget or allocation): deterministic and chained from the first
+  period, actual spending only. rolloverIn(p) = policy(limit(p−1) − actual(p−1)) with `none` → 0,
+  `carry_surplus` → max(leftover, 0), `carry_deficit` → min(leftover, 0), `carry_both` → leftover.
+  Policy = the period row's, else the allocation's, else the budget's. No period close is needed;
+  `POST /budgets/{id}/periods/close` freezes the carry: it stores the next period's allocation row
+  (`budgetPeriodId`, synced with its `periodStart`) with `rolloverAmount` = the chained value at close
+  time, and every later status (server and web) uses that stored amount for that period, so edits to
+  older transactions no longer move a closed carry.
 - Templates: `isTemplate` budgets are instantiated with `POST /budgets/{id}/instantiate`.
 
 ## Valuation policy (all modules)
@@ -72,7 +81,11 @@ response has `complete: false`.
 - Merchant analytics group by merchant id (aliases are merged into one merchant by the merchants module);
   transactions without a merchant group by normalized payee/description (lower case, digits removed).
 - Net worth at each period end: assets (asset accounts) − liabilities (owed amount of liability
-  accounts), for accounts with `includeInNetWorth`.
+  accounts), for accounts with `includeInNetWorth`; a balance without a rate is left out and reported.
+- Pure-shape functions shared with the TS engine (conformance `aggregation.json`):
+  `analytics.SpendingByCategory` / `IncomeByCategory` (TS `byCategory` kind spending/income),
+  `SpendingByMerchant`, `Cashflow` (TS `cashflow`: periods with activity only, totals, savings rate) and
+  `NetWorthAt` (TS `netWorth`).
 - Recurring costs: active recurring expense plans as monthly (amount) and annual (allocated) equivalents.
 - Conversion fees: recorded `currency_conversions.fee_amount`; spreads hidden in bank rates are not estimated.
 - Insights are fixed rules (category spike ≥ 25% and ≥ 50 units over the 3-month average, savings rate,
@@ -84,23 +97,33 @@ response has `complete: false`.
   (plain text, Helvetica/WinAnsi). Image export is a client-side chart export (web).
 
 ## Forecasting (Features 66–71)
-Daily projection from today: starting balances (transactions booked up to today) + future-dated ledger
-postings (certain) + pending plan occurrences (overdue up to 60 days are assumed today) + what-if
-adjustments (certain). Default accounts: non-archived asset accounts with `includeInSafeToSpend`; a plan
-without an account moves only the total.
+One rule set for REST/MCP (`forecasting.Project`, `planning.Pending`, `forecasting.EventsFromPlans`) and
+the web (`@finplat/forecasting` `forecast`/`eventsFromPlans`); conformance `forecast.json` runs both.
+Daily projection from today: each account's balance in its own currency before any event today, booked
+postings dated today or later (certain), pending plan occurrences (matched/skipped/paid never counted;
+stored pending occurrences in the past are moved to today as overdue; rule dates without a stored row
+are not overdue) and what-if adjustments (certain; without an account they go to the first safe-to-spend
+account). Default accounts: every non-archived account. Plans without an account, and events whose
+currency differs from their account, are not forecast (warning).
 
 | scenario | income counted | expenses counted | variable amounts |
 |---|---|---|---|
-| expected | certain, expected | certain, expected, possible | planned |
+| expected | certain, expected | certain, expected | planned |
 | conservative | certain | all | income min / expense max |
-| optimistic | certain, expected, possible | certain, expected | income max / expense min |
+| optimistic | all | certain, expected | income max / expense min |
 
-Outputs: daily expected/conservative/optimistic totals with events, lowest (expected and conservative)
-balance and date, shortfall runs per account and total (first negative day, lowest amount, last negative
-day), expected month-end balance, safe-to-spend = lowest conservative balance until the day before the
-next expected income (≤ 31 days) minus the reserve (`forecast.minimumReserve` profile setting or
-`?reserve=`), floored at 0. What-if (`POST /forecasts/scenarios`) only reads. Long-term lists month ends
-(≤ 360 months). Every response lists its assumptions; uncertain results are estimates.
+Transfer legs use the expected rule in every scenario, so moving money never changes the total.
+Totals value every account at today's rate for the whole horizon (constant-rate assumption); an
+account without a rate is left out (incomplete). Outputs: daily expected/conservative/optimistic totals
+with events, lowest expected (and conservative) total and date, shortfall runs **per account in the
+account's currency** (below 0, or below −creditLimit for liabilities with a limit; liabilities without
+a limit never alert: first day, lowest balance, last day), expected month-end total, safe-to-spend =
+max(0, lowest conservative total of the `includeInSafeToSpend` accounts through `safeToSpendUntil` −
+reserve), with `safeToSpendUntil` = the day before the first expected income (positive, certain or
+expected, not a transfer leg or what-if) after today, at most 31 days and the horizon end. Reserve =
+`forecast.minimumReserve` profile setting or `?reserve=`, valued at today's rate. What-if
+(`POST /forecasts/scenarios`) only reads. Long-term lists month ends (≤ 360 months). Every response
+lists its assumptions; uncertain results are estimates.
 
 ## Goals and emergency fund (Features 72–75)
 - saved = dedicated account balance, else startingAmount + contributions (withdrawals negative). Reaching

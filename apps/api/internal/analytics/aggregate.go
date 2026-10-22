@@ -149,6 +149,16 @@ func catLabel(cats map[uuid.UUID]fin.Category, id *uuid.UUID) (string, string) {
 // SpendingByCategory: groupBy "category" (default; each category's own spending, parentKey set)
 // or "parent" (subcategories rolled up into their top-level category).
 func SpendingByCategory(ctx context.Context, db fin.DB, q Query) (fin.Rows, error) {
+	return byCategory(ctx, db, q, false)
+}
+
+// IncomeByCategory is SpendingByCategory for income (income splits per income category; refunds and
+// transfers are never income). Same row shape and grouping (TS byCategory kind "income").
+func IncomeByCategory(ctx context.Context, db fin.DB, q Query) (fin.Rows, error) {
+	return byCategory(ctx, db, q, true)
+}
+
+func byCategory(ctx context.Context, db fin.DB, q Query, income bool) (fin.Rows, error) {
 	res := newRows(q)
 	conv := fin.NewConverter(db, q.P.ID)
 	flows, err := loadFlows(ctx, db, q, conv)
@@ -165,8 +175,12 @@ func SpendingByCategory(ctx context.Context, db fin.DB, q Query) (fin.Rows, erro
 	var order []key
 	var total fin.Accumulator
 	for _, f := range flows {
-		if f.Kind == "income" || !f.Valued {
+		if (f.Kind == "income") != income || !f.Valued {
 			continue
+		}
+		amt := f.Spend
+		if income {
+			amt = f.Income
 		}
 		cid := f.CategoryID
 		if q.GroupBy == "parent" && cid != nil {
@@ -180,9 +194,9 @@ func SpendingByCategory(ctx context.Context, db fin.DB, q Query) (fin.Rows, erro
 			order = append(order, kk)
 			txs[kk] = map[uuid.UUID]bool{}
 		}
-		sums[kk].Add(f.Spend)
+		sums[kk].Add(amt)
 		txs[kk][f.TransactionID] = true // count = transactions, not split lines
-		total.Add(f.Spend)
+		total.Add(amt)
 	}
 	sort.SliceStable(order, func(i, j int) bool {
 		if order[i].period != order[j].period {
@@ -366,6 +380,67 @@ func IncomeVsExpenses(ctx context.Context, db fin.DB, q Query) (fin.Rows, error)
 	}
 	res.Total = net.Money(q.Currency)
 	res.Finish(conv)
+	return res, nil
+}
+
+// CashflowPeriod is one period of Cashflow (TS finance-engine CashflowPeriod).
+type CashflowPeriod struct {
+	Period      string      `json:"period"`
+	Income      money.Money `json:"income"`
+	Expense     money.Money `json:"expense"` // net spending (expenses minus refunds)
+	Net         money.Money `json:"net"`
+	SavingsRate *string     `json:"savingsRate"`
+}
+
+// CashflowResult is the TS cashflow() shape: only periods with activity, ascending, plus totals.
+type CashflowResult struct {
+	Currency     string            `json:"currency"`
+	From         string            `json:"from"`
+	To           string            `json:"to"`
+	Periods      []CashflowPeriod  `json:"periods"`
+	Totals       CashflowPeriod    `json:"totals"`
+	Complete     bool              `json:"complete"`
+	MissingRates []fin.MissingRate `json:"missingRates"`
+}
+
+// SavingsRateOf = (income - expense) / income, 4 decimals half-up; nil when income <= 0.
+func SavingsRateOf(income, expense money.Money) *string {
+	if income.Sign() <= 0 {
+		return nil
+	}
+	n, _ := income.Sub(expense)
+	r := fin.Ratio(n, income, 4)
+	return &r
+}
+
+func cashflowPeriod(key string, inc, exp money.Money) CashflowPeriod {
+	n, _ := inc.Sub(exp)
+	return CashflowPeriod{Period: key, Income: inc, Expense: exp, Net: n, SavingsRate: SavingsRateOf(inc, exp)}
+}
+
+// Cashflow: income vs net spending per interval (default month), the same numbers as
+// IncomeVsExpenses in the TS cashflow() shape (periods without activity are left out).
+func Cashflow(ctx context.Context, db fin.DB, q Query) (CashflowResult, error) {
+	if q.Interval == "" || q.Interval == "none" {
+		q.Interval = "month"
+	}
+	res := CashflowResult{Currency: q.Currency, From: fin.Fmt(q.From), To: fin.Fmt(q.To), Periods: []CashflowPeriod{}}
+	conv := fin.NewConverter(db, q.P.ID)
+	pts, err := totalsByPeriod(ctx, db, q, conv)
+	if err != nil {
+		return res, err
+	}
+	var inc, spd fin.Accumulator
+	for _, p := range pts {
+		if p.Count == 0 {
+			continue
+		}
+		res.Periods = append(res.Periods, cashflowPeriod(p.Key, p.Income, p.Spending))
+		inc.Add(p.Income)
+		spd.Add(p.Spending)
+	}
+	res.Totals = cashflowPeriod("", inc.Money(q.Currency), spd.Money(q.Currency))
+	res.MissingRates, res.Complete = conv.Missing(), conv.Complete()
 	return res, nil
 }
 
@@ -568,6 +643,64 @@ func RecurringCosts(ctx context.Context, db fin.DB, q Query) (fin.Rows, error) {
 	return res, nil
 }
 
+// NetWorthPoint is the TS netWorth() shape.
+type NetWorthPoint struct {
+	Assets       money.Money       `json:"assets"`
+	Liabilities  money.Money       `json:"liabilities"` // positive amount owed
+	NetWorth     money.Money       `json:"netWorth"`
+	Complete     bool              `json:"complete"`
+	MissingRates []fin.MissingRate `json:"missingRates"`
+}
+
+// NetWorthAt values the balances of accounts included in net worth at asOf's rate: asset accounts
+// sum into assets, liability accounts (normally negative balances) into liabilities as the amount
+// owed. Balances without a rate are left out and reported.
+func NetWorthAt(ctx context.Context, db fin.DB, profileID uuid.UUID, asOf time.Time, cur string) (NetWorthPoint, error) {
+	conv := fin.NewConverter(db, profileID)
+	accs, err := fin.Accounts(ctx, db, profileID)
+	if err != nil {
+		return NetWorthPoint{}, err
+	}
+	p, err := netWorthAt(ctx, db, profileID, accs, asOf, cur, conv)
+	p.MissingRates, p.Complete = conv.Missing(), conv.Complete()
+	return p, err
+}
+
+func netWorthAt(ctx context.Context, db fin.DB, profileID uuid.UUID, accs []fin.Account, asOf time.Time, cur string, conv *fin.Converter) (NetWorthPoint, error) {
+	class := map[uuid.UUID]string{}
+	for _, a := range accs {
+		if a.IncludeNetWorth {
+			class[a.ID] = a.Classification
+		}
+	}
+	bals, err := fin.Balances(ctx, db, profileID, asOf)
+	if err != nil {
+		return NetWorthPoint{}, err
+	}
+	var assets, liabilities fin.Accumulator
+	for _, b := range bals {
+		c, ok := class[b.AccountID]
+		if !ok {
+			continue
+		}
+		v, ok, err := conv.Convert(ctx, b.Amount, cur, asOf)
+		if err != nil {
+			return NetWorthPoint{}, err
+		}
+		if !ok {
+			continue
+		}
+		if c == "asset" {
+			assets.Add(v)
+		} else {
+			liabilities.Sub(v)
+		}
+	}
+	a, l := assets.Money(cur), liabilities.Money(cur)
+	n, _ := a.Sub(l)
+	return NetWorthPoint{Assets: a, Liabilities: l, NetWorth: n, MissingRates: []fin.MissingRate{}}, nil
+}
+
 // NetWorth: at the end of each period (default month), assets (asset accounts) and liabilities
 // (liability accounts, shown as the positive amount owed) of accounts included in net worth,
 // valued at that date's rate. net = assets - liabilities. Ordinary spending is not involved.
@@ -581,36 +714,13 @@ func NetWorth(ctx context.Context, db fin.DB, q Query) (fin.Rows, error) {
 	if err != nil {
 		return res, err
 	}
-	class := map[uuid.UUID]string{}
-	for _, a := range accs {
-		if a.IncludeNetWorth {
-			class[a.ID] = a.Classification
-		}
-	}
 	var last money.Money
 	for _, p := range Periods(q.Interval, q.From, q.To) {
-		bals, err := fin.Balances(ctx, db, q.P.ID, p.End)
+		pt, err := netWorthAt(ctx, db, q.P.ID, accs, p.End, q.Currency, conv)
 		if err != nil {
 			return res, err
 		}
-		var assets, liabilities fin.Accumulator
-		for _, b := range bals {
-			c, ok := class[b.AccountID]
-			if !ok {
-				continue
-			}
-			v, _, err := conv.Convert(ctx, b.Amount, q.Currency, p.End)
-			if err != nil {
-				return res, err
-			}
-			if c == "asset" {
-				assets.Add(v)
-			} else {
-				liabilities.Sub(v)
-			}
-		}
-		a, l := assets.Money(q.Currency), liabilities.Money(q.Currency)
-		n, _ := a.Sub(l)
+		a, l, n := pt.Assets, pt.Liabilities, pt.NetWorth
 		last = n
 		res.Rows = append(res.Rows,
 			fin.Row{Key: p.Key + ":assets", Label: "Assets", Period: p.Key, Amount: a, Value: fin.Ptr(fin.Fmt(p.End))},

@@ -50,13 +50,6 @@ type Occurrence struct {
 // again in budgets ("committed") or forecasts (financial invariant 19).
 func (o Occurrence) Resolved() bool { return o.Status != "pending" }
 
-type occRow struct {
-	status     string
-	amount     *money.Money
-	dateOver   *time.Time
-	matchedTxn *uuid.UUID
-}
-
 // window margin used to catch occurrences moved into the range by a date override.
 const overrideMargin = 62
 
@@ -73,52 +66,76 @@ func Expand(ctx context.Context, db fin.DB, profileID uuid.UUID, from, to, today
 	return ExpandPlans(ctx, db, profileID, plans, from, to, today)
 }
 
-// ExpandPlans expands the given plans (see Expand).
-func ExpandPlans(ctx context.Context, db fin.DB, profileID uuid.UUID, plans []Plan, from, to, today time.Time) ([]Occurrence, error) {
+// Stored is a planned_occurrences row: the state of one occurrence (identified by its nominal date).
+type Stored struct {
+	PlanID   uuid.UUID
+	Date     time.Time // nominal occurrence date
+	Status   string
+	Amount   *money.Money
+	DateOver *time.Time
+	Matched  *uuid.UUID
+}
+
+// LoadStored returns the stored occurrence rows of the given plans.
+func LoadStored(ctx context.Context, db fin.DB, profileID uuid.UUID, plans []Plan) ([]Stored, error) {
 	if len(plans) == 0 {
 		return nil, nil
 	}
 	ids := make([]uuid.UUID, len(plans))
+	planCur := map[uuid.UUID]string{}
 	for i, p := range plans {
 		ids[i] = p.ID
+		planCur[p.ID] = p.Amount.Currency()
 	}
 	rows, err := db.Query(ctx, `SELECT planned_transaction_id, occurrence_date, status, amount_override, date_override, matched_transaction_id
 		FROM planned_occurrences WHERE profile_id = $1 AND planned_transaction_id = ANY($2) AND deleted_at IS NULL`, profileID, ids)
 	if err != nil {
 		return nil, fmt.Errorf("occurrence rows: %w", err)
 	}
-	type key struct {
-		plan uuid.UUID
-		day  time.Time
-	}
-	state := map[key]occRow{}
-	planCur := map[uuid.UUID]string{}
-	for _, p := range plans {
-		planCur[p.ID] = p.Amount.Currency()
-	}
+	defer rows.Close()
+	var out []Stored
 	for rows.Next() {
-		var pid uuid.UUID
-		var day time.Time
-		var r occRow
+		var r Stored
 		var amt pgtype.Numeric
-		if err := rows.Scan(&pid, &day, &r.status, &amt, &r.dateOver, &r.matchedTxn); err != nil {
-			rows.Close()
+		if err := rows.Scan(&r.PlanID, &r.Date, &r.Status, &amt, &r.DateOver, &r.Matched); err != nil {
 			return nil, err
 		}
-		if r.amount, err = fin.OptMoney(amt, planCur[pid]); err != nil {
-			rows.Close()
+		if r.Amount, err = fin.OptMoney(amt, planCur[r.PlanID]); err != nil {
 			return nil, err
 		}
-		if r.dateOver != nil {
-			d := fin.AsDate(*r.dateOver)
-			r.dateOver = &d
+		r.Date = fin.AsDate(r.Date)
+		if r.DateOver != nil {
+			d := fin.AsDate(*r.DateOver)
+			r.DateOver = &d
 		}
-		state[key{pid, fin.AsDate(day)}] = r
+		out = append(out, r)
 	}
-	rows.Close()
-	if err := rows.Err(); err != nil {
+	return out, rows.Err()
+}
+
+type storedKey struct {
+	plan uuid.UUID
+	day  time.Time
+}
+
+func storedIndex(stored []Stored) map[storedKey]Stored {
+	m := make(map[storedKey]Stored, len(stored))
+	for _, r := range stored {
+		m[storedKey{r.PlanID, r.Date}] = r
+	}
+	return m
+}
+
+// ExpandPlans expands the given plans (see Expand).
+func ExpandPlans(ctx context.Context, db fin.DB, profileID uuid.UUID, plans []Plan, from, to, today time.Time) ([]Occurrence, error) {
+	if len(plans) == 0 {
+		return nil, nil
+	}
+	rows, err := LoadStored(ctx, db, profileID, plans)
+	if err != nil {
 		return nil, err
 	}
+	state := storedIndex(rows)
 
 	var out []Occurrence
 	for _, p := range plans {
@@ -135,13 +152,13 @@ func ExpandPlans(ctx context.Context, db fin.DB, profileID uuid.UUID, plans []Pl
 				num := *p.InstallmentStart + n.Index
 				o.InstallmentNumber = &num
 			}
-			if r, ok := state[key{p.ID, n.Date}]; ok {
-				o.Status, o.MatchedTransactionID = r.status, r.matchedTxn
-				if r.amount != nil {
-					o.Amount = *r.amount
+			if r, ok := state[storedKey{p.ID, n.Date}]; ok {
+				o.Status, o.MatchedTransactionID = r.Status, r.Matched
+				if r.Amount != nil {
+					o.Amount = *r.Amount
 				}
-				if r.dateOver != nil {
-					o.Day = *r.dateOver
+				if r.DateOver != nil {
+					o.Day = *r.DateOver
 				}
 			}
 			if o.Day.Before(from) || o.Day.After(to) {
@@ -178,6 +195,69 @@ func planDates(p Plan, from, to time.Time) ([]recurrence.Occurrence, error) {
 		}
 	}
 	return recurrence.Expand(spec, from, to, 0)
+}
+
+// Pending is the pure occurrence expansion shared with the TS engine (finance-engine
+// planOccurrences, conformance forecast.json "planEvents"): pending occurrences of active plans
+// with an effective date (date override, else the business-day adjusted date) in [from, to].
+// Occurrences stored as matched / skipped / paid_manual are left out (invariant 19). With
+// includeOverdue, stored pending occurrences dated before `from` are returned on `from` with
+// Overdue = true; rule dates without a stored row are never overdue. Series are expanded from the
+// schedule start, so installment numbers stay right. Ordered by date, then plan id.
+func Pending(plans []Plan, stored []Stored, from, to time.Time, includeOverdue bool) ([]Occurrence, error) {
+	state := storedIndex(stored)
+	var out []Occurrence
+	for _, p := range plans {
+		if p.Status != "active" || p.DeletedAt != nil || (p.RecurrenceID != nil && p.Recurrence == nil) {
+			continue
+		}
+		start := fin.MustDate(p.DueDate)
+		if p.Recurrence != nil {
+			start = fin.MustDate(p.Recurrence.StartDate)
+		}
+		nominal, err := planDates(p, start, to)
+		if err != nil {
+			return nil, err
+		}
+		for _, n := range nominal {
+			r, ok := state[storedKey{p.ID, n.Date}]
+			if ok && r.Status != "pending" {
+				continue
+			}
+			o := Occurrence{PlannedTransactionID: p.ID, NominalDate: fin.Fmt(n.Date), Amount: p.Amount, Status: "pending",
+				Description: p.Description, Kind: p.Kind, AccountID: p.AccountID, ToAccountID: p.ToAccountID, CategoryID: p.CategoryID,
+				MerchantID: p.MerchantID, Priority: p.Priority, Confidence: p.Confidence, AmountMin: p.AmountMin, AmountMax: p.AmountMax,
+				ReminderDaysBefore: p.ReminderDaysBefore, Day: n.Due}
+			if p.InstallmentTotal != nil {
+				num := *p.InstallmentStart + n.Index
+				o.InstallmentNumber = &num
+			}
+			if ok {
+				if r.Amount != nil {
+					o.Amount = *r.Amount
+				}
+				if r.DateOver != nil {
+					o.Day = *r.DateOver
+				}
+			}
+			switch {
+			case !o.Day.Before(from) && !o.Day.After(to):
+			case o.Day.Before(from) && ok && includeOverdue:
+				o.Day, o.Overdue = from, true
+			default:
+				continue
+			}
+			o.Date = fin.Fmt(o.Day)
+			out = append(out, o)
+		}
+	}
+	sort.SliceStable(out, func(i, j int) bool {
+		if !out[i].Day.Equal(out[j].Day) {
+			return out[i].Day.Before(out[j].Day)
+		}
+		return out[i].PlannedTransactionID.String() < out[j].PlannedTransactionID.String()
+	})
+	return out, nil
 }
 
 // isOccurrence checks that nominal is a date of the plan's series.
