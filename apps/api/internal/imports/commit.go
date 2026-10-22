@@ -17,6 +17,7 @@ import (
 	"github.com/pr0h0/finance-platform/apps/api/internal/httpx"
 	"github.com/pr0h0/finance-platform/apps/api/internal/ledger"
 	"github.com/pr0h0/finance-platform/apps/api/internal/money"
+	"github.com/pr0h0/finance-platform/apps/api/internal/transactions"
 )
 
 // OptUUID distinguishes an absent field from an explicit null.
@@ -43,6 +44,9 @@ type CommitRow struct {
 	Selected    *bool     `json:"selected,omitempty"`
 	CategoryID  OptUUID   `json:"categoryId"`
 	Description *string   `json:"description,omitempty"`
+	// Merchant template (Feature 125): absent = the staged suggestion, null = none.
+	MerchantID      OptUUID `json:"merchantId"`
+	SplitTemplateID OptUUID `json:"splitTemplateId"`
 }
 
 type CommitInput struct {
@@ -66,6 +70,7 @@ type stagedRecord struct {
 	selected, explicitSel bool
 	category              *uuid.UUID
 	catSource             string
+	merchant, splitTpl    *uuid.UUID
 	descOverride          *string
 	signed                money.Money
 	signedOK              bool
@@ -97,11 +102,18 @@ func loadStaged(ctx context.Context, q Querier, profileID, batchID uuid.UUID) ([
 		}
 		_ = json.Unmarshal(details, &s.details)
 		s.selected, _ = s.details["selected"].(bool)
-		if v, ok := s.details["suggestedCategoryId"].(string); ok {
-			if id, err := uuid.Parse(v); err == nil {
-				s.category, s.catSource = &id, "import"
+		detailID := func(k string) *uuid.UUID {
+			if v, ok := s.details[k].(string); ok {
+				if id, err := uuid.Parse(v); err == nil {
+					return &id
+				}
 			}
+			return nil
 		}
+		if s.category = detailID("suggestedCategoryId"); s.category != nil {
+			s.catSource = "import"
+		}
+		s.merchant, s.splitTpl = detailID("suggestedMerchantId"), detailID("suggestedSplitTemplateId")
 		if m, err := Money(s.amount, s.currency); err == nil {
 			s.signed, s.signedOK = m, true
 		}
@@ -146,7 +158,7 @@ func Commit(ctx context.Context, db *pgxpool.Pool, profileID, userID, batchID uu
 		byID[r.id] = r
 	}
 	fieldErrs := map[string]string{}
-	var catIDs []uuid.UUID
+	var catIDs, merchantIDs []uuid.UUID
 	for i, cr := range in.Rows {
 		r, ok := byID[cr.RawRecordID]
 		if !ok {
@@ -160,6 +172,19 @@ func Commit(ctx context.Context, db *pgxpool.Pool, profileID, userID, batchID uu
 			r.category, r.catSource = cr.CategoryID.Value, "user"
 			if r.category != nil {
 				catIDs = append(catIDs, *r.category)
+			}
+			if !cr.SplitTemplateID.Set {
+				r.splitTpl = nil // an explicit category replaces a suggested split template
+			}
+		}
+		if cr.MerchantID.Set {
+			if r.merchant = cr.MerchantID.Value; r.merchant != nil {
+				merchantIDs = append(merchantIDs, *r.merchant)
+			}
+		}
+		if cr.SplitTemplateID.Set {
+			if r.splitTpl = cr.SplitTemplateID.Value; r.splitTpl != nil {
+				r.catSource = "user"
 			}
 		}
 		if cr.Description != nil {
@@ -181,6 +206,10 @@ func Commit(ctx context.Context, db *pgxpool.Pool, profileID, userID, batchID uu
 		if n != len(uniq(catIDs)) {
 			fieldErrs["rows.categoryId"] = "unknown category"
 		}
+	}
+	tpls, err := loadMerchantTemplates(ctx, tx, profileID, recs, merchantIDs, in.Rows, fieldErrs)
+	if err != nil {
+		return b, err
 	}
 	if len(fieldErrs) > 0 {
 		return b, httpx.Validation(fieldErrs)
@@ -250,7 +279,7 @@ func Commit(ctx context.Context, db *pgxpool.Pool, profileID, userID, batchID uu
 			desc = *r.descOverride
 		}
 		catSrc := "none"
-		if r.category != nil {
+		if r.category != nil || r.splitTpl != nil {
 			catSrc = r.catSource
 		}
 		pid, sid := uuid.New(), uuid.New()
@@ -267,14 +296,24 @@ func Commit(ctx context.Context, db *pgxpool.Pool, profileID, userID, batchID uu
 				origAmt, origCur = m.Numeric(), *r.origCur
 			}
 		}
-		txRows = append(txRows, []any{id, profileID, kind, "cleared", r.posting, vd, desc, r.counterparty, r.ref, "import", r.id, catSrc, userID, now, now})
+		txRows = append(txRows, []any{id, profileID, kind, "cleared", r.posting, vd, desc, r.counterparty, r.ref, "import", r.id, catSrc, r.merchant, userID, now, now})
 		postRows = append(postRows, []any{pid, profileID, id, acc.ID, r.signed.Numeric(), r.currency, origAmt, origCur, 0, now})
-		splitRows = append(splitRows, []any{sid, profileID, id, r.category, r.signed.Abs().Numeric(), r.currency, 0, now, now})
+		if r.splitTpl != nil {
+			parts, err := transactions.ApplySplitTemplate(tpls[*r.splitTpl], r.signed)
+			if err != nil {
+				return b, err
+			}
+			for i, sp := range parts {
+				splitRows = append(splitRows, []any{uuid.New(), profileID, id, sp.CategoryID, sp.Amount.Numeric(), r.currency, sp.Description, i, now, now})
+			}
+		} else {
+			splitRows = append(splitRows, []any{sid, profileID, id, r.category, r.signed.Abs().Numeric(), r.currency, "", 0, now, now})
+		}
 		newIDs = append(newIDs, id)
 	}
 	if len(txRows) > 0 {
 		if _, err := tx.CopyFrom(ctx, pgx.Identifier{"transactions"}, []string{"id", "profile_id", "kind", "status", "booking_date", "value_date",
-			"description", "payee", "reference", "source", "import_record_id", "categorization_source", "created_by", "created_at", "updated_at"},
+			"description", "payee", "reference", "source", "import_record_id", "categorization_source", "merchant_id", "created_by", "created_at", "updated_at"},
 			pgx.CopyFromRows(txRows)); err != nil {
 			return b, fmt.Errorf("insert transactions: %w", err)
 		}
@@ -283,7 +322,7 @@ func Commit(ctx context.Context, db *pgxpool.Pool, profileID, userID, batchID uu
 			return b, fmt.Errorf("insert postings: %w", err)
 		}
 		if _, err := tx.CopyFrom(ctx, pgx.Identifier{"transaction_splits"}, []string{"id", "profile_id", "transaction_id", "category_id", "amount",
-			"currency", "sort_order", "created_at", "updated_at"}, pgx.CopyFromRows(splitRows)); err != nil {
+			"currency", "description", "sort_order", "created_at", "updated_at"}, pgx.CopyFromRows(splitRows)); err != nil {
 			return b, fmt.Errorf("insert splits: %w", err)
 		}
 	}
@@ -634,7 +673,10 @@ type PreviewRow struct {
 	MatchTransactionID  *uuid.UUID `json:"matchTransactionId"`
 	MatchScore          *string    `json:"matchScore"`
 	SuggestedCategoryID *uuid.UUID `json:"suggestedCategoryId"`
-	Selected            bool       `json:"selected"`
+	// Merchant template suggestion (Feature 125), applied on commit unless the row overrides it.
+	SuggestedMerchantID      *uuid.UUID `json:"suggestedMerchantId"`
+	SuggestedSplitTemplateID *uuid.UUID `json:"suggestedSplitTemplateId"`
+	Selected                 bool       `json:"selected"`
 	Issues              []string   `json:"issues"`
 }
 
@@ -690,10 +732,13 @@ func GetPreview(ctx context.Context, db Querier, profileID, batchID uuid.UUID, p
 		var d struct {
 			Selected  bool       `json:"selected"`
 			Suggested *uuid.UUID `json:"suggestedCategoryId"`
+			Merchant  *uuid.UUID `json:"suggestedMerchantId"`
+			SplitTpl  *uuid.UUID `json:"suggestedSplitTemplateId"`
 			Issues    []string   `json:"issues"`
 		}
 		_ = json.Unmarshal(details, &d)
 		pr.Selected, pr.SuggestedCategoryID, pr.Issues = d.Selected, d.Suggested, nonNil(d.Issues)
+		pr.SuggestedMerchantID, pr.SuggestedSplitTemplateID = d.Merchant, d.SplitTpl
 		p.Rows = append(p.Rows, pr)
 	}
 	if err := rows.Err(); err != nil {
@@ -737,4 +782,94 @@ func Reprocess(ctx context.Context, db *pgxpool.Pool, profileID, userID, batchID
 	}
 	return ParseAndStage(ctx, db, ParseRequest{ProfileID: profileID, UserID: userID, AccountID: *b.AccountID, ImporterID: imp.ID,
 		TemplateID: b.TemplateID, FileName: name, Bytes: src, ReprocessedFrom: &batchID}, maxBytes)
+}
+
+// loadMerchantTemplates checks the merchants and split templates the selected rows will use (Feature 125).
+// Explicit ids from commit rows must be live and owned (field errors otherwise); staged suggestions that
+// were deleted since staging are silently dropped. Returns the split templates by id.
+func loadMerchantTemplates(ctx context.Context, tx pgx.Tx, profileID uuid.UUID, recs []*stagedRecord, explicitMerchants []uuid.UUID,
+	rows []CommitRow, fieldErrs map[string]string) (map[uuid.UUID]*transactions.SplitTemplate, error) {
+	var mids, tids []uuid.UUID
+	for _, r := range recs {
+		if r.selected && r.merchant != nil {
+			mids = append(mids, *r.merchant)
+		}
+		if r.selected && r.splitTpl != nil {
+			tids = append(tids, *r.splitTpl)
+		}
+	}
+	live := map[uuid.UUID]bool{}
+	if len(mids) > 0 {
+		q, err := tx.Query(ctx, `SELECT id FROM merchants WHERE profile_id = $1 AND deleted_at IS NULL AND id = ANY($2)`, profileID, mids)
+		if err != nil {
+			return nil, err
+		}
+		ids, err := pgx.CollectRows(q, pgx.RowTo[uuid.UUID])
+		if err != nil {
+			return nil, err
+		}
+		for _, id := range ids {
+			live[id] = true
+		}
+	}
+	for _, id := range explicitMerchants {
+		if !live[id] {
+			fieldErrs["rows.merchantId"] = "unknown merchant"
+		}
+	}
+	tpls := map[uuid.UUID]*transactions.SplitTemplate{}
+	if len(tids) > 0 {
+		q, err := tx.Query(ctx, `SELECT id, lines FROM split_templates WHERE profile_id = $1 AND deleted_at IS NULL AND id = ANY($2)`, profileID, tids)
+		if err != nil {
+			return nil, err
+		}
+		for q.Next() {
+			t := &transactions.SplitTemplate{}
+			var lines []byte
+			if err := q.Scan(&t.ID, &lines); err != nil {
+				q.Close()
+				return nil, err
+			}
+			if err := json.Unmarshal(lines, &t.Lines); err != nil {
+				q.Close()
+				return nil, fmt.Errorf("split template %s: %w", t.ID, err)
+			}
+			tpls[t.ID] = t
+		}
+		q.Close()
+		if err := q.Err(); err != nil {
+			return nil, err
+		}
+	}
+	explicitTpl := map[uuid.UUID]bool{}
+	for _, cr := range rows {
+		if cr.SplitTemplateID.Value != nil {
+			explicitTpl[cr.RawRecordID] = true
+		}
+	}
+	for _, r := range recs {
+		if r.merchant != nil && !live[*r.merchant] {
+			r.merchant = nil
+		}
+		if r.splitTpl == nil {
+			continue
+		}
+		t := tpls[*r.splitTpl]
+		if t == nil && explicitTpl[r.id] {
+			fieldErrs["rows.splitTemplateId"] = "unknown split template"
+		}
+		if t == nil {
+			r.splitTpl = nil
+			continue
+		}
+		// A suggested template that does not fit this amount (fixed lines too large, other currency)
+		// falls back to the category; an explicitly chosen one is an error.
+		if _, err := transactions.ApplySplitTemplate(t, r.signed); err != nil {
+			if explicitTpl[r.id] && r.selected {
+				fieldErrs["rows.splitTemplateId"] = "split template does not fit the row amount"
+			}
+			r.splitTpl = nil
+		}
+	}
+	return tpls, nil
 }

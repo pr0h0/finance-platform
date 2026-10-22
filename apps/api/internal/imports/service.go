@@ -191,7 +191,7 @@ type stagedRow struct {
 	outcome   string
 	matchTx   *uuid.UUID
 	score     *float64
-	suggested *uuid.UUID
+	suggested Suggestion
 	selected  bool
 	prevRec   *uuid.UUID // reprocess: record the matched transaction pointed to before
 }
@@ -421,8 +421,14 @@ func Stage(ctx context.Context, db *pgxpool.Pool, in StageInput) (Batch, error) 
 	results := make([][]any, len(rows))
 	for i, r := range rows {
 		details := map[string]any{"selected": r.selected, "issues": nonNil(r.issues)}
-		if r.suggested != nil {
-			details["suggestedCategoryId"] = r.suggested
+		if r.suggested.CategoryID != nil {
+			details["suggestedCategoryId"] = r.suggested.CategoryID
+		}
+		if r.suggested.MerchantID != nil {
+			details["suggestedMerchantId"] = r.suggested.MerchantID
+		}
+		if r.suggested.SplitTemplateID != nil {
+			details["suggestedSplitTemplateId"] = r.suggested.SplitTemplateID
 		}
 		if r.prevRec != nil {
 			details["previousImportRecordId"] = r.prevRec
@@ -666,18 +672,35 @@ func abs(f float64) float64 {
 }
 
 // suggestions: categories learned from the user's own past classifications of identical source
-// descriptions (merchant-specific memory, Feature 125) and merchants' default categories.
+// descriptions, plus merchant templates (Feature 125): a merchant whose name or alias occurs in the description
+// contributes itself, its default category and its most recent split template.
 type suggestions struct {
 	byDesc    map[string]uuid.UUID
-	merchants []struct {
-		name string
-		cat  uuid.UUID
-	}
+	merchants []merchantTemplate
 }
 
-func loadSuggestions(ctx context.Context, tx pgx.Tx, profileID uuid.UUID) (*suggestions, error) {
+type merchantTemplate struct {
+	name          string
+	id            uuid.UUID
+	cat, splitTpl *uuid.UUID
+}
+
+// Suggestion is what staging and the uncategorized inbox propose; the user approves it (commit rows /
+// inbox actions), nothing is applied to an existing transaction automatically.
+type Suggestion struct {
+	CategoryID      *uuid.UUID `json:"categoryId"`
+	MerchantID      *uuid.UUID `json:"merchantId"`
+	SplitTemplateID *uuid.UUID `json:"splitTemplateId"`
+	Reason          string     `json:"reason"` // history | merchant
+}
+
+func (s Suggestion) empty() bool {
+	return s.CategoryID == nil && s.MerchantID == nil && s.SplitTemplateID == nil
+}
+
+func loadSuggestions(ctx context.Context, q Querier, profileID uuid.UUID) (*suggestions, error) {
 	s := &suggestions{byDesc: map[string]uuid.UUID{}}
-	rows, err := tx.Query(ctx, `SELECT r.source_description, min(s.category_id::text)::uuid
+	rows, err := q.Query(ctx, `SELECT r.source_description, min(s.category_id::text)::uuid
 		FROM imported_raw_records r
 		JOIN transactions t ON t.import_record_id = r.id AND t.deleted_at IS NULL
 		JOIN transaction_splits s ON s.transaction_id = t.id AND s.deleted_at IS NULL
@@ -705,18 +728,19 @@ func loadSuggestions(ctx context.Context, tx pgx.Tx, profileID uuid.UUID) (*sugg
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
-	rows, err = tx.Query(ctx, `SELECT m.normalized_name, m.default_category_id FROM merchants m
-		JOIN categories c ON c.id = m.default_category_id AND c.deleted_at IS NULL
-		WHERE m.profile_id = $1 AND m.deleted_at IS NULL AND length(m.normalized_name) >= 3`, profileID)
+	// Name and aliases (normalized bank descriptions) both identify a merchant.
+	rows, err = q.Query(ctx, `SELECT m.id, n,
+		(SELECT c.id FROM categories c WHERE c.id = m.default_category_id AND c.deleted_at IS NULL),
+		(SELECT st.id FROM split_templates st WHERE st.merchant_id = m.id AND st.profile_id = m.profile_id AND st.deleted_at IS NULL
+			ORDER BY st.updated_at DESC, st.id LIMIT 1)
+		FROM merchants m, unnest(array_prepend(m.normalized_name, m.aliases)) n
+		WHERE m.profile_id = $1 AND m.deleted_at IS NULL AND length(n) >= 3`, profileID)
 	if err != nil {
 		return nil, err
 	}
 	for rows.Next() {
-		var m struct {
-			name string
-			cat  uuid.UUID
-		}
-		if err := rows.Scan(&m.name, &m.cat); err != nil {
+		var m merchantTemplate
+		if err := rows.Scan(&m.id, &m.name, &m.cat, &m.splitTpl); err != nil {
 			rows.Close()
 			return nil, err
 		}
@@ -726,26 +750,31 @@ func loadSuggestions(ctx context.Context, tx pgx.Tx, profileID uuid.UUID) (*sugg
 		}
 	}
 	rows.Close()
-	// Longest merchant name first so "shell oil" beats "shell".
-	sort.Slice(s.merchants, func(i, j int) bool { return len(s.merchants[i].name) > len(s.merchants[j].name) })
+	// Longest merchant name first so "shell oil" beats "shell"; id breaks ties deterministically.
+	sort.Slice(s.merchants, func(i, j int) bool {
+		a, b := s.merchants[i], s.merchants[j]
+		return len(a.name) > len(b.name) || len(a.name) == len(b.name) && a.id.String() < b.id.String()
+	})
 	return s, rows.Err()
 }
 
-func (s *suggestions) suggest(desc string) *uuid.UUID {
+func (s *suggestions) suggest(desc string) Suggestion {
+	var out Suggestion
 	k := canonicalDesc(desc)
 	if k == "" {
-		return nil
-	}
-	if c, ok := s.byDesc[k]; ok {
-		return &c
+		return out
 	}
 	for _, m := range s.merchants {
 		if strings.Contains(k, m.name) {
-			c := m.cat
-			return &c
+			id := m.id
+			out = Suggestion{MerchantID: &id, CategoryID: m.cat, SplitTemplateID: m.splitTpl, Reason: "merchant"}
+			break
 		}
 	}
-	return nil
+	if c, ok := s.byDesc[k]; ok { // the user's own last choice for this exact description wins
+		out.CategoryID, out.SplitTemplateID, out.Reason = &c, nil, "history"
+	}
+	return out
 }
 
 // summarize computes outcome counts, income/expense totals and statement reconciliation.

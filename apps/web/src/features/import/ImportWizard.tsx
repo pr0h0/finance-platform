@@ -2,6 +2,8 @@
 // choose account + importer → select/drop files → parse in a worker → check totals, balances,
 // warnings → stage (immutable raw records, fp1 duplicates flagged) → review rows, categories,
 // descriptions → commit. OCR results start deselected: every row needs explicit approval.
+// Merchant templates (Feature 125): a merchant named in the description pre-fills its default
+// category and split template; the user approves by committing (or unticks / saves new merchants).
 
 import { createRegistry } from '@finplat/bank-importers';
 import type * as D from '@finplat/domain';
@@ -15,6 +17,8 @@ import {
   checkRunningBalances,
   checkStatementBalance,
   type ImportResult,
+  type MerchantMatcher,
+  merchantMatcher,
   totals,
 } from '@finplat/importer-sdk';
 import type { ImportPreview } from '@finplat/storage';
@@ -23,17 +27,29 @@ import { useMemo, useState } from 'react';
 import {
   describeError,
   type Refs,
+  useEntities,
   useLedgerEnv,
   useTransactions,
   useWrite,
 } from '../transactions/data.ts';
 import { Badge, Button, ErrorText, Field, inputCls, MoneyText } from '../transactions/ui.tsx';
 import { balanceStatus } from './checks.ts';
+import { applyMerchantTemplates } from './merchant-templates.ts';
 import { useImportSettings, useRecordCheck } from './store.ts';
 import { type Candidate, callWorker } from './worker-types.ts';
 
 const registry = createRegistry();
 export const MANIFESTS = registry.manifests();
+
+interface Choice {
+  selected: boolean;
+  categoryId: string | null;
+  description: string;
+  merchantId: string | null;
+  splitTemplateId: string | null;
+  /** Split template proposed by the merchant template (so the user can toggle it back on). */
+  splitSuggestion: string | null;
+}
 
 interface Job {
   key: string;
@@ -46,7 +62,7 @@ interface Job {
   candidates?: Candidate[];
   sha256?: string;
   preview?: ImportPreview;
-  choices?: Record<string, { selected: boolean; categoryId: string | null; description: string }>;
+  choices?: Record<string, Choice>;
   committed?: D.ImportBatch;
 }
 
@@ -82,6 +98,11 @@ export function ImportWizard({
   const history = useMemo(
     () => buildCategoryHistory((txs.data ?? []) as unknown as LedgerTransaction[]),
     [txs.data],
+  );
+  const splitTemplates = useEntities('split_templates');
+  const matcher = useMemo(
+    () => merchantMatcher(refs.merchants, splitTemplates.data ?? []),
+    [refs.merchants, splitTemplates.data],
   );
   const hasOpening = (txs.data ?? []).some(
     (t) => t.kind === 'opening_balance' && t.postings.some((p) => p.accountId === accountId),
@@ -170,10 +191,17 @@ export function ImportWizard({
           description: r.sourceDescription,
           postings: [{ accountId: account.id, amount: r.amount }],
         });
+        const fromHistory = s && refs.category.has(s.value) ? s.value : null;
+        const m = matcher(r.sourceDescription);
         choices[r.id] = {
           selected: row.outcome === 'new' && !j.result.requiresApproval,
-          categoryId: s && refs.category.has(s.value) ? s.value : null,
+          categoryId:
+            fromHistory ?? (m?.categoryId && refs.category.has(m.categoryId) ? m.categoryId : null),
           description: r.sourceDescription,
+          merchantId: m?.merchantId ?? null,
+          // The user's own last choice for this description beats the merchant's split pattern.
+          splitTemplateId: fromHistory ? null : (m?.splitTemplateId ?? null),
+          splitSuggestion: m?.splitTemplateId ?? null,
         };
       }
       update(j.key, { status: 'staged', preview, choices });
@@ -205,6 +233,19 @@ export function ImportWizard({
         };
       });
       const batch = await commitWrite.mutateAsync({ batchId: j.preview.batch.id, rows });
+      const templated = j.preview.rows.flatMap((row) => {
+        const c = j.choices?.[row.record.id];
+        return c?.selected && (c.merchantId || c.splitTemplateId)
+          ? [
+              {
+                rawRecordId: row.record.id,
+                merchantId: c.merchantId,
+                splitTemplateId: c.splitTemplateId,
+              },
+            ]
+          : [];
+      });
+      if (templated.length > 0) await applyTemplates.mutateAsync(templated);
       await recordCheck
         .mutateAsync({ batchId: batch.id, status: balanceStatus(j.result) })
         .catch(() => undefined);
@@ -217,6 +258,10 @@ export function ImportWizard({
   const commitWrite = useWrite(
     (o, v: { batchId: string; rows: Parameters<typeof o.commitImport>[1] }) =>
       o.commitImport(v.batchId, v.rows),
+  );
+  const applyTemplates = useWrite(applyMerchantTemplates);
+  const saveMerchant = useWrite((o, v: { name: string; defaultCategoryId: string | null }) =>
+    o.create('merchants', v),
   );
   const opening = useWrite((o, m: D.Money) =>
     o.createTransaction({
@@ -419,6 +464,18 @@ export function ImportWizard({
               refs={refs}
               locale={locale}
               onChange={(choices) => update(j.key, { choices })}
+              splitTemplateName={(id) =>
+                splitTemplates.data?.find((t) => t.id === id)?.name ?? 'split template'
+              }
+              onSaveMerchant={async (name, categoryId) => {
+                try {
+                  const m = await saveMerchant.mutateAsync({ name, defaultCategoryId: categoryId });
+                  return merchantMatcher([m], splitTemplates.data ?? []);
+                } catch (e) {
+                  setErr(describeError(e));
+                  return null;
+                }
+              }}
               onCommit={() => commit(j)}
               committing={commitWrite.isPending}
             />
@@ -573,6 +630,8 @@ function StagedRows({
   onChange,
   onCommit,
   committing,
+  splitTemplateName,
+  onSaveMerchant,
 }: {
   job: Job;
   refs: Refs;
@@ -580,6 +639,8 @@ function StagedRows({
   onChange: (c: NonNullable<Job['choices']>) => void;
   onCommit: () => void;
   committing: boolean;
+  splitTemplateName: (id: string) => string;
+  onSaveMerchant: (name: string, categoryId: string | null) => Promise<MerchantMatcher | null>;
 }) {
   const p = job.preview as ImportPreview;
   const choices = job.choices as NonNullable<Job['choices']>;
@@ -595,6 +656,29 @@ function StagedRows({
       [id]: { ...(choices[id] as NonNullable<Job['choices']>[string]), ...v },
     });
   const selectedCount = Object.values(choices).filter((c) => c.selected).length;
+  // Save a merchant template from a row, then pre-fill every other unmatched, uncategorized row it matches.
+  const saveMerchant = async (id: string) => {
+    const c = choices[id] as Choice;
+    const name = window.prompt('Merchant name (matched inside bank descriptions)', c.description);
+    if (!name?.trim()) return;
+    const match = await onSaveMerchant(name.trim(), c.categoryId);
+    if (!match) return;
+    const next = { ...choices };
+    for (const row of p.rows) {
+      const cur = next[row.record.id];
+      if (!cur || cur.merchantId) continue;
+      const m = match(row.record.sourceDescription) ?? (row.record.id === id ? match(name) : null);
+      if (!m) continue;
+      next[row.record.id] = {
+        ...cur,
+        merchantId: m.merchantId,
+        categoryId: cur.categoryId ?? m.categoryId,
+        splitTemplateId: cur.categoryId ? null : m.splitTemplateId,
+        splitSuggestion: m.splitTemplateId,
+      };
+    }
+    onChange(next);
+  };
   const allOnPage = pageRows.every((r) => choices[r.record.id]?.selected);
 
   return (
@@ -716,7 +800,9 @@ function StagedRows({
                       aria-label={`Category of row ${r.rowNumber}`}
                       className={`${inputCls} h-7 min-w-36 text-xs`}
                       value={c.categoryId ?? ''}
-                      onChange={(e) => set(r.id, { categoryId: e.target.value || null })}
+                      onChange={(e) =>
+                        set(r.id, { categoryId: e.target.value || null, splitTemplateId: null })
+                      }
                     >
                       <option value="">Uncategorized (rules may apply)</option>
                       {refs.categoryOptions
@@ -727,8 +813,33 @@ function StagedRows({
                           </option>
                         ))}
                     </select>
+                    {c.merchantId && (
+                      <span className="block text-xs text-muted">
+                        {refs.merchantName(c.merchantId)}
+                      </span>
+                    )}
                   </td>
                   <td className="text-xs">
+                    {c.splitSuggestion && (
+                      <label className="mr-1 inline-flex items-center gap-1">
+                        <input
+                          type="checkbox"
+                          checked={c.splitTemplateId !== null}
+                          onChange={(e) =>
+                            set(r.id, {
+                              splitTemplateId: e.target.checked ? c.splitSuggestion : null,
+                            })
+                          }
+                          aria-label={`Apply split template to row ${r.rowNumber}`}
+                        />
+                        split: {splitTemplateName(c.splitSuggestion)}
+                      </label>
+                    )}
+                    {!c.merchantId && (
+                      <Button size="sm" onClick={() => saveMerchant(r.id)}>
+                        Save merchant
+                      </Button>
+                    )}
                     {row.outcome === 'duplicate' && <Badge tone="amber">duplicate</Badge>}
                     {r.warnings.length > 0 && (
                       <span title={r.warnings.join('; ')} className="ml-1 text-warn">

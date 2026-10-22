@@ -19,6 +19,7 @@ import {
   inputFromBytes,
   lines,
   matchExisting,
+  merchantMatcher,
   monthlyCoverage,
   type NormalizedRecord,
   parseAmount,
@@ -462,5 +463,53 @@ describe('registry and input', () => {
     await expect(readAll(inputFromBytes('x', new Uint8Array(10)), { maxBytes: 5 })).rejects.toThrow(
       'limited to 5',
     );
+  });
+});
+
+describe('merchant templates (Feature 125)', () => {
+  const m = (
+    id: string,
+    normalizedName: string,
+    aliases: string[] = [],
+    cat: string | null = null,
+  ) => ({
+    id,
+    normalizedName,
+    aliases,
+    defaultCategoryId: cat,
+  });
+  const match = merchantMatcher(
+    [
+      m('shell', 'shell', [], 'fuel'),
+      m('shell-oil', 'shell oil', ['so station'], 'car'),
+      m('gone', 'pekara', [], 'food'),
+      m('ab', 'ab'),
+    ].map((x) => (x.id === 'gone' ? { ...x, deletedAt: '2025-01-01T00:00:00Z' } : x)),
+    [
+      { id: 't1', merchantId: 'shell-oil', updatedAt: '2025-01-01T00:00:00Z' },
+      { id: 't2', merchantId: 'shell-oil', updatedAt: '2025-02-01T00:00:00Z' },
+      {
+        id: 't3',
+        merchantId: 'shell-oil',
+        updatedAt: '2025-03-01T00:00:00Z',
+        deletedAt: '2025-03-02T00:00:00Z',
+      },
+    ],
+  );
+  test('longest name or alias wins; latest live split template; deleted merchants ignored', () => {
+    expect(match('KUPOVINA SHELL-OIL 12 Sarajevo')).toEqual({
+      merchantId: 'shell-oil',
+      categoryId: 'car',
+      splitTemplateId: 't2',
+    });
+    expect(match('SO STATION 4')?.merchantId).toBe('shell-oil');
+    expect(match('Shell express')).toEqual({
+      merchantId: 'shell',
+      categoryId: 'fuel',
+      splitTemplateId: null,
+    });
+    expect(match('PEKARA centar')).toBeNull();
+    expect(match('ab cd')).toBeNull(); // names under 3 characters never match
+    expect(match('')).toBeNull();
   });
 });

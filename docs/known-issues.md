@@ -35,6 +35,7 @@
 - XML (CAMT/OFX), JSON, XLSX/XLS and PDF are parsed whole-file (capped by `maxBytes`); only CSV/TSV/QIF/MT940 stream.
 - Generic PDF text import (template) rebuilds rows from text positions; multi-line descriptions keep only their first line. The Raiffeisen BiH importer has its own layout parser and keeps them whole.
 - Raiffeisen BiH: only the "IZVOD - OBAVIJEST" PDF layout is supported (seen on current-account/card statements in KM); other products or currencies are untested. PDF parsing runs only in the web client, so MCP/connected uploads must send the client-parsed result.
+- Merchant templates (Feature 125): in the web import the merchant and split template are applied right after the commit (one update per templated row), not inside the commit write; an interruption leaves those rows with their category only. The web uncategorized inbox (`features/transactions/Inbox.tsx`) suggests merchant default categories but not split templates yet; the REST inbox returns them (`suggestion.splitTemplateId`).
 - QIF: day/month order is inferred per file; all-ambiguous files assume MM/DD (DD.MM for dot dates) with a warning. QIF splits are kept raw only.
 - MT940 `:86:` is used verbatim; bank-specific sub-field parsing (`?20`, `/REMI/` …) is not done.
 - CAMT batched entries (several TxDtls) become one record for the entry total.

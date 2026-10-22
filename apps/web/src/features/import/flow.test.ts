@@ -4,10 +4,16 @@ import { expect, test } from 'bun:test';
 import { createRegistry } from '@finplat/bank-importers';
 import type * as D from '@finplat/domain';
 import { balanceHistory, type LedgerTransaction } from '@finplat/finance-engine';
-import { type ImportTemplateInput, inputFromBytes, validateTemplate } from '@finplat/importer-sdk';
+import {
+  type ImportTemplateInput,
+  inputFromBytes,
+  merchantMatcher,
+  validateTemplate,
+} from '@finplat/importer-sdk';
 import { LocalDataSource, MemoryStore } from '@finplat/storage';
 import { duplicateInput, filterTransactions, totalsByCurrency } from '../transactions/model.ts';
 import { balanceStatus } from './checks.ts';
+import { applyMerchantTemplates } from './merchant-templates.ts';
 
 const m = (amount: string, currency = 'BAM') => ({ amount, currency });
 
@@ -144,4 +150,59 @@ test('duplicate, partial refund, bulk edit keeps totals, reconciliation adjustme
     accountId: acc.id,
   });
   expect((await ops.get('accounts', acc.id)).balances).toEqual([m('48.20')]);
+});
+
+test('merchant template: matched on staging, split template + merchant applied after commit', async () => {
+  const { ops, acc } = await setup();
+  const food = await ops.create('categories', { name: 'Food' });
+  const home = await ops.create('categories', { name: 'Household' });
+  const konzum = await ops.create('merchants', { name: 'Konzum', defaultCategoryId: food.id });
+  const tpl = await ops.create('split_templates', {
+    name: 'Konzum mix',
+    merchantId: konzum.id,
+    lines: [
+      { categoryId: food.id, weight: '3', description: 'food' },
+      { categoryId: home.id, weight: '1', description: 'home' },
+    ],
+  });
+  const result = await createRegistry()
+    .require('generic-csv')
+    .parse(inputFromBytes('jan.csv', new TextEncoder().encode(csv)), {
+      template,
+      accountCurrency: 'BAM',
+    });
+  const p = await ops.stageImport({
+    accountId: acc.id,
+    importerId: 'generic-csv',
+    importerVersion: result.importerVersion,
+    fileName: 'jan.csv',
+    fileSha256: 'ab',
+    fileSize: csv.length,
+    records: result.records.map((r) => ({ ...r, warnings: [] })),
+  });
+  const match = merchantMatcher(await ops.list('merchants'), await ops.list('split_templates'));
+  const rows = p.rows.map((r) => ({ id: r.record.id, m: match(r.record.sourceDescription) }));
+  expect(rows.map((r) => r.m?.splitTemplateId ?? null)).toEqual([tpl.id, null, tpl.id]);
+  await ops.commitImport(
+    p.batch.id,
+    rows.map((r) => ({ rawRecordId: r.id, selected: true, categoryId: r.m?.categoryId ?? null })),
+  );
+  // The user unticked the split on the second Konzum row: it keeps the default category only.
+  const n = await applyMerchantTemplates(ops, [
+    { rawRecordId: rows[0]?.id as string, merchantId: konzum.id, splitTemplateId: tpl.id },
+    { rawRecordId: rows[2]?.id as string, merchantId: konzum.id, splitTemplateId: null },
+  ]);
+  expect(n).toBe(2);
+  const txs = (await ops.ledger()) as unknown as D.Transaction[];
+  const byRaw = (id: string | undefined) => txs.find((t) => t.importRecordId === id);
+  const split = byRaw(rows[0]?.id);
+  expect(split?.merchantId).toBe(konzum.id);
+  expect(split?.splits.map((s) => [s.categoryId, s.amount.amount])).toEqual([
+    [food.id, '9.38'],
+    [home.id, '3.12'],
+  ]);
+  const plain = byRaw(rows[2]?.id);
+  expect(plain?.merchantId).toBe(konzum.id);
+  expect(plain?.splits.map((s) => s.categoryId)).toEqual([food.id]);
+  expect(byRaw(rows[1]?.id)?.merchantId ?? null).toBeNull();
 });

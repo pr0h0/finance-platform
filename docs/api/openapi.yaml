@@ -7868,6 +7868,14 @@ components:
                 oneOf:
                   - $ref: "#/components/schemas/Uuid"
                   - type: "null"
+              suggestedMerchantId:
+                oneOf:
+                  - $ref: "#/components/schemas/Uuid"
+                  - type: "null"
+              suggestedSplitTemplateId:
+                oneOf:
+                  - $ref: "#/components/schemas/Uuid"
+                  - type: "null"
               selected:
                 type: "boolean"
               issues:
@@ -7941,6 +7949,16 @@ components:
                   - type: "null"
               description:
                 type: "string"
+              merchantId:
+                description: "Merchant template (Feature 125). Omitted = staged suggestion; null = none"
+                oneOf:
+                  - $ref: "#/components/schemas/Uuid"
+                  - type: "null"
+              splitTemplateId:
+                description: "Split template to allocate the amount with. Omitted = staged suggestion (dropped when categoryId is given); null = none"
+                oneOf:
+                  - $ref: "#/components/schemas/Uuid"
+                  - type: "null"
             additionalProperties: false
         version:
           type: "integer"
@@ -8051,6 +8069,27 @@ components:
           type: "integer"
         uncategorizedAmount:
           $ref: "#/components/schemas/Money"
+        suggestion:
+          description: "History / merchant-template suggestion (Feature 125); apply it with PATCH /transactions/{id} or PUT /transactions/{id}/splits"
+          oneOf:
+            - type: "null"
+            - type: "object"
+              properties:
+                categoryId:
+                  oneOf:
+                    - $ref: "#/components/schemas/Uuid"
+                    - type: "null"
+                merchantId:
+                  oneOf:
+                    - $ref: "#/components/schemas/Uuid"
+                    - type: "null"
+                splitTemplateId:
+                  oneOf:
+                    - $ref: "#/components/schemas/Uuid"
+                    - type: "null"
+                reason:
+                  type: "string"
+                  enum: ["history", "merchant"]
     Attachment:
       allOf:
         - $ref: "#/components/schemas/SyncMeta"

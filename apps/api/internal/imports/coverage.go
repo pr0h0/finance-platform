@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -189,6 +190,9 @@ type InboxItem struct {
 	ImportRecordID      *uuid.UUID `json:"importRecordId"`
 	SplitCount          int        `json:"splitCount"`
 	UncategorizedAmount wireMoney  `json:"uncategorizedAmount"`
+	// Suggestion from the user's history and merchant templates (Feature 125); applying it is a
+	// normal user action (PATCH category / PUT splits with splitTemplateId), never automatic.
+	Suggestion *Suggestion `json:"suggestion"`
 }
 
 type InboxFilter struct {
@@ -209,8 +213,12 @@ func Uncategorized(ctx context.Context, q Querier, profileID uuid.UUID, f InboxF
 	if f.After != nil {
 		afterDate, afterID = &f.After.Date, &f.After.ID
 	}
+	sugg, err := loadSuggestions(ctx, q, profileID)
+	if err != nil {
+		return nil, false, err
+	}
 	rows, err := q.Query(ctx, `SELECT t.id, t.booking_date, t.kind, t.description, t.payee, p.amount::text, p.currency, p.account_id,
-		t.source, t.import_record_id,
+		t.source, t.import_record_id, coalesce((SELECT r.source_description FROM imported_raw_records r WHERE r.id = t.import_record_id), ''),
 		(SELECT count(*) FROM transaction_splits s WHERE s.transaction_id = t.id AND s.deleted_at IS NULL),
 		coalesce((SELECT sum(s.amount) FROM transaction_splits s WHERE s.transaction_id = t.id AND s.deleted_at IS NULL AND s.category_id IS NULL), abs(p.amount))::text
 		FROM transactions t
@@ -232,10 +240,19 @@ func Uncategorized(ctx context.Context, q Querier, profileID uuid.UUID, f InboxF
 	for rows.Next() {
 		var it InboxItem
 		var bd time.Time
-		var amt, cur, unc string
+		var amt, cur, unc, srcDesc string
 		if err := rows.Scan(&it.ID, &bd, &it.Kind, &it.Description, &it.Payee, &amt, &cur, &it.AccountID, &it.Source, &it.ImportRecordID,
-			&it.SplitCount, &unc); err != nil {
+			&srcDesc, &it.SplitCount, &unc); err != nil {
 			return nil, false, err
+		}
+		if srcDesc == "" {
+			srcDesc = strings.TrimSpace(it.Description + " " + it.Payee)
+		}
+		if s := sugg.suggest(srcDesc); !s.empty() {
+			if it.SplitCount > 1 {
+				s.SplitTemplateID = nil // partially categorized splits are edited by hand
+			}
+			it.Suggestion = &s
 		}
 		it.BookingDate, it.Amount, it.UncategorizedAmount = bd.Format(time.DateOnly), toWire(amt, cur), toWire(unc, cur)
 		items = append(items, it)

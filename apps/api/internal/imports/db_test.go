@@ -371,3 +371,93 @@ func TestHTTP(t *testing.T) {
 		t.Fatalf("foreign profile %d", rec.Code)
 	}
 }
+
+// Feature 125: merchant templates (merchant + default category + split template) are suggested on
+// staging, applied on commit unless a row overrides them, and offered in the uncategorized inbox.
+func TestMerchantTemplates(t *testing.T) {
+	e := setup(t)
+	household, merchant, tpl := uuid.New(), uuid.New(), uuid.New()
+	exec(t, e.pool, `INSERT INTO categories (id, profile_id, name) VALUES ($1,$2,'Household')`, household, e.profile)
+	exec(t, e.pool, `INSERT INTO merchants (id, profile_id, name, normalized_name, default_category_id, aliases) VALUES ($1,$2,'Pekara Primjer','pekara primjer',$3,'{"pp bakery"}')`,
+		merchant, e.profile, e.cat)
+	exec(t, e.pool, `INSERT INTO split_templates (id, profile_id, name, merchant_id, lines) VALUES ($1,$2,'Bakery split',$3,$4)`, tpl, e.profile, merchant,
+		`[{"categoryId":"`+e.cat.String()+`","weight":"2","description":"bread"},{"categoryId":"`+household.String()+`","weight":"1","description":"other"}]`)
+	rec := func(n int, desc, amount string) Record {
+		return Record{RowNumber: n, PostingDate: "2025-03-0" + string(rune('0'+n)), Description: desc, Direction: "debit", Amount: amount, Currency: "BAM",
+			Raw: map[string]string{"n": desc}}
+	}
+	b, err := Stage(e.ctx, e.pool, StageInput{ProfileID: e.profile, UserID: e.user, AccountID: e.acc, Importer: "raiffeisen-bih", ImporterVersion: "1.0.0",
+		FileName: "izvod.pdf", Source: []byte("synthetic"), Result: Result{Records: []Record{
+			rec(1, "KUPOVINA PEKARA PRIMJER 12", "10.00"), rec(2, "PP-BAKERY 7", "3.00"), rec(3, "Unknown shop", "1.00")}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, err := GetPreview(e.ctx, e.pool, e.profile, b.ID, httpx.Page{Limit: 10})
+	if err != nil || len(p.Rows) != 3 {
+		t.Fatalf("preview %v %+v", err, p)
+	}
+	r0, r2 := p.Rows[0], p.Rows[2]
+	if r0.SuggestedMerchantID == nil || *r0.SuggestedMerchantID != merchant || r0.SuggestedSplitTemplateID == nil || *r0.SuggestedSplitTemplateID != tpl ||
+		r0.SuggestedCategoryID == nil || *r0.SuggestedCategoryID != e.cat || r2.SuggestedMerchantID != nil {
+		t.Fatalf("suggestions %+v / %+v", r0, r2)
+	}
+	// Row 2: the user picks a category explicitly, so the suggested split template is not applied.
+	if _, err := Commit(e.ctx, e.pool, e.profile, e.user, b.ID, CommitInput{Rows: []CommitRow{
+		{RawRecordID: p.Rows[1].RawRecordID, CategoryID: OptUUID{Set: true, Value: &household}}}}); err != nil {
+		t.Fatal(err)
+	}
+	splits := func(rawID uuid.UUID) (out []string, merchantID *uuid.UUID) {
+		q, err := e.pool.Query(e.ctx, `SELECT s.amount::numeric(20,2)::text || ':' || s.description, t.merchant_id FROM transactions t
+			JOIN transaction_splits s ON s.transaction_id = t.id WHERE t.import_record_id = $1 ORDER BY s.sort_order`, rawID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer q.Close()
+		for q.Next() {
+			var s string
+			if err := q.Scan(&s, &merchantID); err != nil {
+				t.Fatal(err)
+			}
+			out = append(out, s)
+		}
+		return out, merchantID
+	}
+	if s, m := splits(r0.RawRecordID); len(s) != 2 || s[0] != "6.67:bread" || s[1] != "3.33:other" || m == nil || *m != merchant {
+		t.Fatalf("templated row splits %v merchant %v", s, m)
+	}
+	if s, m := splits(p.Rows[1].RawRecordID); len(s) != 1 || s[0] != "3.00:" || m == nil || *m != merchant { // matched by alias
+		t.Fatalf("explicit category row %v %v", s, m)
+	}
+	if s, m := splits(r2.RawRecordID); len(s) != 1 || m != nil {
+		t.Fatalf("plain row %v %v", s, m)
+	}
+	// Inbox: an uncategorized manual entry naming the merchant gets the template as a suggestion.
+	manual := uuid.New()
+	exec(t, e.pool, `INSERT INTO transactions (id, profile_id, kind, booking_date, description) VALUES ($1,$2,'expense','2025-03-20','pekara primjer centar')`, manual, e.profile)
+	exec(t, e.pool, `INSERT INTO postings (profile_id, transaction_id, account_id, amount, currency) VALUES ($1,$2,$3,'-4.00','BAM')`, e.profile, manual, e.acc)
+	items, _, err := Uncategorized(e.ctx, e.pool, e.profile, InboxFilter{Limit: 10})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var found *InboxItem
+	for i := range items {
+		if items[i].ID == manual {
+			found = &items[i]
+		}
+	}
+	if found == nil || found.Suggestion == nil || *found.Suggestion.MerchantID != merchant || *found.Suggestion.SplitTemplateID != tpl || found.Suggestion.Reason != "merchant" {
+		t.Fatalf("inbox suggestion %+v", found)
+	}
+	// An explicit unknown split template is rejected.
+	b2, err := Stage(e.ctx, e.pool, StageInput{ProfileID: e.profile, UserID: e.user, AccountID: e.acc, Importer: "raiffeisen-bih", ImporterVersion: "1.0.0",
+		FileName: "izvod2.pdf", Source: []byte("synthetic 2"), Result: Result{Records: []Record{rec(5, "Other", "2.00")}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	p2, _ := GetPreview(e.ctx, e.pool, e.profile, b2.ID, httpx.Page{Limit: 10})
+	bogus := uuid.New()
+	if _, err := Commit(e.ctx, e.pool, e.profile, e.user, b2.ID, CommitInput{Rows: []CommitRow{
+		{RawRecordID: p2.Rows[0].RawRecordID, SplitTemplateID: OptUUID{Set: true, Value: &bogus}}}}); err == nil {
+		t.Fatal("unknown split template must be rejected")
+	}
+}

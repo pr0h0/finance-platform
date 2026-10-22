@@ -3,6 +3,7 @@ export * from './csv.ts';
 export * from './encoding.ts';
 export * from './fingerprint.ts';
 export * from './input.ts';
+export * from './merchant-templates.ts';
 export * from './reconcile.ts';
 export * from './records.ts';
 export * from './registry.ts';
