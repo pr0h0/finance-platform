@@ -116,10 +116,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
         return;
       }
       let next: DataSource | null = null;
+      const keyringsFor = new Map<string, Keyring>();
       if (mode === 'local') next = new LocalDataSource(store);
       if (mode === 'remote' && api && connection) {
         const { loadKeyring, RemoteDataSource } = await import('@finplat/sync-client');
-        const keyrings = new Map<string, Keyring>();
         const cached = await store.run('readonly', ['profiles'], (tx) =>
           tx.query<Profile>('profiles', {}),
         );
@@ -127,7 +127,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         for (const p of cached) {
           if (p.privacyMode !== 'e2ee') continue;
           const k = await loadKeyring(store, p.id);
-          if (k) keyrings.set(p.id, k);
+          if (k) keyringsFor.set(p.id, k);
           else lockedNow.add(p.id);
         }
         if (!cancelled) setLocked(lockedNow);
@@ -135,7 +135,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
           store,
           api,
           deviceId: connection.deviceId,
-          keyringFor: (id) => keyrings.get(id),
+          keyringFor: (id) => keyringsFor.get(id),
         });
         setSession('checking');
         api
@@ -155,6 +155,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
         const list = await next.listProfiles().catch(() => [] as Profile[]);
         if (cancelled) return;
         setProfiles(list.filter((p) => !p.deletedAt));
+        // e2ee profiles first seen now (fresh device) have no key here yet: locked until unlocked
+        const fresh = list.filter((p) => p.privacyMode === 'e2ee' && !keyringsFor.has(p.id));
+        if (fresh.length) setLocked((s) => new Set([...s, ...fresh.map((p) => p.id)]));
       }
       setReady(true);
     })();

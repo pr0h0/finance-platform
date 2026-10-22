@@ -13,7 +13,7 @@ import {
   verifyLockSecret,
 } from './crypto.ts';
 import { deviceKeyPair, enableE2ee, enrollDevice, rotateKey, unlock } from './e2ee.ts';
-import { SyncEngine } from './engine.ts';
+import { ProfileLockedError, SyncEngine } from './engine.ts';
 import { FakeSyncServer } from './fake-server.test-util.ts';
 import { RemoteDataSource } from './remote.ts';
 
@@ -94,6 +94,16 @@ test('E2EE: encrypt on device A, decrypt on device B; server only sees envelopes
   await b.engine(ringB).sync();
   await a.engine(keyring).sync();
   expect((await a.svc.get('accounts', acc.id)).name).toBe('Renamed');
+
+  // a device that syncs before unlocking stores nothing (no ciphertext saved as records)
+  const early = await device(server, 'dev-early');
+  await expect(early.engine().sync()).rejects.toBeInstanceOf(ProfileLockedError);
+  expect(await early.store.run('readonly', ['accounts'], (tx) => tx.query('accounts', {}))).toEqual(
+    [],
+  );
+  const ringE = await unlock(early.api.sync, PID, { passphrase: 'correct horse battery' });
+  await early.engine(ringE).sync();
+  expect((await early.svc.get('accounts', acc.id)).name).toBe('Renamed');
 
   // device C: recovery code
   const c = await device(server, 'dev-c');

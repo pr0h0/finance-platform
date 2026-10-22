@@ -87,6 +87,14 @@ export interface SyncStatus extends SyncState {
   conflicts: LocalConflict[];
 }
 
+/** The server sent encrypted records but this device has no key for the profile (unlock first). */
+export class ProfileLockedError extends Error {
+  override name = 'ProfileLockedError';
+  constructor(readonly profileId: string) {
+    super('this end-to-end encrypted profile is locked on this device; unlock it first');
+  }
+}
+
 export class IncompatibleServerError extends Error {
   override name = 'IncompatibleServerError';
 }
@@ -342,7 +350,11 @@ export class SyncEngine {
 
   private decode(c: SyncChange): Record<string, unknown> | null {
     if (!c.data) return null;
-    if (!this.o.keyring) return c.data;
+    if (!this.o.keyring) {
+      // an e2ee profile pulled before it was unlocked here: never store ciphertext as a record
+      if (isEnvelope(c.data)) throw new ProfileLockedError(this.o.remoteProfileId);
+      return c.data;
+    }
     if (!isEnvelope(c.data))
       throw new Error(`expected an encrypted envelope for ${c.entityType}/${c.entityId}`);
     const plain = this.o.keyring.decrypt(

@@ -731,12 +731,17 @@ function Accounts() {
 function Categories() {
   const t = useT();
   const ops = useFinance();
-  const { api, syncNow } = useData();
+  const { api, syncNow, profiles, locked } = useData();
+  const profileId = useApp((s) => s.profileId);
+  const e2ee = profiles.find((p) => p.id === profileId)?.privacyMode === 'e2ee';
   const [seed, setSeed] = useState(true);
   const run = useMutation({
     mutationFn: async () => {
       if (!seed) return;
-      if (api) {
+      // e2ee: categories are created here and pushed encrypted; a locked profile already has its own
+      if (e2ee) {
+        if (profileId && !locked.has(profileId)) await seedLocalCategories(ops);
+      } else if (api) {
         await api.request('POST', '/api/v1/categories/defaults');
         await syncNow();
       } else await seedLocalCategories(ops);

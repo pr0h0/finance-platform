@@ -154,6 +154,13 @@ var defaults = []struct {
 // SeedDefaults creates the starter categories in a profile that has none (returns the number created).
 func SeedDefaults(ctx context.Context, tx pgx.Tx, profileID uuid.UUID) (int, error) {
 	var n int
+	var mode string
+	if err := tx.QueryRow(ctx, `SELECT privacy_mode FROM profiles WHERE id = $1`, profileID).Scan(&mode); err != nil {
+		return 0, err
+	}
+	if mode == "e2ee" { // plaintext rows would be unreadable noise to its clients; they seed locally (encrypted)
+		return 0, httpx.NewError(http.StatusConflict, "e2ee_profile", "end-to-end encrypted profiles create their categories on the device")
+	}
 	if err := tx.QueryRow(ctx, `SELECT count(*) FROM categories WHERE profile_id = $1 AND deleted_at IS NULL`, profileID).Scan(&n); err != nil || n > 0 {
 		return 0, err
 	}
