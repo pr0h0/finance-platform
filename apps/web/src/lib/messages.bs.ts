@@ -1357,11 +1357,8 @@ export const bs: Record<string, string> = {
   'analytics.chart.exportPng': 'Izvezi PNG',
   'analytics.chart.showAsTable': 'Prikaži kao tabelu',
   'analytics.ui.incompleteData': 'Nepotpuni podaci',
-  'analytics.ui.noExchangeRateFor': 'Nema kursa za',
-  'analytics.ui.on': 'na dan',
-  'analytics.ui.date': 'datum',
-  'analytics.ui.thoseAmountsAreLeft':
-    '; ti iznosi nisu uračunati, ne pogađaju se. Dodajte kurs u Računi → Konverter.',
+  'analytics.ui.noRateForPairs':
+    'Nema kursa za {{pairs}} na {{count}} datum(a); ti iznosi nisu uračunati, ne pogađaju se. Dodajte kurs u Računi → Konverter.',
   'planning.forecastPanel.monthEndExpected': 'Kraj mjeseca (očekivano)',
   'planning.forecastPanel.lowestBalanceExpected': 'Najniže stanje (očekivano)',
   'planning.forecastPanel.safeToSpend': 'Sigurno za potrošiti',
@@ -1758,4 +1755,53 @@ export const bs: Record<string, string> = {
     'Izvod nema reference transakcija ni drugu stranu; otkrivanje duplikata koristi datum, iznos i opis.',
   'importer.limitation:The "unpaid fees and interest" summary below the table is informational and not imported.':
     'Sažetak "neplaćene naknade i kamate" ispod tabele je informativan i ne uvozi se.',
+  'analytics.page.historyStartsOn':
+    'Evidentirana historija počinje {{date}}; raniji dijelovi ovog perioda nemaju podataka, pa poređenja i prosjeci mogu biti potcijenjeni.',
+  'analytics.page.colIncome': 'Prihodi',
+  'analytics.page.colExpenses': 'Rashodi',
+  'analytics.page.colNet': 'Neto',
+  'analytics.page.colAssets': 'Imovina',
+  'analytics.page.colLiabilities': 'Obaveze',
+  'analytics.page.colNetWorth': 'Neto vrijednost',
+  'analytics.page.noRateNotInShares':
+    'Nema kursa {{pairs}}/{{currency}}: ta stanja nisu uključena u udjele.',
+  'analytics.page.plansNoRate': 'Neki planovi nemaju kurs i nisu uračunati u ukupne iznose.',
+  'analytics.preset.month': 'Ovaj mjesec',
+  'analytics.preset.3m': 'Posljednja 3 mjeseca',
+  'analytics.preset.6m': 'Posljednjih 6 mjeseci',
+  'analytics.preset.12m': 'Posljednjih 12 mjeseci',
+  'analytics.preset.ytd': 'Od početka godine',
+  'analytics.preset.custom': 'Prilagođeno',
+  'subscriptions.page.noRateNotInTotals':
+    'Neke pretplate nemaju kurs za {{currency}} i nisu uračunate u ukupne iznose.',
+  'goals.page.someAmountsNoRate': 'Neki iznosi nemaju kurs i nisu uračunati.',
+  'planning.views.someAmountsNoRate': 'Neki iznosi nemaju kurs i nisu uračunati.',
+  'reports.warning.historyStarts':
+    'Evidentirana historija počinje {{date}}; period prije toga nema podataka.',
+  'reports.warning.noTransactions': 'Nema evidentiranih transakcija.',
+  'reports.csv.amount': 'Iznos',
+  'reports.csv.transactions': 'Transakcije',
+  'reports.csv.net': 'Neto',
+  'reports.csv.savingsRate': 'Stopa štednje',
+  'reports.csv.netWorthStart': 'Neto vrijednost (početak)',
+  'reports.csv.netWorthEnd': 'Neto vrijednost (kraj)',
+  'reports.csv.period': 'Period',
+  'reports.csv.spendingCategory': 'Kategorija potrošnje',
+  'reports.csv.incomeCategory': 'Kategorija prihoda',
+  'reports.csv.merchant': 'Trgovac',
+  'reports.csv.incomplete': 'Nepotpuno',
+  'reports.csv.noRateOn': 'nema kursa {{from}}/{{to}} na dan {{date}}',
+  'engine.analytics.datesSkipped':
+    'Transakcije na {{count}} datum(a) izostavljene: nedostaje kurs.',
+  'engine.budget.plannedNoRate':
+    'Planirani iznos u {{currency}} na dan {{date}} nije uračunat: nedostaje kurs.',
+  'engine.budget.datesNoRate': 'Kursevi nedostaju za {{count}} datum(a).',
+  'engine.forecast.eventNoAccount':
+    '"{{description}}" na dan {{date}} nije uračunato: njegov račun nije u prognozi.',
+  'engine.forecast.eventCurrency':
+    '"{{description}}" na dan {{date}} nije uračunato: valuta se razlikuje od valute računa.',
+  'engine.forecast.accountNoRate': 'Račun "{{name}}" nije uračunat: nema kursa {{from}}/{{to}}.',
+  'engine.forecast.reserveNoRate': 'Minimalna rezerva se zanemaruje: nema kursa {{from}}/{{to}}.',
+  'engine.forecast.planNoAccount': 'Plan "{{description}}" nema račun i nije u prognozi.',
+  'engine.forecast.transferNoDestination': 'Plan prenosa "{{description}}" nema odredišni račun.',
 };

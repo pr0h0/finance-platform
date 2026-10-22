@@ -13,8 +13,8 @@
   "dependencies": {
     "@finplat/domain": "workspace:*",
     "@finplat/finance-engine": "workspace:*",
-    "@jitl/quickjs-singlefile-mjs-release-sync": "0.31.0",
-    "quickjs-emscripten-core": "0.31.0",
+    "@jitl/quickjs-singlefile-mjs-release-sync": "0.32.0",
+    "quickjs-emscripten-core": "0.32.0",
     "zod": "^4.1.5"
   },
   "devDependencies": {

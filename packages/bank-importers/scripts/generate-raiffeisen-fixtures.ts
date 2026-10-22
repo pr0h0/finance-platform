@@ -33,7 +33,7 @@ const rows: {
   {
     p: 0,
     d: ['03/03/2025', '01/03/2025'],
-    desc: ['PEKARA ŽITO 12'],
+    desc: ['PEKARA ZITO 12'],
     cur: 'BAM',
     orig: 0n,
     km: -450n,
@@ -73,7 +73,7 @@ const rows: {
   {
     p: 0,
     d: ['07/03/2025', '06/03/2025'],
-    desc: ['ŠOPING CENTAR šž'],
+    desc: ['SOPING CENTAR'],
     cur: 'BAM',
     orig: 0n,
     km: -7520n,
@@ -97,7 +97,7 @@ const rows: {
   {
     p: 1,
     d: ['12/03/2025', '11/03/2025'],
-    desc: ['PEKARA ŽITO 12'],
+    desc: ['PEKARA ZITO 12'],
     cur: 'BAM',
     orig: 0n,
     km: -450n,
@@ -105,7 +105,7 @@ const rows: {
   {
     p: 1,
     d: ['12/03/2025', '11/03/2025'],
-    desc: ['PEKARA ŽITO 12'],
+    desc: ['PEKARA ZITO 12'],
     cur: 'BAM',
     orig: 0n,
     km: -450n,

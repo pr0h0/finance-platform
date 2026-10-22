@@ -121,6 +121,22 @@ func TestAggregations(t *testing.T) {
 	if rep.Income.Amount() != "2000.00" || rep.Expenses.Amount() != "242.00" || rep.Complete {
 		t.Fatalf("report: %+v", rep)
 	}
+	// Labels follow the user's locale (or ?lang=).
+	if _, err := pool.Exec(t.Context(), `UPDATE users SET locale = 'bs' WHERE id = $1`, user); err != nil {
+		t.Fatal(err)
+	}
+	for q, want := range map[string]string{"": "summary,Rashodi,", "&lang=en": "summary,Expenses,"} {
+		req := httptest.NewRequest("GET", "/api/v1/reports/monthly?from=2026-10-01&format=csv"+q, nil)
+		req.Header.Set(authz.ProfileHeader, profile.String())
+		rec := httptest.NewRecorder()
+		fintest.NewAPI(t, pool, user, profile, Register).Handler().ServeHTTP(rec, req)
+		if !strings.Contains(rec.Body.String(), want) {
+			t.Fatalf("lang %q: %s", q, rec.Body.String())
+		}
+	}
+	if _, err := pool.Exec(t.Context(), `UPDATE users SET locale = 'en' WHERE id = $1`, user); err != nil {
+		t.Fatal(err)
+	}
 	for _, format := range []string{"csv", "pdf", "csv&bom=true"} {
 		req := httptest.NewRequest("GET", "/api/v1/reports/monthly?from=2026-10-01&format="+format, nil)
 		req.Header.Set(authz.ProfileHeader, profile.String())

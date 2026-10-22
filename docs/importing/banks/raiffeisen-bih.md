@@ -11,8 +11,9 @@ The layout was learned from real statements kept locally (never committed). Test
 account, IBAN and amount in it is invented.
 
 ## Layout
-- Text-layer PDF, A4, Helvetica-like font, no Bosnian diacritics in most labels (`Racun`, `Pocetno`), but
-  descriptions may contain them.
+- Text-layer PDF, A4, Helvetica-like font, no Bosnian diacritics in most labels (`Racun`, `Pocetno`); transaction
+  descriptions are plain ASCII (`č/ć`→`c`, `š`→`s`, `ž`→`z`, `đ`→`d`/`dj`), so merchant templates fold
+  diacritics before matching.
 - **Header (page 1)**: holder name and address (ignored); block "Podaci o racunu" with `Racun:` (local
   account number), `IBAN:` and `Proizvod:` (product), each value printed under its label; block
   "Pregled stanja racuna" with three columns `Pocetno stanje:` (opening), `Odobreni limit:` (credit limit,

@@ -135,17 +135,56 @@ func dedupe(xs []string) []string {
 	return out
 }
 
+// bsReport is the Bosnian text of the report's fixed labels, the system row labels and the constant
+// warnings of the analytics queries (lang=bs). Anything not listed (user names, dynamic text) stays as is.
+var bsReport = map[string]string{
+	"Income": "Prihodi", "Expenses": "Rashodi", "Net cash flow": "Neto novčani tok", "Savings rate": "Stopa štednje",
+	"Spending by category": "Potrošnja po kategorijama", "Top merchants": "Najveći trgovci",
+	"Income vs expenses": "Prihodi i rashodi", "Net worth": "Neto vrijednost", "Assets": "Imovina",
+	"Liabilities": "Obaveze", "Uncategorized": "Bez kategorije", "Spending": "Potrošnja", "Savings": "Štednja",
+	"Currency": "Valuta", "Generated": "Generisano", "Incomplete data": "Nepotpuni podaci",
+	"Financial report": "Finansijski izvještaj", "monthly": "mjesečni", "quarterly": "kvartalni",
+	"annual": "godišnji", "custom": "prilagođeni",
+	"the last period is not over yet":                                               "posljednji period još nije završen",
+	"some amounts have no exchange rate on their date and are excluded from totals": "neki iznosi nemaju kurs na svoj datum i nisu uračunati u ukupne iznose",
+}
+
+// tr translates a fixed report string; lang is "en" or "bs".
+func tr(lang, s string) string {
+	if v, ok := bsReport[s]; ok && lang == "bs" {
+		return v
+	}
+	return s
+}
+
+// reportDate renders YYYY-MM-DD for the report language (bs: DD.MM.YYYY.).
+func reportDate(lang, d string) string {
+	if t, err := time.Parse(fin.DateLayout, d); err == nil && lang == "bs" {
+		return t.Format("02.01.2006.")
+	}
+	return d
+}
+
+func (r Report) warningText(lang string) string {
+	ws := make([]string, len(r.Warnings))
+	for i, w := range r.Warnings {
+		ws[i] = tr(lang, w)
+	}
+	return strings.Join(ws, "; ")
+}
+
 // lines renders the report as (section, label, period, amount, count) records shared by CSV and PDF.
-func (r Report) lines() [][]string {
+// Column names and section codes stay English (machine-readable); labels follow lang.
+func (r Report) lines(lang string) [][]string {
 	out := [][]string{{"section", "label", "period", "amount", "currency", "count"}}
 	add := func(sec, label, period string, m money.Money, n int) {
-		out = append(out, []string{sec, label, period, m.Amount(), m.Currency(), fmt.Sprint(n)})
+		out = append(out, []string{sec, tr(lang, label), period, m.Amount(), m.Currency(), fmt.Sprint(n)})
 	}
 	add("summary", "Income", r.From+".."+r.To, r.Income, 0)
 	add("summary", "Expenses", r.From+".."+r.To, r.Expenses, 0)
 	add("summary", "Net cash flow", r.From+".."+r.To, r.Net, 0)
 	if r.SavingsRate != nil {
-		out = append(out, []string{"summary", "Savings rate", r.From + ".." + r.To, *r.SavingsRate, "", "0"})
+		out = append(out, []string{"summary", tr(lang, "Savings rate"), r.From + ".." + r.To, *r.SavingsRate, "", "0"})
 	}
 	for _, x := range r.ByCategory {
 		add("category", x.Label, x.Period, x.Amount, x.Count)
@@ -160,16 +199,16 @@ func (r Report) lines() [][]string {
 		add("net_worth", x.Label, x.Period, x.Amount, 0)
 	}
 	if !r.Complete {
-		out = append(out, []string{"warning", "Incomplete data: " + strings.Join(r.Warnings, "; "), "", "", "", ""})
+		out = append(out, []string{"warning", tr(lang, "Incomplete data") + ": " + r.warningText(lang), "", "", "", ""})
 	}
 	return out
 }
 
 // CSV renders the report (amounts as exact decimal strings).
-func (r Report) CSV() []byte {
+func (r Report) CSV(lang string) []byte {
 	var b bytes.Buffer
 	w := csv.NewWriter(&b)
-	for _, l := range r.lines() {
+	for _, l := range r.lines(lang) {
 		for i, cell := range l {
 			// guard against spreadsheet formula injection from user-entered labels
 			if len(cell) > 0 && strings.ContainsRune("=+-@\t\r", rune(cell[0])) && !isNumber(cell) {
@@ -188,23 +227,24 @@ func isNumber(s string) bool {
 }
 
 // PDF renders the report as text pages with embedded Unicode fonts (see pdf.go).
-func (r Report) PDF() []byte {
+func (r Report) PDF(lang string) []byte {
+	l := func(s string) string { return tr(lang, s) }
 	text := []pdfLine{
-		{fmt.Sprintf("Financial report (%s) %s .. %s", r.Kind, r.From, r.To), true},
-		{"Currency: " + r.Currency + "   Generated: " + r.GeneratedAt, false}, {},
-		{"Income: " + r.Income.Amount(), false}, {"Expenses: " + r.Expenses.Amount(), false}, {"Net cash flow: " + r.Net.Amount(), false},
+		{fmt.Sprintf("%s (%s) %s .. %s", l("Financial report"), l(r.Kind), reportDate(lang, r.From), reportDate(lang, r.To)), true},
+		{l("Currency") + ": " + r.Currency + "   " + l("Generated") + ": " + r.GeneratedAt, false}, {},
+		{l("Income") + ": " + r.Income.Amount(), false}, {l("Expenses") + ": " + r.Expenses.Amount(), false}, {l("Net cash flow") + ": " + r.Net.Amount(), false},
 	}
 	if r.SavingsRate != nil {
-		text = append(text, pdfLine{"Savings rate: " + pct(*r.SavingsRate) + "%", false})
+		text = append(text, pdfLine{l("Savings rate") + ": " + pct(*r.SavingsRate) + "%", false})
 	}
 	section := func(title string, rows []fin.Row) {
-		text = append(text, pdfLine{}, pdfLine{title, true})
+		text = append(text, pdfLine{}, pdfLine{l(title), true})
 		for _, x := range rows {
 			p := ""
 			if x.Period != "" {
 				p = x.Period + "  "
 			}
-			text = append(text, pdfLine{fmt.Sprintf("  %s%s: %s", p, x.Label, x.Amount.Amount()), false})
+			text = append(text, pdfLine{fmt.Sprintf("  %s%s: %s", p, l(x.Label), x.Amount.Amount()), false})
 		}
 	}
 	section("Spending by category", r.ByCategory)
@@ -212,7 +252,7 @@ func (r Report) PDF() []byte {
 	section("Income vs expenses", r.IncomeVsExpenses)
 	section("Net worth", r.NetWorth)
 	if !r.Complete {
-		text = append(text, pdfLine{}, pdfLine{"INCOMPLETE DATA: " + strings.Join(r.Warnings, "; "), true})
+		text = append(text, pdfLine{}, pdfLine{strings.ToUpper(l("Incomplete data")) + ": " + r.warningText(lang), true})
 	}
 	return writePDF(text)
 }

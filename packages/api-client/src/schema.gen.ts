@@ -9074,6 +9074,8 @@ export interface operations {
                 format?: "json" | "csv" | "pdf";
                 /** @description CSV only: true prefixes a UTF-8 byte order mark so Excel reads č ć đ š ž correctly. */
                 bom?: boolean;
+                /** @description CSV/PDF label language; defaults to the requesting user's locale (bs* -> bs, otherwise en). */
+                lang?: "en" | "bs";
             };
             header: {
                 /** @description Active financial profile. Required on all profile-scoped endpoints. */

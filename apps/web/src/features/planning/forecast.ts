@@ -27,6 +27,7 @@ export function forecastInput(
     const b = opening.find((x) => x.accountId === a.id && x.currency === a.currency);
     return {
       id: a.id,
+      name: a.name,
       currency: a.currency,
       balance: fromMinor(b ? toMinor(b) : 0n, a.currency),
       accountType: a.accountType,

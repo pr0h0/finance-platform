@@ -104,7 +104,11 @@ export default function SubscriptionsPage() {
       {!c.complete && (
         <DataBanner
           warnings={[
-            `Some subscriptions have no exchange rate to ${s.currency} and are not in the totals.`,
+            t(
+              'subscriptions.page.noRateNotInTotals',
+              'Some subscriptions have no exchange rate to {{currency}} and are not in the totals.',
+              { currency: s.currency },
+            ),
           ]}
         />
       )}

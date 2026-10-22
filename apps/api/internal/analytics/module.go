@@ -183,6 +183,21 @@ func Register(r chi.Router, deps *app.Deps) {
 			return err
 		}
 		name := "report-" + kind + "-" + rep.From + "_" + rep.To
+		lang := r.URL.Query().Get("lang") // en|bs; default: the requesting user's locale
+		if lang == "" {
+			p, err := authz.Require(r.Context())
+			if err != nil {
+				return err
+			}
+			if err := db.QueryRow(r.Context(), `SELECT locale FROM users WHERE id = $1`, p.UserID).Scan(&lang); err != nil {
+				return err
+			}
+		}
+		if strings.HasPrefix(lang, "bs") {
+			lang = "bs"
+		} else {
+			lang = "en"
+		}
 		switch strings.ToLower(r.URL.Query().Get("format")) {
 		case "", "json":
 			httpx.WriteJSON(w, http.StatusOK, rep)
@@ -192,11 +207,11 @@ func Register(r chi.Router, deps *app.Deps) {
 			if r.URL.Query().Get("bom") == "true" {
 				_, _ = w.Write([]byte("\ufeff"))
 			}
-			_, _ = w.Write(rep.CSV())
+			_, _ = w.Write(rep.CSV(lang))
 		case "pdf":
 			w.Header().Set("Content-Type", "application/pdf")
 			w.Header().Set("Content-Disposition", `attachment; filename="`+name+`.pdf"`)
-			_, _ = w.Write(rep.PDF())
+			_, _ = w.Write(rep.PDF(lang))
 		default:
 			return httpx.Validation(map[string]string{"format": "json, csv or pdf"})
 		}

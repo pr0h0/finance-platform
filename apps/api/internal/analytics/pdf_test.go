@@ -41,8 +41,19 @@ func TestPDFUnicodeRoundTrip(t *testing.T) {
 		Income: m("1234.56"), Expenses: m("-0.05"), Net: m("1234.51"), Complete: true,
 		ByCategory:   []fin.Row{{Label: "Hrana i piće " + unicodeSample, Amount: m("12.00")}},
 		TopMerchants: []fin.Row{{Label: "Pekara Đurđević 😀", Amount: m("3.50")}}}
-	pdf := rep.PDF()
+	pdf := rep.PDF("en")
 	got := extractPDFText(t, pdf)
+	rep.Complete, rep.Warnings = false, []string{"the last period is not over yet"}
+	bs := extractPDFText(t, rep.PDF("bs"))
+	for _, want := range []string{"Finansijski izvještaj (mjesečni) 01.10.2026. .. 31.10.2026.", "Potrošnja po kategorijama", "Prihodi: 1234.56",
+		"NEPOTPUNI PODACI: posljednji period još nije završen", "Hrana i piće " + unicodeSample} {
+		if !strings.Contains(bs, want) {
+			t.Errorf("bs: missing %q in extracted text:\n%s", want, bs)
+		}
+	}
+	if csv := string(rep.CSV("bs")); !strings.Contains(csv, "summary,Prihodi,") || !strings.Contains(csv, "Nepotpuni podaci: posljednji period") {
+		t.Errorf("bs csv:\n%s", csv)
+	}
 	for _, want := range []string{"Hrana i piće " + unicodeSample, "Pekara Đurđević �", "Spending by category", "Income: 1234.56"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("missing %q in extracted text:\n%s", want, got)

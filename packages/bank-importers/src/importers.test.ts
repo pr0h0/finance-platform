@@ -8,6 +8,7 @@ import {
   type ImportResult,
   inputFromBytes,
   matchExisting,
+  merchantMatcher,
 } from '@finplat/importer-sdk';
 import { importFixture } from '@finplat/test-fixtures';
 import {
@@ -104,7 +105,13 @@ describe('Raiffeisen BiH PDF (synthetic layout fixture)', () => {
     expect(salary?.description).toBe('PLATA PRIMJER FIRMA D.O.O. SARAJEVO');
     expect(transfer?.description).toBe('PRENOS SA IVANA TESTIC NA MARKO TESTIC STEDNI RACUN');
     expect(transfer?.runningBalance).toBe('61.71');
-    expect(shop?.description).toBe('ŠOPING CENTAR šž');
+    expect(shop?.description).toBe('SOPING CENTAR'); // the bank prints ASCII only
+    // A merchant saved in normal Bosnian spelling still matches the ASCII description.
+    const match = merchantMatcher(
+      [{ id: 'm1', normalizedName: 'Šoping Centar', defaultCategoryId: null }],
+      [],
+    );
+    expect(match(shop?.description ?? '')?.merchantId).toBe('m1');
     expect(r.records[0]?.valueDate).toBe('2025-03-01');
     expect([eur?.originalAmount, eur?.originalCurrency]).toEqual(['15.00', 'EUR']);
     expect([usd?.originalAmount, usd?.originalCurrency]).toEqual(['9.99', 'USD']);

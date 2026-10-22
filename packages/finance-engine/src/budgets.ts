@@ -27,6 +27,7 @@ import {
   type CategoryLike,
   flows,
   type LedgerTransaction,
+  type Notice,
 } from './analytics.ts';
 import { addDays, clampedDate, parseDate } from './dates.ts';
 import { compareDecimal, divRound, formatDecimal, pow10 } from './decimal.ts';
@@ -114,7 +115,7 @@ export interface BudgetStatus {
   lines: BudgetLine[];
   totals: { limit: Money; actual: Money; planned: Money; remaining: Money };
   complete: boolean;
-  warnings: string[];
+  warnings: Notice[];
 }
 
 export function rolloverAmount(policy: RolloverPolicy, leftover: bigint): bigint {
@@ -208,20 +209,28 @@ export function budgetStatus(input: BudgetStatusInput): BudgetStatus {
     for (const k of lineKeys) if (anc.has(k)) m.set(k, (m.get(k) ?? 0n) + toMinor(f.amount));
   }
 
-  const warnings: string[] = [];
+  const warnings: Notice[] = [];
   const planned = new Map<string | null, bigint>();
   for (const p of input.planned ?? []) {
     if (p.date < target.start || p.date > target.end) continue;
     const v = input.convert(p.amount, p.date);
     if (!v) {
-      warnings.push(`planned ${p.amount.currency} on ${p.date} skipped: missing exchange rate`);
+      warnings.push({
+        key: 'engine.budget.plannedNoRate',
+        en: 'A planned {{currency}} amount on {{date}} is left out: missing exchange rate.',
+        vars: { currency: p.amount.currency, date: p.date },
+      });
       continue;
     }
     const anc = under(p.categoryId);
     for (const k of lineKeys) if (anc.has(k)) planned.set(k, (planned.get(k) ?? 0n) + toMinor(v));
   }
   if (missingRates.length)
-    warnings.unshift(`${missingRates.length} date(s) missing exchange rates`);
+    warnings.unshift({
+      key: 'engine.budget.datesNoRate',
+      en: 'Exchange rates are missing on {{count}} date(s).',
+      vars: { count: missingRates.length },
+    });
 
   const lines: BudgetLine[] = lineKeys.map((k) => {
     let carry = 0n;

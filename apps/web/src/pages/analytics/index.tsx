@@ -83,6 +83,7 @@ function presetRange(p: Preset, today: string): { from: string; to: string } {
 
 export default function AnalyticsPage() {
   const t = useT();
+  const fmt = useFormat();
   const snap = useSnapshot();
   const [preset, setPreset] = useState<Preset>('6m');
   const [custom, setCustom] = useState<{ from: string; to: string } | null>(null);
@@ -133,7 +134,7 @@ export default function AnalyticsPage() {
             >
               {PRESETS.map(([k, l]) => (
                 <option key={k} value={k}>
-                  {l}
+                  {t(`analytics.preset.${k}`, l)}
                 </option>
               ))}
             </Select>
@@ -204,7 +205,11 @@ export default function AnalyticsPage() {
           <div className="mt-3">
             <DataBanner
               warnings={[
-                `Recorded history starts on ${start}; earlier parts of this period have no data, so comparisons and averages may be understated.`,
+                t(
+                  'analytics.page.historyStartsOn',
+                  'Recorded history starts on {{date}}; earlier parts of this period have no data, so comparisons and averages may be understated.',
+                  { date: fmt.date(start) },
+                ),
               ]}
             />
           </div>
@@ -410,9 +415,9 @@ function IncomeExpenseSection({ s, f }: P) {
             <MoneyTable
               rows={rows}
               cols={[
-                ['income', 'Income'],
-                ['expense', 'Expenses'],
-                ['net', 'Net'],
+                ['income', t('analytics.page.colIncome', 'Income')],
+                ['expense', t('analytics.page.colExpenses', 'Expenses')],
+                ['net', t('analytics.page.colNet', 'Net')],
               ]}
             />
           }
@@ -697,9 +702,9 @@ function NetWorthSection({ s, f }: P) {
           <MoneyTable
             rows={rows}
             cols={[
-              ['assets', 'Assets'],
-              ['liabilities', 'Liabilities'],
-              ['netWorth', 'Net worth'],
+              ['assets', t('analytics.page.colAssets', 'Assets')],
+              ['liabilities', t('analytics.page.colLiabilities', 'Liabilities')],
+              ['netWorth', t('analytics.page.colNetWorth', 'Net worth')],
             ]}
           />
         }
@@ -762,9 +767,9 @@ function ForecastEvolution({ s }: { s: Snapshot }) {
           <MoneyTable
             rows={rows}
             cols={[
-              ['conservative', 'Conservative'],
-              ['expected', 'Expected'],
-              ['optimistic', 'Optimistic'],
+              ['conservative', t('planning.forecastPanel.conservative', 'Conservative')],
+              ['expected', t('planning.forecastPanel.expected', 'Expected')],
+              ['optimistic', t('planning.forecastPanel.optimistic', 'Optimistic')],
             ]}
           />
         }
@@ -821,7 +826,11 @@ function CurrencySection({ s, f }: P) {
       {ex.missing.length > 0 && (
         <DataBanner
           warnings={[
-            `No ${ex.missing.join(', ')}/${f.currency} rate: those balances are not in the shares.`,
+            t(
+              'analytics.page.noRateNotInShares',
+              'No {{pairs}}/{{currency}} rate: those balances are not in the shares.',
+              { pairs: ex.missing.join(', '), currency: f.currency },
+            ),
           ]}
         />
       )}
@@ -946,7 +955,12 @@ function RecurringSection({ s, f }: P) {
       </div>
       {!r.complete && (
         <DataBanner
-          warnings={['Some plans have no exchange rate and are left out of the totals.']}
+          warnings={[
+            t(
+              'analytics.page.plansNoRate',
+              'Some plans have no exchange rate and are left out of the totals.',
+            ),
+          ]}
         />
       )}
       {r.rows.length ? (

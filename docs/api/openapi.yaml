@@ -4298,6 +4298,12 @@ paths:
           description: "CSV only: true prefixes a UTF-8 byte order mark so Excel reads č ć đ š ž correctly."
           schema:
             type: "boolean"
+        - name: "lang"
+          in: "query"
+          description: "CSV/PDF label language; defaults to the requesting user's locale (bs* -> bs, otherwise en)."
+          schema:
+            type: "string"
+            enum: ["en", "bs"]
       responses:
         "200":
           description: "OK"

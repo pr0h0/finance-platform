@@ -95,13 +95,20 @@ func fillFingerprints(records []Record) {
 	}
 }
 
-// descriptionWords splits NFKC-lowercased text into runs of letters or of digits ("KONZUM123 d.o.o."
-// -> konzum 123 d o o). Same as descriptionWords in @finplat/importer-sdk.
+// descriptionWords splits NFKC-lowercased text with diacritics folded (č/ć→c, š→s, ž→z, đ→d: banks
+// such as Raiffeisen BiH print plain ASCII) into runs of letters or of digits ("KONZUM123 d.o.o." ->
+// konzum 123 d o o). Same as descriptionWords in @finplat/importer-sdk.
 func descriptionWords(s string) []string {
 	var out []string
 	var b strings.Builder
 	kind := 0 // 1 letter, 2 digit
-	for _, r := range strings.ToLower(norm.NFKC.String(s)) {
+	for _, r := range norm.NFD.String(strings.ToLower(norm.NFKC.String(s))) {
+		if unicode.Is(unicode.Mn, r) {
+			continue
+		}
+		if r == 'đ' {
+			r = 'd'
+		}
 		k := 0
 		switch {
 		case unicode.IsLetter(r):

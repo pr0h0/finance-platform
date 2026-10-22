@@ -70,3 +70,31 @@ func TestGenerateAndManage(t *testing.T) {
 	otherAPI := fintest.NewAPI(t, pool, other, profile, Register)
 	otherAPI.Must(http.StatusNotFound, "POST", "/notifications/"+list.Items[0].ID.String()+"/read", nil, nil)
 }
+
+// Server-generated text follows users.locale (bs) instead of always English.
+func TestGenerateBosnian(t *testing.T) {
+	pool := testdb.New(t)
+	user, profile := testdb.SeedUserProfile(t, pool)
+	if _, err := pool.Exec(t.Context(), `UPDATE users SET locale = 'bs' WHERE id = $1`, user); err != nil {
+		t.Fatal(err)
+	}
+	api := fintest.NewAPI(t, pool, user, profile, Register, planning.Register)
+	acc := fintest.Account(t, pool, profile, "Tekući", "checking", "BAM")
+	fintest.Txn(t, pool, profile, "opening_balance", "2026-10-01", acc, "1000.00", "BAM", nil, "open")
+	for _, p := range [][2]string{{"Kirija", "2026-10-16"}, {"Telefon", "2026-10-12"}} {
+		api.Must(http.StatusCreated, "POST", "/plans", map[string]any{"kind": "expense", "accountId": acc, "description": p[0],
+			"amount": map[string]string{"amount": "30.00", "currency": "BAM"}, "dueDate": p[1]}, nil)
+	}
+	if _, err := Generate(fintest.Ctx(user), pool, profile); err != nil {
+		t.Fatal(err)
+	}
+	var list struct{ Items []Notification }
+	api.Must(http.StatusOK, "GET", "/notifications", nil, &list)
+	got := map[string]string{}
+	for _, x := range list.Items {
+		got[x.Title] = x.Body
+	}
+	if got["Kirija dospijeva sutra"] != "30.00 BAM je zakazano za sutra." || got["Kasni: Telefon"] == "" {
+		t.Fatalf("bs notifications: %+v", got)
+	}
+}

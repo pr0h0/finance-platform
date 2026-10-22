@@ -94,6 +94,8 @@ test('MCP OAuth: register, consent in the app, token works on /mcp, revoke', asy
     .getByRole('dialog', { name: /Revoke/ })
     .getByRole('button', { name: 'Revoke' })
     .click();
+  // The open modal hides the table from the a11y tree, so wait for it to close (DELETE done) first.
+  await expect(page.getByRole('dialog', { name: /Revoke/ })).toBeHidden();
   await expect(row).toBeHidden();
   expect((await call()).status()).toBe(401);
 });

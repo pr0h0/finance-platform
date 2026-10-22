@@ -1,6 +1,6 @@
 // Small presentational pieces shared by the insight pages (dashboard, planning, budgets,
 // analytics, goals, subscriptions, reports, notifications). Theme tokens from index.css.
-import { type MissingRate, type Money, money } from '@finplat/finance-engine';
+import { type MissingRate, type Money, money, type Notice } from '@finplat/finance-engine';
 import { AlertTriangle, Info } from 'lucide-react';
 import { type ReactNode, useId } from 'react';
 import { Dialog as UiDialog } from '../../components/ui/index.tsx';
@@ -101,15 +101,33 @@ export function Stat({
   );
 }
 
-/** Incomplete-data banner: missing exchange rates and other gaps, never hidden. */
+/**
+ * Incomplete-data banner: missing exchange rates and other gaps, never hidden. Warnings are text the
+ * caller already translated, or engine Notices (translated here, ISO dates in vars formatted).
+ */
 export function DataBanner({
   missingRates = [],
   warnings = [],
 }: {
   missingRates?: readonly MissingRate[];
-  warnings?: readonly string[];
+  warnings?: readonly (string | Notice)[];
 }) {
   const t = useT();
+  const fmt = useFormat();
+  const text = (w: string | Notice) =>
+    typeof w === 'string'
+      ? w
+      : t(
+          w.key,
+          w.en,
+          w.vars &&
+            Object.fromEntries(
+              Object.entries(w.vars).map(([k, v]) => [
+                k,
+                typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) ? fmt.date(v) : v,
+              ]),
+            ),
+        );
   const pairs = [...new Set(missingRates.map((m) => `${m.from}/${m.to}`))];
   if (!pairs.length && !warnings.length) return null;
   return (
@@ -122,16 +140,14 @@ export function DataBanner({
         <p className="font-medium">{t('analytics.ui.incompleteData', 'Incomplete data')}</p>
         {pairs.length > 0 && (
           <p>
-            {t('analytics.ui.noExchangeRateFor', 'No exchange rate for')} {pairs.join(', ')}{' '}
-            {t('analytics.ui.on', 'on')} {missingRates.length} {t('analytics.ui.date', 'date')}
-            {missingRates.length === 1 ? '' : 's'}
             {t(
-              'analytics.ui.thoseAmountsAreLeft',
-              '; those amounts are left out, not guessed. Add a rate in Accounts → Converter.',
+              'analytics.ui.noRateForPairs',
+              'No exchange rate for {{pairs}} on {{count}} date(s); those amounts are left out, not guessed. Add a rate in Accounts → Converter.',
+              { pairs: pairs.join(', '), count: missingRates.length },
             )}
           </p>
         )}
-        {warnings.map((w) => (
+        {warnings.map(text).map((w) => (
           <p key={w}>{w}</p>
         ))}
       </div>

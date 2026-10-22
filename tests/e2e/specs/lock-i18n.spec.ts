@@ -56,4 +56,12 @@ test('Bosnian: switching the language translates the UI and uses bs-BA number fo
   await expect(page.getByRole('main')).toContainText(/1\.234,06\s?KM/);
   await page.goto('/transactions');
   await expect(page.getByRole('row', { name: /Žvake/ })).toContainText(/-0,50\s?KM|−0,50\s?KM/);
+  // Data warnings (history starts today, so earlier periods are empty) are Bosnian too.
+  for (const path of ['/analytics', '/reports']) {
+    await page.goto(path);
+    await expect(
+      page.getByRole('status').filter({ hasText: 'Evidentirana historija počinje' }).first(),
+    ).toBeVisible();
+    await expect(page.getByRole('main')).not.toContainText('Recorded history');
+  }
 });

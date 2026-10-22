@@ -177,6 +177,31 @@ const NON_UI_CALLS = new Set([
   'book_append_sheet',
 ]);
 
+// A string inside an array literal passed to a JSX attribute: warnings={[`No rate for ${x}`]}.
+function arrayPropLiteral(n: ts.Node): boolean {
+  let p = n.parent;
+  while (ts.isParenthesizedExpression(p) || ts.isConditionalExpression(p)) p = p.parent;
+  if (!ts.isArrayLiteralExpression(p)) return false;
+  while (
+    ts.isArrayLiteralExpression(p) ||
+    ts.isParenthesizedExpression(p) ||
+    ts.isConditionalExpression(p)
+  )
+    p = p.parent;
+  return ts.isJsxExpression(p) && ts.isJsxAttribute(p.parent);
+}
+
+test('no English text in array literals passed as JSX props', () => {
+  const found: string[] = [];
+  for (const { rel, sf } of sources)
+    walk(sf, (n) => {
+      const v = isStr(n) ? n.text : ts.isTemplateExpression(n) ? templateText(n) : '';
+      if (v && arrayPropLiteral(n) && PROSE.test(v.trim()) && !ALLOWED.test(v))
+        found.push(`${rel}:${sf.getLineAndCharacterOfPosition(n.getStart()).line + 1} ${v}`);
+    });
+  expect(found).toEqual([]);
+});
+
 test('no English labels passed as plain arguments or label/title properties', () => {
   const found: string[] = [];
   const at = (rel: string, sf: ts.SourceFile, n: ts.Node, v: string) =>
@@ -228,10 +253,28 @@ test('runtime-built keys have Bosnian translations', () => {
     ...GOAL_STATUSES.map((k) => `goal.status.${k}`),
     ...['complete', 'plan', 'history', 'none'].map((k) => `goal.basis.${k}`),
     ...['monthly', 'quarterly', 'annual', 'custom'].map((k) => `reports.title.${k}`),
+    ...['month', '3m', '6m', '12m', 'ytd', 'custom'].map((k) => `analytics.preset.${k}`),
     ...WIDGETS.map((w) => w.titleKey),
     ...createRegistry()
       .manifests()
       .flatMap((m) => (m.limitations ?? []).map((l) => `importer.limitation:${l}`)),
   ];
   expect(keys.filter((k) => !has(k))).toEqual([]);
+});
+
+// Engine Notices ({ key, en, vars }) are translated by key in the UI: every one needs Bosnian with the
+// same placeholders.
+test('engine notices have Bosnian translations', () => {
+  const dirs = ['finance-engine', 'forecasting'].map((d) =>
+    join(SRC, '../../../packages', d, 'src'),
+  );
+  const notices = dirs
+    .flatMap(files)
+    .flatMap((p) => [...readFileSync(p, 'utf8').matchAll(/key: '([\w.]+)',\s*en: '([^']+)'/g)]);
+  expect(notices.length).toBeGreaterThanOrEqual(9);
+  const vars = (s: string) => (s.match(/\{\{\w+\}\}/g) ?? []).sort().join();
+  const bad = notices
+    .filter(([, k = '', en = '']) => !bs[k] || vars(bs[k]) !== vars(en))
+    .map(([, k]) => k);
+  expect(bad).toEqual([]);
 });

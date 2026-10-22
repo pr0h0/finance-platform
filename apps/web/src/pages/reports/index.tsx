@@ -75,7 +75,7 @@ export default function ReportsPage() {
       title={t('reports.page.reports', 'Reports')}
       actions={
         <>
-          <Button onClick={() => downloadCsv(`${fileBase}.csv`, reportCsv(r))}>
+          <Button onClick={() => downloadCsv(`${fileBase}.csv`, reportCsv(r, t))}>
             <Download aria-hidden className="size-4" /> CSV
           </Button>
           <Button onClick={() => window.print()}>

@@ -34,6 +34,7 @@ import {
   type LedgerTransaction,
   LIABILITY_TYPES,
   type Money,
+  type Notice,
   type PlanLike,
   parseDate,
   planOccurrences,
@@ -64,6 +65,8 @@ export interface ForecastAccount {
   accountType?: string;
   creditLimit?: Money | null;
   includeInSafeToSpend?: boolean;
+  /** Shown in warnings instead of the id. */
+  name?: string;
 }
 
 export interface ForecastInput {
@@ -96,7 +99,7 @@ export interface Forecast {
   safeToSpendUntil: string;
   assumptions: string[];
   complete: boolean;
-  warnings: string[];
+  warnings: Notice[];
 }
 
 type Scenario = 'expected' | 'conservative' | 'optimistic';
@@ -139,7 +142,7 @@ export function forecast(input: ForecastInput): Forecast {
   const { from, to, currency } = input;
   if (to < from) throw new Error('forecast: to < from');
   const days = dateRange(from, to);
-  const warnings: string[] = [];
+  const warnings: Notice[] = [];
   const accIndex = new Map(input.accounts.map((a, i) => [a.id, i]));
   // deltas[scenario][account] = Map<date, bigint>
   const deltas = SCENARIOS.map(() => input.accounts.map(() => new Map<string, bigint>()));
@@ -149,11 +152,19 @@ export function forecast(input: ForecastInput): Forecast {
     const ai = accIndex.get(e.accountId);
     const acc = ai === undefined ? undefined : input.accounts[ai];
     if (ai === undefined || !acc) {
-      warnings.push(`event ${e.sourceId} on ${e.date} ignored: account not in forecast`);
+      warnings.push({
+        key: 'engine.forecast.eventNoAccount',
+        en: '"{{description}}" on {{date}} is left out: its account is not in the forecast.',
+        vars: { description: e.description, date: e.date },
+      });
       continue;
     }
     if (e.amount.currency !== acc.currency) {
-      warnings.push(`event ${e.sourceId} on ${e.date} ignored: currency differs from account`);
+      warnings.push({
+        key: 'engine.forecast.eventCurrency',
+        en: '"{{description}}" on {{date}} is left out: its currency differs from the account.',
+        vars: { description: e.description, date: e.date },
+      });
       continue;
     }
     SCENARIOS.forEach((s, si) => {
@@ -192,7 +203,11 @@ export function forecast(input: ForecastInput): Forecast {
       from,
     );
     if (!probe) {
-      warnings.push(`account ${a.id} (${a.currency}) left out: no ${a.currency}/${currency} rate`);
+      warnings.push({
+        key: 'engine.forecast.accountNoRate',
+        en: 'Account "{{name}}" is left out: no {{from}}/{{to}} rate.',
+        vars: { name: a.name ?? a.currency, from: a.currency, to: currency },
+      });
       return null;
     }
     return (v: bigint) => toMinor(input.convert(fromMinor(v, a.currency), from) as Money);
@@ -295,12 +310,16 @@ function reserveIn(
   cur: string,
   convert: ToReporting,
   date: string,
-  warnings: string[],
+  warnings: Notice[],
 ): Money {
   if (r.currency === cur) return r;
   const v = convert(r, date);
   if (!v) {
-    warnings.push(`reserve ignored: no ${r.currency}/${cur} rate`);
+    warnings.push({
+      key: 'engine.forecast.reserveNoRate',
+      en: 'The minimum reserve is ignored: no {{from}}/{{to}} rate.',
+      vars: { from: r.currency, to: cur },
+    });
     return fromMinor(0n, cur);
   }
   return v;
@@ -317,14 +336,18 @@ export function eventsFromPlans(
   stored: readonly StoredOccurrence[],
   from: string,
   to: string,
-): { events: ForecastEvent[]; warnings: string[] } {
+): { events: ForecastEvent[]; warnings: Notice[] } {
   const byId = new Map(plans.map((p) => [p.id, p]));
   const events: ForecastEvent[] = [];
-  const warnings: string[] = [];
+  const warnings: Notice[] = [];
   for (const o of planOccurrences(plans, schedules, stored, from, to, { includeOverdue: true })) {
     const p = byId.get(o.planId) as PlanLike;
     if (!p.accountId) {
-      warnings.push(`plan ${p.id} has no account and is not forecast`);
+      warnings.push({
+        key: 'engine.forecast.planNoAccount',
+        en: 'Plan "{{description}}" has no account and is not forecast.',
+        vars: { description: p.description },
+      });
       continue;
     }
     const source =
@@ -351,7 +374,12 @@ export function eventsFromPlans(
     else events.push({ ...base, accountId: p.accountId, amount: neg });
     if (p.kind === 'transfer') {
       if (p.toAccountId) events.push({ ...base, accountId: p.toAccountId, amount: o.amount });
-      else warnings.push(`transfer plan ${p.id} has no destination account`);
+      else
+        warnings.push({
+          key: 'engine.forecast.transferNoDestination',
+          en: 'Transfer plan "{{description}}" has no destination account.',
+          vars: { description: p.description },
+        });
     }
   }
   return { events, warnings };

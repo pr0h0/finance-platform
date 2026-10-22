@@ -68,16 +68,22 @@ describe('sandboxed custom adapters (Feature 112)', () => {
     const run = (code: string, s?: string) =>
       sandboxedImporter(adapter(code), limits).parse(file(s), {});
     await expect(run('function parse() { for (;;) {} }')).rejects.toThrow('CPU time');
-    await expect(run('function parse() { let s = "x"; for (;;) s = s + s; }')).rejects.toThrow(
-      'memory',
-    );
+    // Catastrophic regex backtracking runs inside one native call; it must still hit the deadline.
+    const t0 = Date.now();
+    await expect(
+      run("function parse() { return /^(a+)+$/.test('a'.repeat(40) + '!'); }"),
+    ).rejects.toThrow('CPU time');
+    expect(Date.now() - t0).toBeLessThan(3000);
+    await expect(
+      run('function parse() { const a = []; for (;;) a.push(new Array(1e6).fill(1)); }'),
+    ).rejects.toThrow('memory');
     await expect(run(good, 'x'.repeat(2048))).rejects.toThrow('limited to 1024');
     await expect(
       run(
         'function parse() { return { records: [], warnings: [{ message: "x".repeat(400) }].concat(Array(400).fill({ message: "y".repeat(400) })) }; }',
       ),
     ).rejects.toThrow('size limit');
-  });
+  }, 20_000); // several sandboxes hitting their limits; slow on a loaded CI host
   test('output must match the schema: bad rows become errors, bad shapes are rejected', async () => {
     const run = (ret: string) =>
       sandboxedImporter(adapter(`function parse() { return ${ret}; }`), limits).parse(file(), {});

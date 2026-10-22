@@ -57,6 +57,16 @@ export interface AnalyticsRow {
   period?: string;
 }
 
+/**
+ * A user-facing warning. `en` is English with {{placeholders}} filled from `vars`; UIs translate it by
+ * `key` (web: t(key, en, vars)), so engines never hand out English-only sentences or raw ids.
+ */
+export interface Notice {
+  key: string;
+  en: string;
+  vars?: Record<string, string | number>;
+}
+
 export interface MissingRate {
   from: string;
   to: string;
@@ -70,7 +80,7 @@ export interface AnalyticsResult {
   rows: AnalyticsRow[];
   total: Money;
   complete: boolean;
-  warnings: string[];
+  warnings: Notice[];
   missingRates: MissingRate[];
 }
 
@@ -199,7 +209,13 @@ function result(
     total: fromMinor(total, opts.currency),
     complete: missingRates.length === 0,
     warnings: missingRates.length
-      ? [`${missingRates.length} transaction date(s) skipped: missing exchange rate`]
+      ? [
+          {
+            key: 'engine.analytics.datesSkipped',
+            en: 'Transactions on {{count}} date(s) skipped: missing exchange rate.',
+            vars: { count: missingRates.length },
+          },
+        ]
       : [],
     missingRates,
   };

@@ -7,9 +7,11 @@ import {
   cashflow,
   endOfMonth,
   type MissingRate,
+  type Notice,
   netWorth,
   startOfMonth,
 } from '@finplat/finance-engine';
+import type { TFn } from '../../lib/i18n.ts';
 import type { Snapshot } from '../analytics/snapshot.ts';
 
 export type ReportKind = 'monthly' | 'quarterly' | 'annual' | 'custom';
@@ -60,12 +62,16 @@ export function buildReport(s: Snapshot, from: string, to: string) {
     (a, t) => (!a || t.bookingDate < a ? t.bookingDate : a),
     null,
   );
-  const warnings: string[] = [];
+  const warnings: Notice[] = [];
   if (!firstTx || firstTx > from)
     warnings.push(
       firstTx
-        ? `Recorded history starts on ${firstTx}; the period before that has no data.`
-        : 'No transactions recorded.',
+        ? {
+            key: 'reports.warning.historyStarts',
+            en: 'Recorded history starts on {{date}}; the period before that has no data.',
+            vars: { date: firstTx },
+          }
+        : { key: 'reports.warning.noTransactions', en: 'No transactions recorded.' },
     );
   return {
     from,
@@ -85,35 +91,47 @@ export function buildReport(s: Snapshot, from: string, to: string) {
 
 export type Report = ReturnType<typeof buildReport>;
 
-export function reportCsv(r: Report): (string | number)[][] {
+/** CSV rows with labels in the UI language (amounts stay plain decimal strings, dates ISO). */
+export function reportCsv(r: Report, t: TFn): (string | number)[][] {
+  const amount = t('reports.csv.amount', 'Amount');
+  const count = t('reports.csv.transactions', 'Transactions');
+  const income = t('transaction.kind.income', 'Income');
+  const expenses = t('reports.page.expenses', 'Expenses');
+  const net = t('reports.csv.net', 'Net');
   const rows: (string | number)[][] = [
-    ['Report', `${r.from} to ${r.to}`, r.currency],
-    ['Income', r.totals.income.amount],
-    ['Expenses', r.totals.expense.amount],
-    ['Net', r.totals.net.amount],
-    ['Savings rate', r.totals.savingsRate ?? ''],
-    ['Net worth (start)', r.netWorth.start.netWorth.amount],
-    ['Net worth (end)', r.netWorth.end.netWorth.amount],
+    [t('reports.page.report', 'Report'), `${r.from} – ${r.to}`, r.currency],
+    [income, r.totals.income.amount],
+    [expenses, r.totals.expense.amount],
+    [net, r.totals.net.amount],
+    [t('reports.csv.savingsRate', 'Savings rate'), r.totals.savingsRate ?? ''],
+    [t('reports.csv.netWorthStart', 'Net worth (start)'), r.netWorth.start.netWorth.amount],
+    [t('reports.csv.netWorthEnd', 'Net worth (end)'), r.netWorth.end.netWorth.amount],
     [],
-    ['Period', 'Income', 'Expenses', 'Net'],
+    [t('reports.csv.period', 'Period'), income, expenses, net],
     ...r.periods.map((p) => [p.period, p.income.amount, p.expense.amount, p.net.amount]),
     [],
-    ['Spending category', 'Amount', 'Transactions'],
+    [t('reports.csv.spendingCategory', 'Spending category'), amount, count],
     ...r.categories.map((c) => [c.label, c.amount.amount, c.count]),
     [],
-    ['Income category', 'Amount', 'Transactions'],
+    [t('reports.csv.incomeCategory', 'Income category'), amount, count],
     ...r.income.map((c) => [c.label, c.amount.amount, c.count]),
     [],
-    ['Merchant', 'Amount', 'Transactions'],
+    [t('reports.csv.merchant', 'Merchant'), amount, count],
     ...r.merchants.map((c) => [c.label, c.amount.amount, c.count]),
   ];
   if (!r.complete)
     rows.push(
       [],
       [
-        'Incomplete',
-        ...r.warnings,
-        ...r.missingRates.map((m) => `no ${m.from}/${m.to} rate on ${m.date}`),
+        t('reports.csv.incomplete', 'Incomplete'),
+        ...r.warnings.map((w) => t(w.key, w.en, w.vars)),
+        ...r.missingRates.map((m) =>
+          t('reports.csv.noRateOn', 'no {{from}}/{{to}} rate on {{date}}', {
+            from: m.from,
+            to: m.to,
+            date: m.date,
+          }),
+        ),
       ],
     );
   return rows;

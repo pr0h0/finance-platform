@@ -3,12 +3,18 @@
 // as Go imports.loadSuggestions (shared vectors: test-fixtures/imports/merchant-templates.json).
 // Suggestions only: the caller applies them after the user approves (import preview, inbox).
 
-/** NFKC-lowercased runs of letters or of digits ("KONZUM123 d.o.o." -> konzum 123 d o o). */
+/**
+ * NFKC-lowercased runs of letters or of digits with diacritics folded ("KONZUM123 d.o.o." -> konzum 123
+ * d o o; "Čaršija" -> carsija): banks such as Raiffeisen BiH print plain ASCII descriptions.
+ */
 export function descriptionWords(s: string): string[] {
   return (
     s
       .normalize('NFKC')
       .toLowerCase()
+      .normalize('NFD')
+      .replace(/\p{Mn}/gu, '')
+      .replaceAll('đ', 'd')
       .match(/\p{L}+|\p{N}+/gu) ?? []
   );
 }
@@ -57,7 +63,12 @@ export function merchantMatcher(
   const names: { words: string[]; size: number; m: TemplateMerchant }[] = [];
   for (const m of merchants) {
     if (m.deletedAt) continue;
-    for (const n of [m.normalizedName, ...(m.aliases ?? [])]) {
+    const all = [m.normalizedName, ...(m.aliases ?? [])];
+    // "đ" is printed as "d" or "dj" in ASCII; descriptionWords folds it to "d".
+    for (const n of [
+      ...all,
+      ...all.filter((x) => /đ/i.test(x)).map((x) => x.replace(/đ/gi, 'dj')),
+    ]) {
       const words = descriptionWords(n);
       const size = [...words.join('')].length;
       if (size >= 3) names.push({ words, size, m });

@@ -689,9 +689,17 @@ type merchantTemplate struct {
 	cat, splitTpl *uuid.UUID
 }
 
+var djReplacer = strings.NewReplacer("đ", "dj", "Đ", "Dj")
+
 // prepareMerchants keeps names of at least 3 letters/digits, longest first ("shell oil" beats "shell");
 // id breaks ties deterministically.
 func prepareMerchants(ms []merchantTemplate) []merchantTemplate {
+	for _, m := range ms { // "đ" is printed as "d" or "dj" in ASCII; descriptionWords folds it to "d"
+		if dj := djReplacer.Replace(m.name); dj != m.name {
+			m.name = dj
+			ms = append(ms, m)
+		}
+	}
 	out := ms[:0]
 	for _, m := range ms {
 		m.words = descriptionWords(m.name)

@@ -354,7 +354,16 @@ export function AnnualPlanCard({ snap }: { snap: Snapshot }) {
         </Empty>
       )}
       <DataBanner
-        warnings={a.complete ? [] : ['Some amounts have no exchange rate and are left out.']}
+        warnings={
+          a.complete
+            ? []
+            : [
+                t(
+                  'planning.views.someAmountsNoRate',
+                  'Some amounts have no exchange rate and are left out.',
+                ),
+              ]
+        }
       />
     </Card>
   );

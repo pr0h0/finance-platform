@@ -113,7 +113,16 @@ export default function GoalsPage() {
           )}
         </div>
         <DataBanner
-          warnings={ef.complete ? [] : ['Some amounts have no exchange rate and are left out.']}
+          warnings={
+            ef.complete
+              ? []
+              : [
+                  t(
+                    'goals.page.someAmountsNoRate',
+                    'Some amounts have no exchange rate and are left out.',
+                  ),
+                ]
+          }
         />
       </Card>
 

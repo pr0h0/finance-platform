@@ -192,7 +192,24 @@ func RunOnce(ctx context.Context, db *pgxpool.Pool) (int, error) {
 
 type candidate struct {
 	kind, severity, title, body, dedupe string
+	bsTitle, bsBody                     string // Bosnian text, used when users.locale = 'bs'
 	data                                map[string]any
+}
+
+// in returns the candidate with title and body in the user's locale (en|bs; English otherwise).
+func (c candidate) in(locale string) candidate {
+	if locale == "bs" && c.bsTitle != "" {
+		c.title, c.body = c.bsTitle, c.bsBody
+	}
+	return c
+}
+
+// bsDate renders YYYY-MM-DD as the Bosnian DD.MM.YYYY.
+func bsDate(d string) string {
+	if t, err := time.Parse(fin.DateLayout, d); err == nil {
+		return t.Format("02.01.2006.")
+	}
+	return d
 }
 
 // Generate derives reminders for one profile and delivers them to each member (deduplicated):
@@ -226,17 +243,23 @@ func Generate(ctx context.Context, db fin.DB, profileID uuid.UUID) (int, error) 
 		data := map[string]any{"planId": o.PlannedTransactionID, "date": o.Date, "nominalDate": o.NominalDate, "amount": o.Amount}
 		switch {
 		case left < 0:
-			cands = append(cands, candidate{"bill_overdue", "warning", "Overdue: " + o.Description,
-				fmt.Sprintf("%s was due on %s. Match the payment, mark it paid or skip it.", o.Amount, o.Date), "bill_overdue:" + o.PlannedTransactionID.String() + ":" + o.NominalDate, data})
+			cands = append(cands, candidate{kind: "bill_overdue", severity: "warning", title: "Overdue: " + o.Description,
+				body:    fmt.Sprintf("%s was due on %s. Match the payment, mark it paid or skip it.", o.Amount, o.Date),
+				bsTitle: "Kasni: " + o.Description,
+				bsBody:  fmt.Sprintf("%s je dospjelo %s. Povežite uplatu, označite kao plaćeno ili preskočite.", o.Amount, bsDate(o.Date)),
+				dedupe:  "bill_overdue:" + o.PlannedTransactionID.String() + ":" + o.NominalDate, data: data})
 		case left <= days:
-			when := "today"
+			when, bsWhen := "today", "danas"
 			if left == 1 {
-				when = "tomorrow"
+				when, bsWhen = "tomorrow", "sutra"
 			} else if left > 1 {
-				when = "on " + o.Date
+				when, bsWhen = "on "+o.Date, bsDate(o.Date)
 			}
-			cands = append(cands, candidate{"bill_due", "info", o.Description + " due " + when,
-				fmt.Sprintf("%s is scheduled %s.", o.Amount, when), "bill_due:" + o.PlannedTransactionID.String() + ":" + o.NominalDate, data})
+			cands = append(cands, candidate{kind: "bill_due", severity: "info", title: o.Description + " due " + when,
+				body:    fmt.Sprintf("%s is scheduled %s.", o.Amount, when),
+				bsTitle: o.Description + " dospijeva " + bsWhen,
+				bsBody:  fmt.Sprintf("%s je zakazano za %s.", o.Amount, bsWhen),
+				dedupe:  "bill_due:" + o.PlannedTransactionID.String() + ":" + o.NominalDate, data: data})
 		}
 	}
 	alerts, err := budgets.CurrentAlerts(ctx, db, p.ID, today)
@@ -252,10 +275,12 @@ func Generate(ctx context.Context, db fin.DB, profileID uuid.UUID) (int, error) 
 		if a.Line.CategoryID != nil {
 			cat = a.Line.CategoryID.String()
 		}
-		cands = append(cands, candidate{"budget_threshold", sev, a.Budget.Name + ": budget threshold reached",
-			fmt.Sprintf("Spent %s of %s (utilization %s, threshold %s).", a.Line.Actual, a.Line.Limit, *a.Line.Utilization, *a.Line.Alert),
-			fmt.Sprintf("budget:%s:%s:%s:%s", a.Budget.ID, a.PeriodStart, cat, *a.Line.Alert),
-			map[string]any{"budgetId": a.Budget.ID, "categoryId": a.Line.CategoryID, "periodStart": a.PeriodStart, "threshold": *a.Line.Alert}})
+		cands = append(cands, candidate{kind: "budget_threshold", severity: sev, title: a.Budget.Name + ": budget threshold reached",
+			body:    fmt.Sprintf("Spent %s of %s (utilization %s, threshold %s).", a.Line.Actual, a.Line.Limit, *a.Line.Utilization, *a.Line.Alert),
+			bsTitle: a.Budget.Name + ": dostignut prag budžeta",
+			bsBody:  fmt.Sprintf("Potrošeno %s od %s (iskorištenost %s, prag %s).", a.Line.Actual, a.Line.Limit, *a.Line.Utilization, *a.Line.Alert),
+			dedupe:  fmt.Sprintf("budget:%s:%s:%s:%s", a.Budget.ID, a.PeriodStart, cat, *a.Line.Alert),
+			data:    map[string]any{"budgetId": a.Budget.ID, "categoryId": a.Line.CategoryID, "periodStart": a.PeriodStart, "threshold": *a.Line.Alert}})
 	}
 	f, err := forecasting.Build(ctx, db, p, forecasting.Options{Days: 14, Currency: p.BaseCurrency})
 	if err != nil {
@@ -265,9 +290,11 @@ func Generate(ctx context.Context, db fin.DB, profileID uuid.UUID) (int, error) 
 		if s.Scenario != "expected" || s.AccountID == nil {
 			continue
 		}
-		cands = append(cands, candidate{"low_balance", "critical", "Balance projected below zero on " + s.Date,
-			fmt.Sprintf("An account is expected to reach %s on %s based on planned payments.", s.Amount, s.Date),
-			"shortfall:" + s.AccountID.String() + ":" + s.Date, map[string]any{"accountId": s.AccountID, "date": s.Date, "amount": s.Amount}})
+		cands = append(cands, candidate{kind: "low_balance", severity: "critical", title: "Balance projected below zero on " + s.Date,
+			body:    fmt.Sprintf("An account is expected to reach %s on %s based on planned payments.", s.Amount, s.Date),
+			bsTitle: "Stanje će pasti ispod nule " + bsDate(s.Date),
+			bsBody:  fmt.Sprintf("Očekuje se da račun dostigne %s dana %s prema planiranim plaćanjima.", s.Amount, bsDate(s.Date)),
+			dedupe:  "shortfall:" + s.AccountID.String() + ":" + s.Date, data: map[string]any{"accountId": s.AccountID, "date": s.Date, "amount": s.Amount}})
 	}
 	rows, err := db.Query(ctx, `SELECT id, name, trial_ends_at FROM subscriptions WHERE profile_id = $1 AND deleted_at IS NULL AND status = 'trial'
 		AND trial_ends_at BETWEEN $2 AND $3`, p.ID, today, today.AddDate(0, 0, 3))
@@ -282,8 +309,11 @@ func Generate(ctx context.Context, db fin.DB, profileID uuid.UUID) (int, error) 
 			rows.Close()
 			return 0, err
 		}
-		cands = append(cands, candidate{"trial_ending", "info", name + " trial ends " + fin.Fmt(end), "Cancel before then if you do not want to be charged.",
-			"trial:" + id.String() + ":" + fin.Fmt(end), map[string]any{"subscriptionId": id}})
+		cands = append(cands, candidate{kind: "trial_ending", severity: "info", title: name + " trial ends " + fin.Fmt(end),
+			body:    "Cancel before then if you do not want to be charged.",
+			bsTitle: name + ": probni period ističe " + bsDate(fin.Fmt(end)),
+			bsBody:  "Otkažite prije toga ako ne želite da vam se naplati.",
+			dedupe:  "trial:" + id.String() + ":" + fin.Fmt(end), data: map[string]any{"subscriptionId": id}})
 	}
 	rows.Close()
 	anoms, err := analytics.Anomalies(ctx, db, analytics.Query{P: p, From: today.AddDate(0, 0, -7), To: today, Currency: p.BaseCurrency}, false)
@@ -291,8 +321,13 @@ func Generate(ctx context.Context, db fin.DB, profileID uuid.UUID) (int, error) 
 		return 0, err
 	}
 	for _, a := range anoms {
-		cands = append(cands, candidate{"unusual_expense", "warning", "Unusual expense: " + a.Description, a.Explanation,
-			"anomaly:" + a.TransactionID.String() + ":" + a.Rule, map[string]any{"transactionId": a.TransactionID, "rule": a.Rule}})
+		bsBody := fmt.Sprintf("%s je više od 2x vašeg tipičnog troška (medijan %s), a ovom trgovcu niste plaćali godinu dana.", a.Amount, a.Baseline)
+		if a.Rule == "large_for_category" {
+			bsBody = fmt.Sprintf("%s je više od 3x tipičnog iznosa (medijan %s) za ovu kategoriju u prethodnih 180 dana.", a.Amount, a.Baseline)
+		}
+		cands = append(cands, candidate{kind: "unusual_expense", severity: "warning", title: "Unusual expense: " + a.Description, body: a.Explanation,
+			bsTitle: "Neuobičajen trošak: " + a.Description, bsBody: bsBody,
+			dedupe: "anomaly:" + a.TransactionID.String() + ":" + a.Rule, data: map[string]any{"transactionId": a.TransactionID, "rule": a.Rule}})
 	}
 
 	var conflicts int
@@ -302,21 +337,28 @@ func Generate(ctx context.Context, db fin.DB, profileID uuid.UUID) (int, error) 
 		return 0, err
 	}
 	if conflicts > 0 {
-		cands = append(cands, candidate{"sync_conflict", "warning", fmt.Sprintf("%d sync conflict(s) need your decision", conflicts),
-			"Changes from different devices touched the same records. Review them on the Sync page.",
-			"sync_conflict:" + latest.String(), map[string]any{"count": conflicts, "link": "/sync"}})
+		cands = append(cands, candidate{kind: "sync_conflict", severity: "warning", title: fmt.Sprintf("%d sync conflict(s) need your decision", conflicts),
+			body:    "Changes from different devices touched the same records. Review them on the Sync page.",
+			bsTitle: fmt.Sprintf("Sukobi sinhronizacije čekaju vašu odluku: %d", conflicts),
+			bsBody:  "Promjene s različitih uređaja dotakle su iste zapise. Pregledajte ih na stranici Sinhronizacija.",
+			dedupe:  "sync_conflict:" + latest.String(), data: map[string]any{"count": conflicts, "link": "/sync"}})
 	}
 
-	mrows, err := db.Query(ctx, `SELECT user_id FROM profile_members WHERE profile_id = $1`, p.ID)
+	mrows, err := db.Query(ctx, `SELECT m.user_id, u.locale FROM profile_members m JOIN users u ON u.id = m.user_id WHERE m.profile_id = $1`, p.ID)
 	if err != nil {
 		return 0, err
 	}
-	users, err := pgx.CollectRows(mrows, pgx.RowTo[uuid.UUID])
+	type member struct {
+		ID     uuid.UUID
+		Locale string
+	}
+	members, err := pgx.CollectRows(mrows, pgx.RowToStructByPos[member])
 	if err != nil {
 		return 0, err
 	}
 	n := 0
-	for _, u := range users {
+	for _, m := range members {
+		u := m.ID
 		prefs, err := loadPrefs(ctx, db, u)
 		if err != nil {
 			return n, err
@@ -326,6 +368,7 @@ func Generate(ctx context.Context, db fin.DB, profileID uuid.UUID) (int, error) 
 			return n, err
 		}
 		for _, c := range cands {
+			c := c.in(m.Locale)
 			data, _ := json.Marshal(c.data)
 			dedupe := p.ID.String() + ":" + c.dedupe
 			tag, err := db.Exec(ctx, `INSERT INTO notifications (user_id, profile_id, kind, severity, title, body, data, dedupe_key, delivered_at)

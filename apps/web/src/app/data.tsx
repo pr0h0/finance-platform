@@ -98,6 +98,18 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const [ds, setDs] = useState<DataSource | null>(null);
 
+  // Server-generated notifications, emails and reports use the account locale: keep it on the UI language.
+  // No setUser afterwards: re-rendering the whole tree for this would disturb open pages.
+  const language = useApp((s) => s.prefs.language);
+  const sentLocale = useRef<string | null>(null);
+  useEffect(() => {
+    if (!api || !user || user.locale === language || sentLocale.current === language) return;
+    sentLocale.current = language;
+    api.request('PATCH', '/api/v1/users/me', { locale: language }).catch(() => {
+      sentLocale.current = null;
+    });
+  }, [api, user, language]);
+
   // build the DataSource
   // biome-ignore lint/correctness/useExhaustiveDependencies: gen forces a rebuild
   useEffect(() => {

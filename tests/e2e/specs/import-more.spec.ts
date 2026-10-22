@@ -46,7 +46,7 @@ test('Raiffeisen BiH statement (synthetic PDF): detected, balanced, opening bala
   const staged = await stage(page, 'izvod-synthetic.pdf');
   expect(await commit(staged)).toBe(11);
   await page.goto('/transactions');
-  await expect(page.getByRole('row', { name: /ŠOPING CENTAR šž/ })).toBeVisible();
+  await expect(page.getByRole('row', { name: /SOPING CENTAR/ })).toBeVisible();
   await expect(page.getByRole('row', { name: /PLATA PRIMJER FIRMA/ })).toBeVisible();
   await page.goto('/accounts');
   await expect(page.getByRole('main').getByText('BAM 58.16').first()).toBeVisible(); // closing balance
