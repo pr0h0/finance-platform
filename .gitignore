@@ -13,3 +13,6 @@ backups/
 .DS_Store
 tests/e2e/screenshots/
 tests/e2e/test-results/
+
+# Real bank statements (personal data) — never commit
+samples/
