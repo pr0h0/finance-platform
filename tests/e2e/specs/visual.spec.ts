@@ -16,12 +16,16 @@ for (const v of [
   { name: 'mobile-dark', viewport: { width: 390, height: 844 }, colorScheme: 'dark' as const },
   { name: 'desktop-dark', viewport: { width: 1280, height: 800 }, colorScheme: 'dark' as const },
 ]) {
-  test(`layout: ${v.name}, no horizontal page scroll, no page errors`, async ({ browser }) => {
+  test(`layout: ${v.name}, no horizontal page scroll, no page errors`, async ({
+    browser,
+    browserName,
+  }) => {
+    const mobile = v.viewport.width < 500 && browserName !== 'firefox'; // Firefox has no isMobile
     const ctx = await browser.newContext({
       viewport: v.viewport,
       colorScheme: v.colorScheme,
-      isMobile: v.viewport.width < 500,
-      hasTouch: v.viewport.width < 500,
+      isMobile: mobile,
+      hasTouch: mobile,
     });
     const page = await ctx.newPage();
     const errors: string[] = [];

@@ -58,7 +58,8 @@ export async function snapshot(page: Page) {
 }
 
 export async function shot(page: Page, name: string) {
-  await page.screenshot({ path: `screenshots/${name}.png`, fullPage: true });
+  const browser = page.context().browser()?.browserType().name() ?? 'browser';
+  await page.screenshot({ path: `screenshots/${browser}/${name}.png`, fullPage: true });
 }
 
 export function uniqueEmail(tag: string) {
@@ -111,7 +112,12 @@ export async function addTransaction(page: Page, e: EntrySpec) {
 export const PASSWORD = 'correct horse battery staple';
 
 /** Onboarding in connected mode against the app's own origin. register=false signs in. */
-export async function onboardConnected(page: Page, email: string, register: boolean) {
+export async function onboardConnected(
+  page: Page,
+  email: string,
+  register: boolean,
+  profile?: RegExp, // which profile to use (default: the first)
+) {
   await startOnboarding(page);
   await page.getByRole('button', { name: /Connect to server/ }).click();
   const url = page.getByLabel('Server URL');
@@ -126,7 +132,13 @@ export async function onboardConnected(page: Page, email: string, register: bool
   await panel.getByLabel('Password').fill(PASSWORD);
   await panel.getByRole('button', { name: register ? 'Create account' : 'Sign in' }).click();
   await expect(page.getByRole('heading', { name: 'Choose a profile' })).toBeVisible();
-  await page.getByRole('button', { name: 'Use' }).first().click();
+  const rows = page
+    .getByRole('listitem')
+    .filter({ has: page.getByRole('button', { name: 'Use' }) });
+  await (profile ? rows.filter({ hasText: profile }) : rows)
+    .first()
+    .getByRole('button', { name: 'Use' })
+    .click();
 }
 
 /** Opens the sync page and runs a sync; returns when nothing is waiting to upload. */
@@ -134,12 +146,14 @@ export async function syncNow(page: Page) {
   await page.goto('/sync');
   await page.getByRole('button', { name: 'Sync now' }).click();
   await expect(page.getByRole('main')).toContainText(/Waiting to upload\s*0/);
+  await expect(page.getByRole('main')).not.toContainText('Never synchronized', { timeout: 30_000 });
 }
 
 /** Draws a receipt image in the page and attaches it through the open drawer's file input. */
 export async function attachReceipt(page: Page, lines: string[]) {
-  await page.locator('dialog[open] input[type=file]').waitFor({ state: 'attached' });
-  await page.evaluate(async (ls) => {
+  const input = page.locator('dialog[open] input[type=file]');
+  await input.waitFor({ state: 'attached' });
+  const png = await page.evaluate(async (ls) => {
     const c = document.createElement('canvas');
     c.width = 640;
     c.height = 80 + ls.length * 70;
@@ -151,11 +165,59 @@ export async function attachReceipt(page: Page, lines: string[]) {
     ls.forEach((l, i) => {
       g.fillText(l, 30, 80 + i * 70);
     });
-    const blob = await new Promise<Blob>((r) => c.toBlob((b) => r(b as Blob), 'image/png'));
-    const dt = new DataTransfer();
-    dt.items.add(new File([blob], 'receipt.png', { type: 'image/png' }));
-    const input = document.querySelector('dialog[open] input[type=file]') as HTMLInputElement;
-    input.files = dt.files;
-    input.dispatchEvent(new Event('change', { bubbles: true }));
+    return c.toDataURL('image/png').split(',')[1] as string;
   }, lines);
+  await input.setInputFiles({
+    name: 'receipt.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from(png, 'base64'),
+  });
+}
+
+/** axe-core WCAG 2.x A/AA scan of the current page; returns serious/critical violations. */
+export async function seriousA11yViolations(page: Page) {
+  const { default: AxeBuilder } = await import('@axe-core/playwright');
+  const r = await new AxeBuilder({ page })
+    .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
+    .analyze();
+  return r.violations
+    .filter((v) => v.impact === 'serious' || v.impact === 'critical')
+    .map(
+      (v) =>
+        `${v.id} (${v.impact}): ${v.nodes
+          .map((n) => n.target.join(' '))
+          .slice(0, 5)
+          .join(' | ')}`,
+    );
+}
+
+export const ADMIN_EMAIL = 'admin@e2e.test'; // registered first by scripts/e2e.sh
+
+/** CSRF token of the page's cookie session, for page.request mutations. */
+export async function csrf(page: Page): Promise<string> {
+  const s = await (await page.request.get('/api/v1/auth/session')).json();
+  return s.csrfToken as string;
+}
+
+/** Settings → Connect to server: server check and account step of the activation flow. */
+export async function startActivation(page: Page, email: string, register = true) {
+  await page.goto('/settings?tab=connection');
+  await page.getByRole('button', { name: 'Connect to server' }).last().click();
+  await page.getByLabel('Server URL').fill(new URL(page.url()).origin);
+  await page.getByRole('button', { name: 'Check server' }).click();
+  await page.getByLabel(/I trust .* with my financial data/).check();
+  await page.getByRole('button', { name: 'Continue' }).click();
+  if (register) await page.getByRole('tab', { name: 'Create account' }).click();
+  const panel = page.getByRole('tabpanel').last();
+  await panel.getByLabel('Email').fill(email);
+  await panel.getByLabel('Password').fill(PASSWORD);
+  await panel.getByRole('button', { name: register ? 'Create account' : 'Sign in' }).click();
+  await expect(page.getByRole('button', { name: 'Preview upload' })).toBeVisible();
+}
+
+/** Profile currently selected in the app (persisted app state). */
+export async function currentProfileId(page: Page): Promise<string> {
+  return page.evaluate(
+    () => JSON.parse(localStorage.getItem('finplat:app') ?? '{}').state.profileId,
+  );
 }

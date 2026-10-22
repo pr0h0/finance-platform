@@ -191,6 +191,7 @@ export function Layout({ sections, children }: { sections: Section[]; children: 
         </header>
 
         <Banners />
+        <UpdatePrompt />
 
         <main id="main" className="mx-auto w-full max-w-7xl flex-1 px-4 py-5 pb-24 md:pb-6">
           {children}
@@ -246,7 +247,6 @@ export function Layout({ sections, children }: { sections: Section[]; children: 
 
       <CommandPalette sections={sections} />
       <QuickAdd />
-      <UpdatePrompt />
     </div>
   );
 }

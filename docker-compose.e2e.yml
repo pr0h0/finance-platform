@@ -11,5 +11,16 @@ services:
       MCP_ENABLED: "true"
       BACKUP_SCHEDULE: "off"
       RATE_LIMIT_AUTH_PER_MIN: "1000" # every spec and real-API test registers/logs in
+      # SMTP sink on the e2e network (plaintext is allowed for a local relay only)
+      SMTP_HOST: mailpit
+      SMTP_PORT: "1025"
+      SMTP_FROM: finance@e2e.test
+      SMTP_TLS: none
+    depends_on:
+      mailpit: { condition: service_started }
   gateway:
     ports: !reset []
+  mailpit:
+    image: axllent/mailpit:v1.31.6
+    environment:
+      MP_MAX_MESSAGES: "500"

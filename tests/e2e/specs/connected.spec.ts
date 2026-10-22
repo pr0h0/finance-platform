@@ -91,7 +91,8 @@ test('connected mode: register, sync to the server, second device, offline edit 
   const drawer = pa.getByRole('dialog', { name: 'Transaction' });
   await drawer.getByLabel('Description', { exact: true }).fill('Edited offline');
   await drawer.getByRole('button', { name: 'Save details' }).click();
-  await expect(drawer.getByText('Saved')).toBeVisible();
+  // the drawer re-renders with the saved version (its "Saved" hint can vanish at once): check the list
+  await expect(pa.getByRole('row', { name: /Edited offline/ })).toBeVisible();
   await pa.keyboard.press('Escape');
   await expect(pa.getByRole('row', { name: /Edited offline/ })).toBeVisible();
   await a.setOffline(false);

@@ -13,6 +13,10 @@ dockerx "${compose[@]}" up -d --build --wait
 cleanup() { [ -n "${KEEP_E2E_STACK:-}" ] || dockerx "${compose[@]}" down -v --remove-orphans >/dev/null 2>&1; }
 trap cleanup EXIT
 tty=(); [ -t 0 ] && tty=(-it)
+# The first account on a server is its admin: register a known one before anything else
+# (tests/e2e/specs/admin.spec.ts signs in with it). A rerun on a kept stack gets 409: fine.
+admin='{"email":"admin@e2e.test","password":"correct horse battery staple","displayName":"E2E admin"}'
+dockerx run --rm --network finplat-e2e_default -e "ADMIN=$admin" oven/bun:1.4 bun -e 'const r = await fetch("http://api:8080/api/v1/auth/register", { method: "POST", headers: { "Content-Type": "application/json" }, body: process.env.ADMIN }); if (r.status !== 201 && r.status !== 409) { console.error(r.status, await r.text()); process.exit(1); }'
 # client sync engine + TS engine vs the real Go API (packages/sync-client/src/real-server.test.ts)
 dockerx run --rm "${tty[@]}" --user 1000:1000 --network finplat-e2e_default \
   -v "$FINPLAT_ROOT:/repo" -w /repo -v finplat_bun:/cache/bun -e BUN_INSTALL_CACHE_DIR=/cache/bun -e HOME=/tmp \

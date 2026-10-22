@@ -27,6 +27,7 @@ test('manual duplicates are flagged; G shortcuts navigate', async ({ page }) => 
   await page.keyboard.press('g');
   await page.keyboard.press('b');
   await expect(page).toHaveURL(/\/budgets$/);
+  await expect(page.getByRole('heading', { name: 'Budgets', level: 1 })).toBeVisible();
   await page.keyboard.press('g');
   await page.keyboard.press('d');
   await expect(page.getByRole('heading', { name: 'Dashboard', level: 1 })).toBeVisible();

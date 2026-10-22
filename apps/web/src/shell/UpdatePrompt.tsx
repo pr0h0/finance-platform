@@ -1,5 +1,6 @@
 // PWA update behaviour: a new service worker waits until the user chooses to reload, so an
-// update never interrupts a form. The SW caches only the app shell (see vite.config.ts).
+// update never interrupts a form. The SW caches only the app shell (see vite.config.ts). Shown as a
+// bar above the page (in the layout flow) so it never covers page controls.
 
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { useEffect } from 'react';
@@ -27,7 +28,7 @@ export function UpdatePrompt() {
   return (
     <div
       role="status"
-      className="fixed bottom-20 left-4 z-50 flex max-w-sm items-center gap-3 rounded-md border border-line bg-surface px-3 py-2 text-sm shadow-lg md:bottom-4"
+      className="flex flex-wrap items-center gap-3 border-b border-line bg-surface px-4 py-2 text-sm"
     >
       <span className="flex-1">
         {needRefresh
