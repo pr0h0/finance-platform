@@ -1,4 +1,4 @@
-import { Check, ChevronDown } from 'lucide-react';
+import { Check, ChevronDown, LogOut } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { useData } from '../app/data.tsx';
 import { useApp } from '../app/store.ts';
@@ -7,7 +7,7 @@ import { useT } from '../lib/i18n.ts';
 
 export function ProfileSwitcher() {
   const t = useT();
-  const { profiles, profile, mode, locked } = useData();
+  const { profiles, profile, mode, locked, api, user, session, reload } = useData();
   const setApp = useApp((s) => s.set);
   const navigate = useNavigate();
   return (
@@ -39,6 +39,16 @@ export function ProfileSwitcher() {
           <Menu.Item onSelect={() => navigate('/settings?tab=profiles')}>
             {t('profile.manage', 'Manage profiles…')}
           </Menu.Item>
+          {api && session === 'ok' && (
+            <>
+              <Menu.Separator />
+              {user?.email && <Menu.Label>{user.email}</Menu.Label>}
+              {/* Signing out keeps every profile on this device; the banner offers to sign in again. */}
+              <Menu.Item onSelect={() => api.logout().finally(reload)}>
+                <LogOut className="size-4" aria-hidden /> {t('auth.signOut', 'Sign out')}
+              </Menu.Item>
+            </>
+          )}
         </Menu.Content>
       </Menu.Root>
       <span className="hidden sm:inline">

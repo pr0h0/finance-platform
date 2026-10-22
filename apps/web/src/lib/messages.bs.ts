@@ -1018,6 +1018,7 @@ export const bs: Record<string, string> = {
   'onb.importText':
     'Uvezite izvode u formatu CSV, Excel, OFX/QIF, CAMT, MT940 ili PDF. Svaki uvoz se prvo pregleda i može se poništiti.',
   'onb.importNow': 'Uvezi izvod',
+  'onb.haveAccount': 'Već imam korisnički račun',
   'onb.finish': 'Idi na pregled',
   'server.urlHint': 'Samo https (http je dozvoljen za localhost tokom razvoja).',
   'server.crossOrigin':

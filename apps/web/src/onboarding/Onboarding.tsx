@@ -29,6 +29,7 @@ import {
 import { currencyCodes, currencyName } from '../lib/currencies.ts';
 import { formatBytes, todayIso, useFormat } from '../lib/format.ts';
 import { useT } from '../lib/i18n.ts';
+import { fetchServerStatus } from '../lib/server-status.ts';
 import { PreferencesForm } from '../settings/PreferencesForm.tsx';
 import { AuthStep, ServerStep, type VerifiedServer } from './connect.tsx';
 import { seedLocalCategories } from './defaults.ts';
@@ -153,6 +154,20 @@ export function Onboarding() {
 
 function Welcome() {
   const t = useT();
+  const [checking, setChecking] = useState(false);
+  // Existing account on this server: skip region/currency/mode (defaults stay; they only shape new
+  // profiles) and go straight to sign-in. Another server goes through the normal server step.
+  const signIn = async () => {
+    setChecking(true);
+    const st = await fetchServerStatus('');
+    setChecking(false);
+    if (st.state === 'ok')
+      useWizard.setState({
+        server: { baseUrl: '', display: globalThis.location.origin, meta: st.meta },
+        step: 'auth',
+      });
+    else go('server');
+  };
   return (
     <Frame
       step="welcome"
@@ -162,9 +177,14 @@ function Welcome() {
         'A private, local-first finance app: track expenses and income across accounts and currencies, plan bills, budget and forecast. Setting up takes a minute; optional steps can be skipped.',
       )}
       footer={
-        <Button variant="primary" className="ml-auto" onClick={() => go('region')}>
-          {t('onb.start', 'Get started')}
-        </Button>
+        <>
+          <Button busy={checking} onClick={signIn}>
+            {t('onb.haveAccount', 'I already have an account')}
+          </Button>
+          <Button variant="primary" className="ml-auto" onClick={() => go('region')}>
+            {t('onb.start', 'Get started')}
+          </Button>
+        </>
       }
     />
   );
@@ -473,6 +493,7 @@ function Auth() {
 
 function ServerProfile() {
   const t = useT();
+  const finish = useFinish();
   const currency = useWizard((s) => s.currency);
   const { profiles, refreshProfiles, ds, updateProfile, profile } = useData();
   const setApp = useApp((s) => s.set);
@@ -524,8 +545,9 @@ function ServerProfile() {
               variant={profile?.id === p.id ? 'primary' : 'secondary'}
               onClick={() => {
                 setApp({ profileId: p.id });
-                if (p.baseCurrency === currency || p.role !== 'owner' || p.syncVersion > 0)
-                  go('accounts');
+                // A profile that already has data is set up: straight to the dashboard.
+                if (p.syncVersion > 0) finish();
+                else if (p.baseCurrency === currency || p.role !== 'owner') go('accounts');
               }}
             >
               {t('onb.use', 'Use')}
@@ -587,6 +609,7 @@ const ASSET_TYPES = [
 
 function Accounts() {
   const t = useT();
+  const finish = useFinish();
   const fmt = useFormat();
   const ops = useFinance();
   const { profile } = useData();
@@ -638,7 +661,11 @@ function Accounts() {
       )}
       footer={
         <>
-          <span />
+          {list.length ? (
+            <Button onClick={() => finish()}>{t('onb.finish', 'Go to dashboard')}</Button>
+          ) : (
+            <span />
+          )}
           <Button variant="primary" onClick={() => go('categories')}>
             {list.length ? t('common.next', 'Next') : t('common.skip', 'Skip')}
           </Button>
@@ -778,15 +805,20 @@ function Categories() {
   );
 }
 
-function ImportStep() {
-  const t = useT();
+/** Ends the wizard (every remaining step is optional). */
+function useFinish() {
   const setApp = useApp((s) => s.set);
   const navigate = useNavigate();
-  const finish = (to: string) => {
+  return (to = '/') => {
     setApp({ onboarded: true });
     useWizard.setState({ step: 'welcome' });
     navigate(to);
   };
+}
+
+function ImportStep() {
+  const t = useT();
+  const finish = useFinish();
   return (
     <Frame
       step="import"

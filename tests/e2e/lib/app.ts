@@ -29,7 +29,12 @@ export async function addAccounts(page: Page, accounts: AccountSpec[]) {
 
 /** Categories → import → dashboard. */
 export async function finishOnboarding(page: Page) {
-  await page.getByRole('button', { name: /^(Next|Skip)$/ }).click(); // accounts
+  // A profile that already has data (synced on another device) opens the dashboard directly.
+  const dashboard = page.getByRole('heading', { name: 'Dashboard', level: 1 });
+  const next = page.getByRole('button', { name: /^(Next|Skip)$/ });
+  await expect(dashboard.or(next).first()).toBeVisible();
+  if (await dashboard.isVisible()) return;
+  await next.click(); // accounts
   await expect(page.getByRole('heading', { name: 'Categories' })).toBeVisible();
   await page.getByRole('button', { name: 'Next' }).click();
   await expect(page.getByRole('heading', { name: /Import bank statements/ })).toBeVisible();

@@ -38,8 +38,9 @@ export class RemoteDataSource implements DataSource {
       });
       return list;
     } catch (e) {
-      if ((e as { status?: number }).status !== 0) throw e;
-      // offline: last known profiles
+      const status = (e as { status?: number }).status;
+      if (status !== 0 && status !== 401) throw e;
+      // offline or signed out: last known profiles (signing out never hides local data)
       return this.o.store.run('readonly', ['profiles'], (tx) => tx.query<Profile>('profiles', {}));
     }
   }
