@@ -3372,6 +3372,11 @@ paths:
           schema:
             type: "string"
             enum: ["json", "csv", "pdf"]
+        - name: "bom"
+          in: "query"
+          description: "CSV only: true prefixes a UTF-8 byte order mark so Excel reads č ć đ š ž correctly."
+          schema:
+            type: "boolean"
       responses:
         "200":
           description: "OK"

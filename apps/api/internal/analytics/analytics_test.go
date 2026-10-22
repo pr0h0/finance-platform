@@ -121,13 +121,13 @@ func TestAggregations(t *testing.T) {
 	if rep.Income.Amount() != "2000.00" || rep.Expenses.Amount() != "242.00" || rep.Complete {
 		t.Fatalf("report: %+v", rep)
 	}
-	for _, format := range []string{"csv", "pdf"} {
+	for _, format := range []string{"csv", "pdf", "csv&bom=true"} {
 		req := httptest.NewRequest("GET", "/api/v1/reports/monthly?from=2026-10-01&format="+format, nil)
 		req.Header.Set(authz.ProfileHeader, profile.String())
 		rec := httptest.NewRecorder()
 		fintest.NewAPI(t, pool, user, profile, Register).Handler().ServeHTTP(rec, req)
 		body := rec.Body.String()
-		if rec.Code != 200 || (format == "csv" && !strings.Contains(body, "summary,Expenses,2026-10-01..2026-10-31,242.00,BAM")) || (format == "pdf" && !strings.HasPrefix(body, "%PDF-1.4")) {
+		if rec.Code != 200 || (format == "csv&bom=true" && !strings.HasPrefix(body, "\ufeffsection,")) || (format == "csv" && !strings.HasPrefix(body, "section,")) || (strings.HasPrefix(format, "csv") && !strings.Contains(body, "summary,Expenses,2026-10-01..2026-10-31,242.00,BAM")) || (format == "pdf" && !strings.HasPrefix(body, "%PDF-1.4")) {
 			t.Fatalf("%s report: %d %s", format, rec.Code, body[:min(300, len(body))])
 		}
 	}

@@ -187,25 +187,24 @@ func isNumber(s string) bool {
 	return err == nil
 }
 
-// PDF renders a plain text PDF (Helvetica, A4, WinAnsi; characters outside Latin-1 become '?').
-// ponytail: hand-written single-font PDF writer; switch to a layout library if charts are needed.
+// PDF renders the report as text pages with embedded Unicode fonts (see pdf.go).
 func (r Report) PDF() []byte {
-	text := []string{
-		fmt.Sprintf("Financial report (%s) %s .. %s", r.Kind, r.From, r.To),
-		"Currency: " + r.Currency + "   Generated: " + r.GeneratedAt, "",
-		"Income: " + r.Income.Amount(), "Expenses: " + r.Expenses.Amount(), "Net cash flow: " + r.Net.Amount(),
+	text := []pdfLine{
+		{fmt.Sprintf("Financial report (%s) %s .. %s", r.Kind, r.From, r.To), true},
+		{"Currency: " + r.Currency + "   Generated: " + r.GeneratedAt, false}, {},
+		{"Income: " + r.Income.Amount(), false}, {"Expenses: " + r.Expenses.Amount(), false}, {"Net cash flow: " + r.Net.Amount(), false},
 	}
 	if r.SavingsRate != nil {
-		text = append(text, "Savings rate: "+pct(*r.SavingsRate)+"%")
+		text = append(text, pdfLine{"Savings rate: " + pct(*r.SavingsRate) + "%", false})
 	}
 	section := func(title string, rows []fin.Row) {
-		text = append(text, "", title)
+		text = append(text, pdfLine{}, pdfLine{title, true})
 		for _, x := range rows {
 			p := ""
 			if x.Period != "" {
 				p = x.Period + "  "
 			}
-			text = append(text, fmt.Sprintf("  %s%s: %s", p, x.Label, x.Amount.Amount()))
+			text = append(text, pdfLine{fmt.Sprintf("  %s%s: %s", p, x.Label, x.Amount.Amount()), false})
 		}
 	}
 	section("Spending by category", r.ByCategory)
@@ -213,65 +212,7 @@ func (r Report) PDF() []byte {
 	section("Income vs expenses", r.IncomeVsExpenses)
 	section("Net worth", r.NetWorth)
 	if !r.Complete {
-		text = append(text, "", "INCOMPLETE DATA: "+strings.Join(r.Warnings, "; "))
+		text = append(text, pdfLine{}, pdfLine{"INCOMPLETE DATA: " + strings.Join(r.Warnings, "; "), true})
 	}
-	const perPage = 60
-	var pages [][]string
-	for i := 0; i < len(text); i += perPage {
-		pages = append(pages, text[i:min(i+perPage, len(text))])
-	}
-	var objs []string
-	n := len(pages)
-	// 1 catalog, 2 pages, 3 font, then (page, content) pairs
-	kids := make([]string, n)
-	for i := range pages {
-		kids[i] = fmt.Sprintf("%d 0 R", 4+2*i)
-	}
-	objs = append(objs, "<< /Type /Catalog /Pages 2 0 R >>",
-		fmt.Sprintf("<< /Type /Pages /Kids [%s] /Count %d >>", strings.Join(kids, " "), n),
-		"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>")
-	for i, pg := range pages {
-		var c strings.Builder
-		c.WriteString("BT /F1 9 Tf 40 800 Td 12 TL\n")
-		for _, l := range pg {
-			c.WriteString("(" + pdfEscape(l) + ") '\n")
-		}
-		c.WriteString("ET")
-		objs = append(objs, fmt.Sprintf("<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R >> >> /Contents %d 0 R >>", 5+2*i),
-			fmt.Sprintf("<< /Length %d >>\nstream\n%s\nendstream", c.Len(), c.String()))
-	}
-	var b bytes.Buffer
-	b.WriteString("%PDF-1.4\n")
-	offsets := make([]int, len(objs))
-	for i, o := range objs {
-		offsets[i] = b.Len()
-		fmt.Fprintf(&b, "%d 0 obj\n%s\nendobj\n", i+1, o)
-	}
-	xref := b.Len()
-	fmt.Fprintf(&b, "xref\n0 %d\n0000000000 65535 f \n", len(objs)+1)
-	for _, off := range offsets {
-		fmt.Fprintf(&b, "%010d 00000 n \n", off)
-	}
-	fmt.Fprintf(&b, "trailer\n<< /Size %d /Root 1 0 R >>\nstartxref\n%d\n%%%%EOF\n", len(objs)+1, xref)
-	return b.Bytes()
-}
-
-func pdfEscape(s string) string {
-	var b strings.Builder
-	for _, r := range s {
-		switch {
-		case r == '(' || r == ')' || r == '\\':
-			b.WriteRune('\\')
-			b.WriteRune(r)
-		case r < 32:
-			b.WriteRune(' ')
-		case r < 128:
-			b.WriteRune(r)
-		case r < 256:
-			fmt.Fprintf(&b, "\\%03o", r)
-		default:
-			b.WriteRune('?')
-		}
-	}
-	return b.String()
+	return writePDF(text)
 }

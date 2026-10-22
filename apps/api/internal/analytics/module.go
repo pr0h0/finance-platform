@@ -189,6 +189,9 @@ func Register(r chi.Router, deps *app.Deps) {
 		case "csv":
 			w.Header().Set("Content-Type", "text/csv; charset=utf-8")
 			w.Header().Set("Content-Disposition", `attachment; filename="`+name+`.csv"`)
+			if r.URL.Query().Get("bom") == "true" {
+				_, _ = w.Write([]byte("\ufeff"))
+			}
 			_, _ = w.Write(rep.CSV())
 		case "pdf":
 			w.Header().Set("Content-Type", "application/pdf")

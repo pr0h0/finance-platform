@@ -23,8 +23,13 @@ export function download(name: string, data: Blob): void {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-export function downloadCsv(name: string, rows: readonly (readonly unknown[])[]): void {
-  download(name, new Blob([toCsv(rows)], { type: 'text/csv;charset=utf-8' }));
+/** UTF-8 CSV; the byte order mark (default on) makes Excel read č ć đ š ž instead of mojibake. */
+export function csvBlob(rows: readonly (readonly unknown[])[], bom = true): Blob {
+  return new Blob([bom ? '\uFEFF' : '', toCsv(rows)], { type: 'text/csv;charset=utf-8' });
+}
+
+export function downloadCsv(name: string, rows: readonly (readonly unknown[])[], bom = true): void {
+  download(name, csvBlob(rows, bom));
 }
 
 /** Render the first <svg> inside `container` to a PNG (2x scale, page background) and save it. */
