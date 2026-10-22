@@ -15,6 +15,7 @@ import {
   useRefs,
   useTransactions,
 } from '../../features/transactions/data.ts';
+import { DuplicatesList, useDuplicates } from '../../features/transactions/duplicates.tsx';
 import { EntryForm } from '../../features/transactions/EntryForm.tsx';
 import { exportTransactions } from '../../features/transactions/export.ts';
 import { Filters } from '../../features/transactions/Filters.tsx';
@@ -63,7 +64,8 @@ export default function TransactionsPage() {
   });
   const [bulkOpen, setBulkOpen] = useState(false);
   const [exportErr, setExportErr] = useState<string | null>(null);
-  const tab = params.get('tab') === 'inbox' ? 'inbox' : 'all';
+  const tabParam = params.get('tab');
+  const tab = tabParam === 'inbox' || tabParam === 'duplicates' ? tabParam : 'all';
 
   // raw record -> batch, only built when filtering by import batch
   const [batchOfRecord, setBatchOfRecord] = useState<Map<string, string> | undefined>();
@@ -96,9 +98,10 @@ export default function TransactionsPage() {
   const selected = useMemo(() => rows.filter((r) => selection[r.id]), [rows, selection]);
   const inboxCount = useMemo(() => (all.data ?? []).filter(isUncategorized).length, [all.data]);
 
-  const setTab = (t: 'all' | 'inbox') => {
+  const dups = useDuplicates().groups.length;
+  const setTab = (t: 'all' | 'inbox' | 'duplicates') => {
     const p = new URLSearchParams(params);
-    if (t === 'inbox') p.set('tab', 'inbox');
+    if (t !== 'all') p.set('tab', t);
     else p.delete('tab');
     setParams(p, { replace: true });
   };
@@ -161,10 +164,13 @@ export default function TransactionsPage() {
         tabs={[
           { id: 'all', label: 'All transactions' },
           { id: 'inbox', label: `Uncategorized inbox${inboxCount ? ` (${inboxCount})` : ''}` },
+          { id: 'duplicates', label: `Possible duplicates${dups ? ` (${dups})` : ''}` },
         ]}
       />
       {tab === 'inbox' ? (
         <Inbox refs={refs} onOpen={(t) => setOpenId(t.id)} />
+      ) : tab === 'duplicates' ? (
+        <DuplicatesList refs={refs} onOpen={setOpenId} />
       ) : (
         <>
           <Filters

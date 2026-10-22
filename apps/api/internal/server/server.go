@@ -56,7 +56,7 @@ func New(deps *app.Deps) http.Handler {
 	r.MethodNotAllowed(httpx.MethodNotAllowedHandler)
 	r.Use(middleware.RequestID)
 	if deps.Config.TrustProxy {
-		r.Use(middleware.RealIP) // only the gateway can reach the API container
+		r.Use(httpx.RealIP) // only the gateway can reach the API container
 	}
 	r.Use(httpx.AccessLog(deps.Log), httpx.Recoverer(deps.Log), httpx.MaxBody(deps.Config.MaxBodyBytes))
 	r.Use(middleware.Timeout(60 * time.Second))
@@ -92,13 +92,22 @@ func meta(deps *app.Deps) http.HandlerFunc {
 		if err != nil {
 			return err
 		}
+		policy, err := auth.EffectivePolicy(r.Context(), deps.DB, deps.Config)
+		if err != nil {
+			return err
+		}
+		var users int
+		if err := deps.DB.QueryRow(r.Context(), `SELECT count(*) FROM users`).Scan(&users); err != nil {
+			return err
+		}
 		httpx.WriteJSON(w, http.StatusOK, map[string]any{
+			"setupTokenRequired":  auth.SetupTokenRequired(deps.Config, users, policy),
 			"name":                "finance-platform",
 			"apiVersion":          app.APIVersion,
 			"schemaVersion":       sv,
 			"syncProtocolVersion": app.SyncProtocolVersion,
 			"publicUrl":           deps.Config.PublicURL,
-			"registrationPolicy":  deps.Config.RegistrationPolicy,
+			"registrationPolicy":  policy,
 			"mcpEnabled":          deps.Config.MCPEnabled,
 		})
 		return nil

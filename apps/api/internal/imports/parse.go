@@ -11,6 +11,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/google/uuid"
 	"golang.org/x/text/encoding/charmap"
 	"golang.org/x/text/encoding/unicode"
 
@@ -27,6 +28,7 @@ type Issue struct {
 }
 
 type Record struct {
+	ID               *uuid.UUID        `json:"id,omitempty"` // client-parsed upload only: the device's raw record id
 	RowNumber        int               `json:"rowNumber"`
 	AccountRef       string            `json:"accountRef,omitempty"`
 	StatementRef     string            `json:"statementRef,omitempty"`

@@ -4,7 +4,7 @@ import { resolveTheme } from '../app/theme.ts';
 import { translate } from '../lib/i18n.ts';
 import { lockDelayMs } from './AppLock.tsx';
 import { backupDue } from './Banners.tsx';
-import { type Command, filterCommands } from './CommandPalette.tsx';
+import { type Command, filterCommands, GO_KEYS, goTarget } from './CommandPalette.tsx';
 import { buildInput, type QuickForm } from './QuickAdd.tsx';
 
 const noop = () => undefined;
@@ -121,5 +121,14 @@ describe('app helpers', () => {
     expect(translate('bs', 'nav.dashboard', 'Dashboard')).toBe('Pregled');
     expect(translate('bs', 'no.such.key', 'Hello {{name}}', { name: 'Ana' })).toBe('Hello Ana');
     expect(translate('en', 'nav.dashboard', 'Dashboard')).toBe('Dashboard');
+  });
+});
+
+describe('G shortcuts', () => {
+  test('every key maps back to one section', () => {
+    const keys = Object.values(GO_KEYS);
+    expect(new Set(keys).size).toBe(keys.length);
+    for (const [id, k] of Object.entries(GO_KEYS)) expect(goTarget(k.toUpperCase())).toBe(id);
+    expect(goTarget('z')).toBeUndefined();
   });
 });

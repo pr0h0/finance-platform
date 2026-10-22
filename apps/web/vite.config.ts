@@ -1,14 +1,47 @@
+import { cpSync, mkdirSync, readdirSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import { dirname, join } from 'node:path';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
 // In docker-compose.dev.yml the API is reachable as http://api:8080.
 const apiTarget = process.env.VITE_API_PROXY ?? 'http://api:8080';
 
+// OCR runs fully self-hosted (CSP 'self', no third-party downloads): the tesseract.js worker, its
+// LSTM wasm cores and the bundled language data are copied to /tesseract/ in the build.
+export const OCR_LANGS = ['eng', 'bos', 'hrv'];
+function tesseractAssets(): Plugin {
+  const req = createRequire(import.meta.url);
+  const tess = dirname(req.resolve('tesseract.js/package.json'));
+  const core = dirname(
+    createRequire(join(tess, 'package.json')).resolve('tesseract.js-core/package.json'),
+  );
+  return {
+    name: 'finplat-tesseract-assets',
+    apply: 'build',
+    writeBundle(o) {
+      const out = join(o.dir ?? 'dist', 'tesseract');
+      mkdirSync(join(out, 'lang'), { recursive: true });
+      cpSync(join(tess, 'dist/worker.min.js'), join(out, 'worker.min.js'));
+      for (const f of readdirSync(core))
+        if (/^tesseract-core.*lstm\.wasm(\.js)?$/.test(f)) cpSync(join(core, f), join(out, f));
+      for (const l of OCR_LANGS) {
+        const dir = dirname(req.resolve(`@tesseract.js-data/${l}/package.json`));
+        cpSync(
+          join(dir, `4.0.0_best_int/${l}.traineddata.gz`),
+          join(out, `lang/${l}.traineddata.gz`),
+        );
+      }
+    },
+  };
+}
+
 export default defineConfig({
   plugins: [
     react(),
+    tesseractAssets(),
     tailwindcss(),
     VitePWA({
       registerType: 'prompt', // the user decides when to reload into a new version
@@ -38,6 +71,7 @@ export default defineConfig({
       workbox: {
         // App shell only. API, MCP and anything with credentials is never cached (PLAN §37).
         globPatterns: ['**/*.{js,css,html,svg,png,woff2,wasm}'],
+        globIgnores: ['tesseract/**'], // OCR assets (~20 MB) load on first use, not precached
         maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api\//, /^\/mcp/],

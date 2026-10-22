@@ -3,13 +3,14 @@
 // the checkpoint, keep tombstones, store conflicts and rejected ops for explicit resolution.
 // Never last-write-wins: a local row with unpushed ops is never overwritten by a pull.
 import { type ApiClient, ApiError, checkCompatibility } from '@finplat/api-client';
-import type { OperationResult, SyncChange, SyncConflict } from '@finplat/domain';
+import type { ImportedRawRecord, OperationResult, SyncChange, SyncConflict } from '@finplat/domain';
 import { SYNC_PROTOCOL_VERSION } from '@finplat/domain';
 import {
   ackOps,
   allOps,
   getCheckpoint,
   getMeta,
+  importSourceKey,
   type LocalStore,
   type OutboxOp,
   pendingOps,
@@ -20,7 +21,20 @@ import {
 } from '@finplat/storage';
 import { type Envelope, isEnvelope, type Keyring } from './crypto.ts';
 
-export type SyncApi = Pick<ApiClient, 'getMeta' | 'sync'>;
+export type SyncApi = Pick<ApiClient, 'getMeta' | 'sync'> & Partial<Pick<ApiClient, 'send'>>;
+
+/** Entities uploaded over REST instead of /sync/push: attachment content, and new import batches
+ * (original file + raw records). Later import_batches status changes go through /sync/push. */
+const isUpload = (o: OutboxOp) =>
+  o.entityType === 'attachments' ||
+  (o.entityType === 'import_batches' && o.op === 'upsert' && o.baseVersion === null);
+
+function base64(bytes: Uint8Array): string {
+  let bin = '';
+  for (let i = 0; i < bytes.length; i += 0x8000)
+    bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(bin);
+}
 
 export interface SyncEngineOptions {
   store: LocalStore;
@@ -139,8 +153,16 @@ export class SyncEngine {
   async push(): Promise<number> {
     let sent = 0;
     for (;;) {
-      const ops = await pendingOps(this.o.store, this.o.localProfileId, this.o.pushBatch);
-      if (ops.length === 0) return sent;
+      const pending = await pendingOps(this.o.store, this.o.localProfileId, this.o.pushBatch);
+      if (pending.length === 0) return sent;
+      // keep outbox order: ops before an upload are pushed first, then the upload runs alone
+      const k = pending.findIndex(isUpload);
+      if (k === 0) {
+        await this.upload(pending[0] as OutboxOp);
+        sent++;
+        continue;
+      }
+      const ops = k > 0 ? pending.slice(0, k) : pending;
       const operations = ops.map((op) => {
         const { seq: _s, status: _st, profileId: _p, error: _e, ...wire } = this.encode(op);
         return wire;
@@ -158,6 +180,113 @@ export class SyncEngine {
       await this.saveState({ serverVersion: res.serverVersion });
       if (res.results.length < ops.length) return sent; // server stopped early; next sync continues
     }
+  }
+
+  /** One REST upload (see isUpload). Acked when done or already on the server; a permanent
+   * refusal is kept as a rejected op for the sync dashboard, transient errors are retried. */
+  private async upload(op: OutboxOp): Promise<void> {
+    const done = () => ackOps(this.o.store, this.o.localProfileId, [op.opId]);
+    // e2ee: the server must not see plaintext files or statements; they stay on this device
+    if (this.o.keyring) return done();
+    const send = this.o.api.send;
+    if (!send) throw new Error('this sync api cannot upload files');
+    const hdr = { 'X-Profile-ID': this.o.remoteProfileId, 'Idempotency-Key': op.opId };
+    try {
+      if (op.entityType === 'attachments') {
+        if (op.op === 'delete') {
+          await this.retry(() =>
+            send('DELETE', `/api/v1/attachments/${op.entityId}`, undefined, hdr),
+          );
+        } else if (op.baseVersion === null) {
+          const row = await this.local<{ blob?: Blob }>('blobs', op.entityId);
+          if (!row?.blob) return done(); // removed again before it was uploaded
+          const a = op.data as {
+            transactionId?: string | null;
+            purpose?: string;
+            fileName?: string;
+          };
+          const form = () => {
+            const f = new FormData();
+            f.set('id', op.entityId);
+            if (a.transactionId) f.set('transactionId', a.transactionId);
+            f.set('purpose', a.purpose ?? 'receipt');
+            f.set('file', row.blob as Blob, a.fileName ?? 'attachment');
+            return f;
+          };
+          await this.retry(() => send('POST', '/api/v1/attachments', form(), hdr));
+        } // ponytail: attachments are never edited locally; a metadata edit would need PATCH here
+        return done();
+      }
+      const b = op.data as Record<string, unknown>;
+      const src = await this.local<{ blob?: Blob; statements?: unknown[] }>(
+        'blobs',
+        importSourceKey(op.entityId),
+      );
+      if (!src?.blob) {
+        await rejectOp(this.o.store, this.o.localProfileId, op.opId, {
+          code: 'source_missing',
+          message: 'the original file of this import is not on this device; it stays local',
+        });
+        return;
+      }
+      const recs = await this.o.store.run('readonly', ['imported_raw_records'], (tx) =>
+        tx.query<ImportedRawRecord>('imported_raw_records', {
+          index: 'importBatchId',
+          from: op.entityId,
+          to: op.entityId,
+        }),
+      );
+      const body = JSON.stringify({
+        id: op.entityId,
+        importerId: b.importerId,
+        importerVersion: b.importerVersion,
+        accountId: b.accountId,
+        fileName: b.fileName,
+        fileSha256: b.fileSha256,
+        source: base64(new Uint8Array(await src.blob.arrayBuffer())),
+        result: {
+          records: recs.map((r) => ({
+            id: r.id,
+            rowNumber: r.rowNumber,
+            postingDate: r.postingDate,
+            valueDate: r.valueDate ?? undefined,
+            description: r.sourceDescription,
+            direction: r.direction,
+            amount: r.amount.amount.replace(/^-/, ''),
+            currency: r.amount.currency,
+            originalAmount: r.originalAmount?.amount,
+            originalCurrency: r.originalAmount?.currency,
+            exchangeRate: r.exchangeRate ?? undefined,
+            runningBalance: r.runningBalance?.amount,
+            bankReference: r.bankReference,
+            statementRef: r.statementRef,
+            accountRef: r.sourceAccount,
+            counterparty: r.counterparty,
+            raw: Object.fromEntries(Object.entries(r.raw).map(([k, v]) => [k, String(v)])),
+            warnings: r.warnings.map((message) => ({ code: 'warning', message })),
+          })),
+          statements: src.statements ?? [],
+          errors: [],
+          warnings: [],
+        },
+      });
+      await this.retry(() =>
+        send('POST', '/api/v1/imports', body, { ...hdr, 'Content-Type': 'application/json' }),
+      );
+      return done();
+    } catch (e) {
+      if (!(e instanceof ApiError) || e.retryable) throw e;
+      // already there (a retry after a lost response) or already gone
+      if (e.status === 409 || (op.op === 'delete' && e.status === 404)) return done();
+      await rejectOp(this.o.store, this.o.localProfileId, op.opId, {
+        code: e.code,
+        message: e.message,
+      });
+    }
+  }
+
+  private local<T>(table: string, id: string) {
+    return this.o.store.run('readonly', [table], (tx) => tx.get<T>(table, id));
   }
 
   private async applyResults(ops: OutboxOp[], results: OperationResult[]) {

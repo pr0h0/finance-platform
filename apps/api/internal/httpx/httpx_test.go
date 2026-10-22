@@ -85,3 +85,21 @@ func TestIdempotency(t *testing.T) {
 	}
 	_ = uuid.Nil
 }
+
+func TestRealIPIgnoresClientHeaders(t *testing.T) {
+	var got string
+	h := httpx.RealIP(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { got = r.RemoteAddr }))
+	r := httptest.NewRequest("GET", "/", nil)
+	r.RemoteAddr = "172.18.0.5:1234"
+	r.Header.Set("True-Client-IP", "10.9.0.1")
+	r.Header.Set("X-Forwarded-For", "10.9.0.2")
+	h.ServeHTTP(httptest.NewRecorder(), r)
+	if got != "172.18.0.5:1234" {
+		t.Fatalf("spoofable header used: %s", got)
+	}
+	r.Header.Set("X-Real-IP", "203.0.113.7")
+	h.ServeHTTP(httptest.NewRecorder(), r)
+	if got != "203.0.113.7:0" {
+		t.Fatalf("X-Real-IP not applied: %s", got)
+	}
+}

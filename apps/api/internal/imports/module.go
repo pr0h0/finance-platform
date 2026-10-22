@@ -28,11 +28,13 @@ import (
 	"github.com/pr0h0/finance-platform/apps/api/internal/app"
 	"github.com/pr0h0/finance-platform/apps/api/internal/authz"
 	"github.com/pr0h0/finance-platform/apps/api/internal/httpx"
+	"github.com/pr0h0/finance-platform/apps/api/internal/sync"
 )
 
 // Register mounts this module's routes on the /api/v1 router.
 func Register(r chi.Router, deps *app.Deps) {
 	h := &handlers{deps: deps}
+	sync.RegisterEntity("import_batches", syncEntity)
 	idem := httpx.Idempotent(deps.DB)
 	upload := func(next http.Handler) http.Handler { // raise the body limit before Idempotent reads it
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -271,6 +273,7 @@ func optUUID(s, field string, errs map[string]string) *uuid.UUID {
 
 // clientStage is the body of POST /imports when the web client parsed the file itself.
 type clientStage struct {
+	ID                     *uuid.UUID `json:"id,omitempty"` // client-chosen batch id (connected web upload of a local import)
 	ImporterID             string     `json:"importerId"`
 	ImporterVersion        string     `json:"importerVersion"`
 	AccountID              uuid.UUID  `json:"accountId"`
@@ -336,7 +339,7 @@ func (h *handlers) create(w http.ResponseWriter, r *http.Request) error {
 		}
 		b, err = Stage(r.Context(), h.deps.DB, StageInput{ProfileID: pid, UserID: p.UserID, AccountID: in.AccountID, Importer: in.ImporterID,
 			ImporterVersion: in.ImporterVersion, TemplateID: in.TemplateID, FileName: in.FileName, Source: src, Encoding: in.Encoding,
-			Result: in.Result, ReprocessedFrom: in.ReprocessedFromBatchID})
+			Result: in.Result, ReprocessedFrom: in.ReprocessedFromBatchID, BatchID: in.ID})
 	} else {
 		if err := r.ParseMultipartForm(8 << 20); err != nil {
 			return httpx.BadRequest("expected multipart/form-data with a file field, or application/json")

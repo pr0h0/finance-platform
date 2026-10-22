@@ -299,6 +299,11 @@ func Commit(ctx context.Context, db *pgxpool.Pool, profileID, userID, batchID uu
 		}
 		st.Committed++
 	}
+	if ledger.AutoCategorize != nil && len(newIDs) > 0 { // rules run on imports done on the server too
+		if _, err := ledger.AutoCategorize(ctx, tx, profileID, newIDs); err != nil {
+			return b, err
+		}
+	}
 	// Persist final outcomes on the reconciliation rows.
 	var rids, tids []uuid.UUID
 	var outs []string

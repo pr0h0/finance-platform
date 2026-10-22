@@ -1,5 +1,6 @@
-// Command palette (Ctrl/Cmd+K or "/") and global shortcuts (N = new expense, I = income,
-// T = transfer). Feature 53 quick actions + feature 82 shortcuts for the web.
+// Command palette (Ctrl/Cmd+K, "/" or "?") and global shortcuts (N = new expense, I = income,
+// T = transfer, G then a letter = go to a section, see GO_KEYS). Feature 53 quick actions +
+// feature 82 shortcuts for the web; the palette lists every shortcut next to its command.
 import { Dialog as RD } from 'radix-ui';
 import { type KeyboardEvent, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
@@ -30,14 +31,37 @@ export function filterCommands(cmds: Command[], query: string): Command[] {
     .map(({ c }) => c);
 }
 
+/** "G" then this key opens the section (section id -> key). */
+export const GO_KEYS: Record<string, string> = {
+  dashboard: 'd',
+  transactions: 'x',
+  planning: 'p',
+  budgets: 'b',
+  analytics: 'a',
+  accounts: 'c',
+  goals: 'g',
+  import: 'i',
+  rules: 'r',
+  reports: 'o',
+  settings: 's',
+  sync: 'y',
+};
+
+/** Section id for "G" + key, if any. */
+export function goTarget(key: string): string | undefined {
+  return Object.keys(GO_KEYS).find((id) => GO_KEYS[id] === key.toLowerCase());
+}
+
 const typing = (e: globalThis.KeyboardEvent) => {
   const el = e.target as HTMLElement | null;
   return !!el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName));
 };
 
-export function useShortcuts() {
+export function useShortcuts(sections: Section[]) {
   const { openPalette, openQuickAdd } = useShell.getState();
+  const navigate = useNavigate();
   useEffect(() => {
+    let goPending = 0; // time "G" was pressed
     const onKey = (e: globalThis.KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
@@ -53,7 +77,20 @@ export function useShortcuts() {
       )
         return;
       const k = e.key.toLowerCase();
-      if (k === '/') {
+      if (goPending && Date.now() - goPending < 1500) {
+        goPending = 0;
+        const path = sections.find((x) => x.id === goTarget(k))?.path;
+        if (path) {
+          e.preventDefault();
+          navigate(path);
+        }
+        return;
+      }
+      if (k === 'g') {
+        goPending = Date.now();
+        return;
+      }
+      if (k === '/' || e.key === '?') {
         e.preventDefault();
         openPalette();
       } else if (k === 'n') {
@@ -69,7 +106,7 @@ export function useShortcuts() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [openPalette, openQuickAdd]);
+  }, [openPalette, openQuickAdd, navigate, sections]);
 }
 
 export function CommandPalette({ sections }: { sections: Section[] }) {
@@ -114,6 +151,7 @@ export function CommandPalette({ sections }: { sections: Section[] }) {
       ...sections.map((s) => ({
         id: `go-${s.id}`,
         label: t('cmd.goTo', 'Go to {{section}}', { section: t(s.labelKey, s.label) }),
+        hint: GO_KEYS[s.id] ? `G ${GO_KEYS[s.id]?.toUpperCase()}` : undefined,
         run: go(s.path),
       })),
       {

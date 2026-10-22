@@ -4,7 +4,7 @@ import { camtImporter } from './formats/camt.ts';
 import { jsonImporter } from './formats/json.ts';
 import { mt940Importer } from './formats/mt940.ts';
 import { ofxImporter } from './formats/ofx.ts';
-import { ocrImporter, pdfTextImporter } from './formats/pdf.ts';
+import { type OcrOptions, ocrImporter, pdfTextImporter } from './formats/pdf.ts';
 import { qifImporter } from './formats/qif.ts';
 import { delimitedImporter, spreadsheetImporter } from './formats/tabular.ts';
 
@@ -58,6 +58,12 @@ export const blockedImporters: ImporterManifest[] = importers
   .map((i) => i.manifest)
   .filter((m) => m.status === 'blocked_external');
 
-export function createRegistry(): ImporterRegistry {
-  return new ImporterRegistry(importers);
+/** ocr: self-hosted tesseract paths for the OCR importer (see OcrOptions). */
+export function createRegistry(o: { ocr?: OcrOptions } = {}): ImporterRegistry {
+  const ocr = o.ocr;
+  return new ImporterRegistry(
+    ocr
+      ? importers.map((i) => (i.manifest.id === 'generic-ocr' ? ocrImporter(ocr) : i))
+      : importers,
+  );
 }

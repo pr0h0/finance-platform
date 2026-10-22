@@ -14,6 +14,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -120,6 +121,10 @@ func getBatch(ctx context.Context, q Querier, profileID, id uuid.UUID, lock bool
 
 // saveBatch writes status/stats/coverage, bumps version and records the sync change + audit.
 func saveBatch(ctx context.Context, tx pgx.Tx, b *Batch, action string) error {
+	return saveBatchOp(ctx, tx, b, action, nil)
+}
+
+func saveBatchOp(ctx context.Context, tx pgx.Tx, b *Batch, action string, opID *uuid.UUID) error {
 	bump := 1
 	if action == "import.stage" {
 		bump = 0 // first write of a new batch
@@ -135,7 +140,7 @@ func saveBatch(ctx context.Context, tx pgx.Tx, b *Batch, action string) error {
 		return fmt.Errorf("update batch: %w", err)
 	}
 	v, err := changes.Record(ctx, tx, changes.Change{ProfileID: b.ProfileID, EntityType: "import_batches", EntityID: b.ID,
-		Op: changes.OpUpsert, Data: b2, Action: action})
+		Op: changes.OpUpsert, Data: b2, Action: action, OpID: opID})
 	b2.ServerVersion = v
 	*b = b2
 	return err
@@ -174,6 +179,7 @@ type StageInput struct {
 	Encoding        string
 	Result          Result
 	ReprocessedFrom *uuid.UUID
+	BatchID         *uuid.UUID // client-chosen id (connected web client uploading a local import); nil = new
 }
 
 type stagedRow struct {
@@ -241,6 +247,9 @@ func validateRecords(res Result, acc account) ([]stagedRow, []Issue) {
 			r.Warnings = []Issue{}
 		}
 		sr := stagedRow{rec: r, id: uuid.New()}
+		if r.ID != nil { // client-parsed import: keep the device's raw record ids so its transactions link
+			sr.id = *r.ID
+		}
 		m, err := money.Parse(r.Amount, r.Currency)
 		switch {
 		case err != nil:
@@ -304,6 +313,9 @@ func Stage(ctx context.Context, db *pgxpool.Pool, in StageInput) (Batch, error) 
 	}
 	sum := sha256.Sum256(in.Source)
 	batchID := uuid.New()
+	if in.BatchID != nil {
+		batchID = *in.BatchID
+	}
 	var start, end string
 	for _, r := range rows {
 		if start == "" || r.rec.PostingDate < start {
@@ -327,6 +339,9 @@ func Stage(ctx context.Context, db *pgxpool.Pool, in StageInput) (Batch, error) 
 		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'staged',$10,$11,$12,$13)`,
 		batchID, in.ProfileID, in.AccountID, in.Importer, in.ImporterVersion, in.TemplateID, in.FileName, sum[:], len(in.Source),
 		start, end, in.UserID, in.ReprocessedFrom); err != nil {
+		if pe := (*pgconn.PgError)(nil); errors.As(err, &pe) && pe.Code == "23505" {
+			return Batch{}, httpx.Conflict("an import batch with this id already exists")
+		}
 		return Batch{}, fmt.Errorf("insert batch: %w", err)
 	}
 	if _, err := tx.Exec(ctx, `INSERT INTO import_batch_sources (import_batch_id, profile_id, file_name, encoding, content) VALUES ($1,$2,$3,$4,$5)`,
@@ -386,6 +401,9 @@ func Stage(ctx context.Context, db *pgxpool.Pool, in StageInput) (Batch, error) 
 		"account_id", "row_number", "source_description", "posting_date", "value_date", "amount", "direction", "currency", "original_amount",
 		"original_currency", "exchange_rate", "running_balance", "bank_reference", "statement_ref", "source_account", "counterparty",
 		"raw", "dedupe_fingerprint", "file_sha256", "importer_id", "importer_version", "warnings"}, pgx.CopyFromRows(raw)); err != nil {
+		if pe := (*pgconn.PgError)(nil); errors.As(err, &pe) && pe.Code == "23505" {
+			return Batch{}, httpx.Conflict("a raw record id already exists")
+		}
 		return Batch{}, fmt.Errorf("copy raw records: %w", err)
 	}
 	if err := classify(ctx, tx, in.ProfileID, acc, batchID, in.ReprocessedFrom, rows, start, end); err != nil {

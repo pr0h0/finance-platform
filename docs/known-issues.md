@@ -9,13 +9,30 @@
 - CI workflow has not yet been executed on GitHub.
 - Dev compose `down -v` also removes the shared `finplat_gomod/gobuild/bun` cache volumes (harmless, just
   slower next run). Use `down` without `-v`; reset the dev DB with `docker volume rm finplat-dev_pgdata`.
-- `middleware.RealIP` trusts `X-Forwarded-For`; safe only because the API container is reachable solely
-  through the gateway (no published port in prod). Do not publish the API port in prod.
+- (fixed) Client IP: the API trusts only `X-Real-IP` (httpx.RealIP), which the gateway overwrites with
+  Cloudflare's `CF-Connecting-IP` (or the TCP peer) and it clears `True-Client-IP`; spoofed headers no longer
+  bypass the per-IP auth limit. Anyone on the host itself can reach 127.0.0.1:3810 and set `CF-Connecting-IP`
+  (host-local trust). Do not publish the API port in prod.
+- (fixed) A fresh public server no longer hands the admin account to the first visitor: with
+  `REGISTRATION_POLICY=first_user` the first registration needs `SETUP_TOKEN` (generated and logged at
+  startup in production when unset; the live instance has it in `.env`).
+- E2E (`scripts/e2e.sh`) runs against an isolated `finplat-e2e` compose project (fresh DB, no host ports,
+  removed afterwards), never against the public instance. It rebuilds the shared `finplat-*:latest` image
+  tags; the running prod containers keep their image until they are recreated.
 
 ## Importers (packages/importer-sdk, packages/bank-importers)
-- OCR importer (`generic-ocr`, tesseract.js) is implemented but not covered by automated tests: it needs
-  language data from the network and raster input. Scanned PDFs can only be rasterised in a browser.
+- OCR (`generic-ocr` importer and receipt scanning) is self-hosted: the web build copies the tesseract.js
+  worker, LSTM wasm cores and eng/bos/hrv language data to /tesseract/ (~10 MB, loaded on first use, not
+  precached); nothing is fetched from a CDN. Receipt OCR is covered by the Playwright connected spec; the
+  statement OCR importer itself has no automated test. Scanned PDFs can only be rasterised in a browser.
   Results are always low-confidence and flagged `requiresApproval`.
+- Receipt scanning extracts total, date and payee only (no line items); values are suggestions the user must
+  tick. Other languages than eng/bos/hrv need their traineddata added to vite.config.ts.
+- Optional bank integrations (feature 102) are not built: they need a chosen PSD2/aggregator provider and
+  credentials, which this project does not have.
+- The hosted web app talks only to its own server (CSP `connect-src 'self'` + SameSite session cookie);
+  entering another server address offers a link to that server's own web app. Connecting one client to
+  arbitrary servers is for the desktop/mobile apps (Phase 3/4).
 - XML (CAMT/OFX), JSON, XLSX/XLS and PDF are parsed whole-file (capped by `maxBytes`); only CSV/TSV/QIF/MT940 stream.
 - PDF text import rebuilds rows from text positions; multi-line descriptions keep only their first line.
 - QIF: day/month order is inferred per file; all-ambiguous files assume MM/DD (DD.MM for dot dates) with a warning. QIF splits are kept raw only.
@@ -61,15 +78,16 @@
 - `invite_only` registration means an admin creates the account (`POST /admin/users`); household invitations
   require the invitee to already have an account. No email delivery: invite tokens / recovery codes are
   passed on by the user (no SMTP needed).
-- `/api/v1/meta.registrationPolicy` shows the environment value; a runtime change via `PUT /admin/settings`
-  is effective for registration and shown by `/admin/settings` and `/admin/diagnostics`, but not by `/meta`
-  (server.go is foundation-owned).
+- (fixed) `/api/v1/meta.registrationPolicy` shows the effective policy (admin setting over environment).
 - Only the registration policy is changeable at runtime; MCP/FX/backup schedule stay environment settings.
 - Sync push is registered for accounts, categories, tags, merchants, transactions, transaction/split
   templates, categorization rules, recurrence schedules, planned transactions, planned occurrences,
   subscriptions, budgets, budget allocations, savings goals and contributions (integration pass). Still not
-  pushable (rejected with `unsupported_entity`): `import_batches`, `attachments`, `imported_raw_records` —
-  in connected mode use the server import/attachment APIs. Client-chosen child ids (postings, splits) are
+  pushable as sync ops: `attachments` and new `import_batches` (the client sync engine uploads them over
+  REST: POST /attachments, POST /imports with client ids; `import_batches` status changes then sync), and
+  `imported_raw_records` (uploaded inside the batch). E2EE profiles keep attachments and imports on the
+  device (the server would see plaintext). Local imports made before the source file was kept on the device
+  are refused with `source_missing` and stay local. Client-chosen child ids (postings, splits) are
   replaced by server ids and come back in the pulled snapshot; budget allocations created through REST get
   server ids too.
 - Sync push bodies are bounded by `MAX_BODY_BYTES` (default 1 MiB); clients must split large batches.
@@ -97,10 +115,15 @@
   15 minutes when `JOBS_ENABLED`; there is no admin trigger endpoint.
 - `/analytics/import-coverage` uses `import_batches.coverage_start/end`; the imports module's `/imports/coverage`
   is the richer statement-level view.
-- `automation.ApplyRules` must be called by the transactions/imports modules for new transactions; until
-  they do, rules run only via `POST /rules/{id}/apply`.
-- Shared conformance families `budgets`, `forecast` and `aggregation` still lack Go runners over in-memory data
-  (the Go logic is DB-backed and covered by DB tests; `forecasting.Project` is pure and could host one).
+- (fixed) Rules run automatically on REST/MCP-created transactions and server import commits
+  (`ledger.AutoCategorize`, set by the automation module). Transactions arriving by sync push are not
+  re-categorized: the device already ran its rules (manual entries and imports).
+- Financial parity web vs REST/MCP is only partly shown: the Go runner covers recurrence, subscriptions,
+  fx_lookup and budget periods (`TestBudgetPeriods`; it found and fixed a Go divergence for anchor day 0).
+  `aggregation`, budget `status` and `forecast` fixtures are still skipped: the Go analytics/budget-status code is
+  DB-bound, and `forecasting.Project` differs from the TS engine (no credit-limit rule, shortfalls tracked in
+  the forecast currency rather than per account in native currency, no safe-to-spend account selection). Until
+  ported, MCP/REST answers and web numbers can differ on those features.
 - PDF reports are plain text (Helvetica/WinAnsi; characters outside Latin-1 print as `?`).
 
 
@@ -115,7 +138,7 @@
   transaction (4 round trips each); very large batches can approach the 60 s request timeout.
 - Fuzzy matching is amount + date (±3 days manual, ±1 day imported) only; descriptions are not compared.
 - Category suggestions: same source description previously classified by the user, then merchant default
-  category. Automation rules are not applied at import time (automation module's job; not wired).
+  category; enabled automation rules run after that at commit.
 - Reprocessing of client-only importers (XLSX/XLS/PDF/OCR) must be re-run in the web client.
 - Coverage days are computed in memory per account (≤ 25 years per call).
 - `GET /analytics/import-coverage` (analytics module) and `GET /imports/coverage` both exist; the imports one
@@ -140,10 +163,9 @@
   while the dev stack is up; plus the Playwright connected-mode journey). E2EE has not been run against the
   real API. Exchange rates entered on a device are local only (not uploaded), so server-side valuations of a
   connected profile only see server/provider rates.
-- Activation does not upload imported raw records, import batches or attachment contents (no sync entity for
-  them); uploaded imported transactions get `importRecordId = null`. Local imports/attachments made in
-  connected mode are queued as ops the server will reject until those entities are syncable (or the web app
-  uses the server import/attachment APIs in connected mode).
+- Activation (local profile -> server) does not upload imports or attachments made while the profile was
+  local; their transactions get `importRecordId = null`. Imports and attachments made in connected mode are
+  uploaded by the sync engine (see the sync entry above).
 - `LocalFinanceService` reads compute balances by scanning all transactions of the profile (fine for tens of
   thousands; add a balance cache if profiles grow beyond that). Transaction history/undo (feature 84),
   reconciliations and server-only analytics endpoints are not mirrored locally (engine functions are).

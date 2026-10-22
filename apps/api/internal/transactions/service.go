@@ -220,6 +220,15 @@ func Create(ctx context.Context, tx pgx.Tx, profileID uuid.UUID, in Input, sourc
 			return nil, err
 		}
 	}
+	if ledger.AutoCategorize != nil && (created.Kind == "expense" || created.Kind == "income") {
+		changed, err := ledger.AutoCategorize(ctx, tx, profileID, []uuid.UUID{created.ID})
+		if err != nil {
+			return nil, err
+		}
+		if len(changed) > 0 {
+			return ledger.Get(ctx, tx, profileID, created.ID, false)
+		}
+	}
 	return created, nil
 }
 

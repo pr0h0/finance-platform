@@ -126,6 +126,18 @@ export function createApiClient(opts: ClientOptions) {
   });
   client.use(mw);
 
+  /** Raw body (FormData, Blob) and raw Response (downloads); same headers/error mapping. */
+  async function send(
+    method: string,
+    path: string,
+    body?: RequestInit['body'],
+    headers: Record<string, string> = {},
+  ): Promise<Response> {
+    const req = new Request(`${baseUrl}${path}`, { method, headers, credentials: 'include', body });
+    const r = (await mw.onRequest?.({ request: req } as never)) as Request;
+    return (await mw.onResponse?.({ request: r, response: await doFetch(r) } as never)) as Response;
+  }
+
   /** Untyped escape hatch (same headers/error mapping). */
   async function request<T>(
     method: string,
@@ -133,20 +145,12 @@ export function createApiClient(opts: ClientOptions) {
     body?: unknown,
     headers: Record<string, string> = {},
   ): Promise<T> {
-    const req = new Request(`${baseUrl}${path}`, {
+    const res = await send(
       method,
-      headers: {
-        ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
-        ...headers,
-      },
-      credentials: 'include',
-      body: body === undefined ? undefined : JSON.stringify(body),
-    });
-    const r = (await mw.onRequest?.({ request: req } as never)) as Request;
-    const res = (await mw.onResponse?.({
-      request: r,
-      response: await doFetch(r),
-    } as never)) as Response;
+      path,
+      body === undefined ? undefined : JSON.stringify(body),
+      body === undefined ? headers : { 'Content-Type': 'application/json', ...headers },
+    );
     if (res.status === 204) return undefined as T;
     return (await res.json()) as T;
   }
@@ -157,6 +161,7 @@ export function createApiClient(opts: ClientOptions) {
     /** Fully typed openapi-fetch client: client.GET('/api/v1/accounts', {params: {header: ...}}) */
     client,
     request,
+    send,
     setCsrfToken: (t: string | undefined) => {
       csrf = t;
     },

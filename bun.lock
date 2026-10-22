@@ -33,6 +33,9 @@
         "@tanstack/react-query": "^5.90.2",
         "@tanstack/react-table": "^8.21.3",
         "@tanstack/react-virtual": "^3.13.12",
+        "@tesseract.js-data/bos": "1.0.0",
+        "@tesseract.js-data/eng": "1.0.0",
+        "@tesseract.js-data/hrv": "1.0.0",
         "lucide-react": "^0.544.0",
         "pdfjs-dist": "^6.4.299",
         "radix-ui": "^1.4.3",
@@ -40,6 +43,7 @@
         "react-dom": "^19.1.1",
         "react-router": "^7.9.3",
         "recharts": "^3.2.1",
+        "tesseract.js": "7.0.0",
         "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
         "zustand": "^5.0.8",
       },
@@ -790,6 +794,12 @@
     "@tanstack/table-core": ["@tanstack/table-core@8.21.3", "", {}, "sha512-ldZXEhOBb8Is7xLs01fR3YEc3DERiz5silj8tnGkFZytt1abEvl/GhUmCE0PMLaMPTa3Jk4HbKmRlHmu+gCftg=="],
 
     "@tanstack/virtual-core": ["@tanstack/virtual-core@3.19.6", "", {}, "sha512-CsTW892z23gy7IyxYTTorVu1uZWB+0N349rSMgKz4rFLPpLza7F7TpcCKeI5iUAwYQCt8QUlOU67J+KXCxtpGw=="],
+
+    "@tesseract.js-data/bos": ["@tesseract.js-data/bos@1.0.0", "", {}, "sha512-DPfTh+tv4yk9rVLS5llhGfOu9k3GUQxnti8s8PkUMJoc3KDvQAy9HYi7PEiopkFEV3N9kdMd+nYteRKx4T2MbQ=="],
+
+    "@tesseract.js-data/eng": ["@tesseract.js-data/eng@1.0.0", "", {}, "sha512-mbTumm6KQPUHyzTPQaF3ObXYnx0SqqfV2nabqFVQBwD6Kl7PhGSLSzOlfFTWy0P3BjghaSKA2W9GB19Jk+ZcTg=="],
+
+    "@tesseract.js-data/hrv": ["@tesseract.js-data/hrv@1.0.0", "", {}, "sha512-0qwO8Yjc1NfwjoQ7WEdBPDbKWnAitQSRALfqUQ4PuQkGG/hPmRJdO/QRR9s/OmPm2Pwo/NKdjgg41cG8HqoCxg=="],
 
     "@testing-library/dom": ["@testing-library/dom@10.4.2", "", { "dependencies": { "@babel/code-frame": "^7.10.4", "@babel/runtime": "^7.12.5", "@types/aria-query": "^5.0.1", "aria-query": "5.3.0", "dom-accessibility-api": "^0.5.9", "lz-string": "^1.5.0", "picocolors": "1.1.1", "pretty-format": "^27.0.2" } }, "sha512-yzr2S9HyAIdhz2/6qHgbs665Q7PKVcDF05vsOlHPxG1mo36gKVesdYVeDLnXgfjJ03CrKRk08knc6+E/9m8v2Q=="],
 

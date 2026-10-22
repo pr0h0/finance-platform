@@ -73,6 +73,13 @@ export class RemoteDataSource implements DataSource {
       s = new LocalFinanceService(this.o.store, profileId, {
         ...this.o.service,
         onWrite: () => engine.schedule(this.o.syncDelayMs),
+        // attachments added on another device: download once, then cached in the local store
+        fetchAttachment: async (id) =>
+          (
+            await this.o.api.send('GET', `/api/v1/attachments/${id}/content`, undefined, {
+              'X-Profile-ID': profileId,
+            })
+          ).blob(),
       });
       this.services.set(profileId, s);
     }

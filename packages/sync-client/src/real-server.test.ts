@@ -183,3 +183,110 @@ test.skipIf(!URL_)('real server: every synced entity type round-trips', async ()
   await da.engine.sync();
   expect((await s.getTransaction(tx.id)).description).toBe('Weekly shop');
 });
+
+test.skipIf(!URL_)('real server: attachments and imports reach the server', async () => {
+  const email = `sync-up-${Date.now()}@example.test`;
+  const password = 'correct horse battery staple';
+  await createApiClient({ baseUrl: URL_ as string }).request('POST', '/api/v1/auth/register', {
+    email,
+    password,
+  });
+  const a = await login(email, password, 'device A');
+  const b = await login(email, password, 'device B');
+  const profile = (await a.api.createProfile({ name: 'Up', baseCurrency: 'BAM' })) as {
+    id: string;
+  };
+  const da = await device(a.api, a.deviceId, profile.id);
+  const db = await device(b.api, b.deviceId, profile.id);
+  const hdr = { 'X-Profile-ID': profile.id };
+  const acc = await da.svc.create('accounts', {
+    name: 'Bank',
+    accountType: 'checking',
+    currency: 'BAM',
+  });
+  const t = await da.svc.createTransaction({
+    kind: 'expense',
+    accountId: acc.id,
+    amount: { amount: '7.50', currency: 'BAM' },
+    bookingDate: '2026-05-02',
+  });
+  const att = await da.svc.addAttachment({
+    file: new Blob(['receipt text'], { type: 'text/plain' }),
+    fileName: 'r.txt',
+    transactionId: t.id,
+  });
+
+  const src = new Blob(['date;amount\n2026-05-03;-12.00\n']);
+  const sha = [...new Uint8Array(await crypto.subtle.digest('SHA-256', await src.arrayBuffer()))]
+    .map((x) => x.toString(16).padStart(2, '0'))
+    .join('');
+  const rec = {
+    rowNumber: 1,
+    postingDate: '2026-05-03',
+    description: 'Shop',
+    direction: 'debit' as const,
+    amount: '12.00',
+    currency: 'BAM',
+    raw: { date: '2026-05-03', amount: '-12.00' },
+    fingerprint: 'fp1:test',
+  };
+  const preview = await da.svc.stageImport({
+    accountId: acc.id,
+    importerId: 'generic-csv',
+    importerVersion: '1.0.0',
+    fileName: 's.csv',
+    fileSha256: sha,
+    fileSize: src.size,
+    records: [rec],
+    source: src,
+  });
+  await da.svc.commitImport(preview.batch.id);
+
+  const st = await da.engine.sync();
+  expect(st.rejected.map((r) => `${r.entityType}: ${r.error?.code} ${r.error?.message}`)).toEqual(
+    [],
+  );
+  expect(st.pending).toBe(0);
+
+  const files = await a.api.request<{ items: { id: string }[] }>(
+    'GET',
+    '/api/v1/attachments',
+    undefined,
+    hdr,
+  );
+  expect(files.items.map((x) => x.id)).toEqual([att.id]);
+  const batch = await a.api.request<{ status: string }>(
+    'GET',
+    `/api/v1/imports/${preview.batch.id}`,
+    undefined,
+    hdr,
+  );
+  expect(batch.status).toBe('committed');
+  const original = await a.api.send(
+    'GET',
+    `/api/v1/imports/${preview.batch.id}/source`,
+    undefined,
+    hdr,
+  );
+  expect(await original.text()).toBe(await src.text());
+  const txs = await a.api.request<{ items: { importRecordId: string | null }[] }>(
+    'GET',
+    '/api/v1/transactions?limit=50',
+    undefined,
+    hdr,
+  );
+  expect(txs.items.map((x) => x.importRecordId).filter(Boolean)).toEqual([
+    preview.rows[0]?.record.id ?? 'missing',
+  ]);
+
+  // the other device gets the metadata and downloads the content on demand
+  await db.engine.sync();
+  const [att2] = await db.svc.listAttachments(t.id);
+  expect(await (await db.svc.attachmentContent(att2?.id as string)).text()).toBe('receipt text');
+  expect((await db.svc.listImports()).map((x) => x.status)).toEqual(['committed']);
+
+  // server-side rollback works for a batch imported on the device
+  await a.api.request('POST', `/api/v1/imports/${preview.batch.id}/rollback`, undefined, hdr);
+  await da.engine.sync();
+  expect((await da.svc.searchTransactions({})).items.map((x) => x.id)).toEqual([t.id]);
+});

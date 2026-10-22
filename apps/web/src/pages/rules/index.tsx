@@ -86,8 +86,9 @@ export default function RulesPage() {
           </>
         }
       >
-        Rules run on imports and on demand, in priority order. User-chosen categories are never
-        changed automatically.
+        Rules run automatically on new uncategorized transactions and imports (on this device and on
+        the server), and on demand, in priority order. User-chosen categories are never changed
+        automatically.
       </PageHeader>
       {msg && (
         <p role="status" className="mb-2 text-sm">

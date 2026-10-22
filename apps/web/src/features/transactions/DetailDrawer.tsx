@@ -1,11 +1,13 @@
 // Transaction detail: interpretation edits, original bank record (read-only), splits,
 // attachments, refunds, planned-transaction matching, history/undo, duplicate/void/delete.
 import type * as D from '@finplat/domain';
-import { fromMinor, matchPlanned, toMinor } from '@finplat/finance-engine';
+import { fromMinor, matchPlanned, money, toMinor } from '@finplat/finance-engine';
+import { inputFromBlob } from '@finplat/importer-sdk';
 import { useQuery } from '@tanstack/react-query';
 import { Ban, Copy, FileUp, RotateCcw, Trash2, Undo2 } from 'lucide-react';
 import { type ReactNode, useEffect, useState } from 'react';
 import { useData } from '../../app/data.tsx';
+import { ocrAssets } from '../../lib/ocr.ts';
 import {
   describeError,
   qk,
@@ -15,7 +17,9 @@ import {
   useTransactions,
   useWrite,
 } from './data.ts';
+import { DuplicateNotice } from './duplicates.tsx';
 import { absMoney, duplicateInput, primaryAmount, SPLIT_KINDS } from './model.ts';
+import { extractReceipt } from './receipt.ts';
 import { SplitEditor } from './SplitEditor.tsx';
 import { Badge, Button, ErrorText, Field, inputCls, MoneyText, today, toMoney } from './ui.tsx';
 
@@ -98,6 +102,7 @@ function Detail({
           {tx.categorizationSource !== 'none' && <Badge>category: {tx.categorizationSource}</Badge>}
         </div>
       </div>
+      <DuplicateNotice tx={tx} refs={refs} />
       {tx.conversion && (
         <p className="mb-2 text-sm">
           Exchanged <MoneyText value={tx.conversion.from} locale={locale} /> →{' '}
@@ -455,6 +460,7 @@ function Attachments({ tx }: { tx: D.Transaction }) {
   const del = useWrite((o, id: string) => o.removeAttachment(id));
   const [view, setView] = useState<{ url: string; type: string; name: string } | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [scan, setScan] = useState<D.Attachment | null>(null);
   useEffect(
     () => () => {
       if (view) URL.revokeObjectURL(view.url);
@@ -502,6 +508,11 @@ function Attachments({ tx }: { tx: D.Transaction }) {
               {a.fileName}
             </button>
             <span className="text-xs text-muted">{Math.ceil(a.sizeBytes / 1024)} KB</span>
+            {a.contentType.startsWith('image/') && (
+              <Button size="sm" variant="ghost" onClick={() => setScan(a)}>
+                Read receipt
+              </Button>
+            )}
             <Button
               size="sm"
               variant="ghost"
@@ -525,6 +536,7 @@ function Attachments({ tx }: { tx: D.Transaction }) {
         />
       </label>
       <ErrorText error={err} />
+      {scan && <ReceiptScan key={scan.id} tx={tx} a={scan} onDone={() => setScan(null)} />}
       {view && (
         <figure className="rounded-md border border-line p-2">
           <figcaption className="mb-2 flex items-center justify-between text-xs">
@@ -822,5 +834,147 @@ function Actions({ tx, onClose }: { tx: D.Transaction; onClose: () => void }) {
       </Button>
       <ErrorText error={err} />
     </section>
+  );
+}
+
+type Field3 = 'total' | 'date' | 'merchant';
+
+/** Receipt OCR (feature 79): self-hosted tesseract on this device; every value is shown for the
+ * user to correct and approve before anything is written. */
+function ReceiptScan({
+  tx,
+  a,
+  onDone,
+}: {
+  tx: D.Transaction;
+  a: D.Attachment;
+  onDone: () => void;
+}) {
+  const { ops } = useLedgerEnv();
+  const amt = primaryAmount(tx);
+  const amountEditable =
+    !!amt &&
+    !tx.importRecordId &&
+    tx.splits.length <= 1 &&
+    tx.postings.length === 1 &&
+    (tx.kind === 'expense' || tx.kind === 'income');
+  const [vals, setVals] = useState<Record<Field3, string> | null>(null);
+  const [conf, setConf] = useState<Record<Field3, number | null>>({
+    total: null,
+    date: null,
+    merchant: null,
+  });
+  const [use, setUse] = useState<Record<Field3, boolean>>({
+    total: false,
+    date: false,
+    merchant: false,
+  });
+  const [err, setErr] = useState<string | null>(null);
+  const save = useWrite((o, p: Parameters<typeof o.updateTransaction>[1]) =>
+    o.updateTransaction(tx.id, p),
+  );
+
+  useEffect(() => {
+    let live = true;
+    (async () => {
+      try {
+        const blob = await ops.attachmentContent(a.id);
+        const { ocrLines } = await import('@finplat/bank-importers');
+        const g = extractReceipt(await ocrLines(inputFromBlob(blob, a.fileName), ocrAssets()));
+        if (!live) return;
+        setVals({
+          total: g.total?.value ?? '',
+          date: g.date?.value ?? '',
+          merchant: g.merchant?.value ?? '',
+        });
+        setConf({
+          total: g.total?.confidence ?? null,
+          date: g.date?.confidence ?? null,
+          merchant: g.merchant?.confidence ?? null,
+        });
+      } catch (e) {
+        if (live) setErr(describeError(e));
+      }
+    })();
+    return () => {
+      live = false;
+    };
+  }, [ops, a.id, a.fileName]);
+
+  const apply = async () => {
+    if (!vals) return;
+    setErr(null);
+    const patch: Parameters<typeof save.mutateAsync>[0] = { version: tx.version };
+    try {
+      if (use.merchant && vals.merchant.trim()) patch.payee = vals.merchant.trim();
+      if (use.date) {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(vals.date)) return setErr('Date must be YYYY-MM-DD.');
+        patch.bookingDate = vals.date;
+      }
+      if (use.total && amountEditable && amt) patch.amount = money(vals.total, amt.currency);
+      if (Object.keys(patch).length === 1) return setErr('Select at least one value to apply.');
+      await save.mutateAsync(patch);
+      onDone();
+    } catch (e) {
+      setErr(describeError(e));
+    }
+  };
+
+  const row = (k: Field3, label: string, disabled = false) => (
+    <div key={k} className="flex flex-wrap items-center gap-2">
+      <label className="flex w-28 items-center gap-1">
+        <input
+          type="checkbox"
+          checked={use[k]}
+          disabled={disabled}
+          onChange={(e) => setUse((u) => ({ ...u, [k]: e.target.checked }))}
+        />
+        {label}
+      </label>
+      <input
+        aria-label={`Receipt ${label.toLowerCase()}`}
+        className={`${inputCls} flex-1`}
+        value={vals?.[k] ?? ''}
+        disabled={disabled}
+        onChange={(e) => setVals((v) => (v ? { ...v, [k]: e.target.value } : v))}
+      />
+      <span className="text-xs text-muted">
+        {conf[k] === null
+          ? 'not found'
+          : `${Math.round((conf[k] as number) * 100)}% OCR confidence`}
+      </span>
+    </div>
+  );
+
+  return (
+    <fieldset className="flex flex-col gap-2 rounded-md border border-line p-3 text-sm">
+      <legend className="font-medium">Receipt values from {a.fileName}</legend>
+      {!vals && !err && <p className="text-muted">Reading the receipt on this device…</p>}
+      {vals && (
+        <>
+          <p className="text-xs text-muted">
+            OCR misreads digits. Check each value and tick the ones to apply.
+          </p>
+          {row('total', 'Total', !amountEditable)}
+          {!amountEditable && (
+            <p className="text-xs text-muted">
+              The amount of this transaction is not editable here (imported, split or
+              multi-posting).
+            </p>
+          )}
+          {row('date', 'Date')}
+          {row('merchant', 'Payee')}
+          <div className="flex gap-2">
+            <Button size="sm" variant="primary" disabled={save.isPending} onClick={apply}>
+              Apply selected
+            </Button>
+            <Button size="sm" variant="ghost" onClick={onDone}>
+              Close
+            </Button>
+          </div>
+        </>
+      )}
+      <ErrorText error={err} />
+    </fieldset>
   );
 }

@@ -152,6 +152,8 @@ export function ImportWizard({
         fileName: j.file.name,
         fileSha256: j.sha256,
         fileSize: j.file.size,
+        source: j.file,
+        statements: j.result.statements,
         records: j.result.records.map((r) => ({
           ...r,
           warnings: r.warnings.map((w) => ({ message: w.message })),

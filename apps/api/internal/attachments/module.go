@@ -27,6 +27,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/pr0h0/finance-platform/apps/api/internal/app"
 	"github.com/pr0h0/finance-platform/apps/api/internal/authz"
@@ -106,7 +107,14 @@ func checkTransaction(ctx context.Context, db ledger.DB, profileID uuid.UUID, id
 func Register(r chi.Router, deps *app.Deps) {
 	db, cfg := deps.DB, deps.Config
 
-	r.With(httpx.Idempotent(db)).Post("/attachments", httpx.H(func(w http.ResponseWriter, r *http.Request) error {
+	// The upload limit must be raised before Idempotent buffers the body (it reads it first).
+	upload := func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			httpx.UploadBody(w, r, cfg.MaxUploadBytes+64<<10)
+			next.ServeHTTP(w, r)
+		})
+	}
+	r.With(upload, httpx.Idempotent(db)).Post("/attachments", httpx.H(func(w http.ResponseWriter, r *http.Request) error {
 		profileID, p, err := authz.ProfileFromRequest(r, db, authz.RoleEditor)
 		if err != nil {
 			return err
@@ -114,7 +122,6 @@ func Register(r chi.Router, deps *app.Deps) {
 		if cfg.StorageBackend != "local" {
 			return httpx.NewError(http.StatusNotImplemented, "storage_unavailable", "only STORAGE_BACKEND=local is implemented")
 		}
-		httpx.UploadBody(w, r, cfg.MaxUploadBytes+64<<10)
 		mr, err := r.MultipartReader()
 		if err != nil {
 			return httpx.BadRequest("expected multipart/form-data")
@@ -148,11 +155,17 @@ func Register(r chi.Router, deps *app.Deps) {
 				if tmp, err = store(part, dir, cfg.MaxUploadBytes, a); err != nil {
 					return err
 				}
-			case "transactionId", "purpose":
+			case "transactionId", "purpose", "id":
 				v, _ := io.ReadAll(io.LimitReader(part, 100))
 				s := strings.TrimSpace(string(v))
 				if part.FormName() == "purpose" {
 					a.Purpose = s
+				} else if part.FormName() == "id" { // client-chosen id: a connected device uploading its local attachment
+					id, err := uuid.Parse(s)
+					if err != nil || tmp != "" {
+						return httpx.Validation(map[string]string{"id": "a uuid, sent before the file"})
+					}
+					a.ID = id
 				} else if s != "" {
 					id, err := uuid.Parse(s)
 					if err != nil {
@@ -180,6 +193,9 @@ func Register(r chi.Router, deps *app.Deps) {
 			if _, err := tx.Exec(r.Context(), `INSERT INTO attachments (id, profile_id, transaction_id, file_name, content_type, size_bytes,
 				sha256, storage_backend, storage_key, purpose, uploaded_by) VALUES ($1,$2,$3,$4,$5,$6,$7,'local',$8,$9,$10)`,
 				a.ID, profileID, a.TransactionID, a.FileName, a.ContentType, a.SizeBytes, sum, key, a.Purpose, p.UserID); err != nil {
+				if pe := (*pgconn.PgError)(nil); errors.As(err, &pe) && pe.Code == "23505" {
+					return httpx.Conflict("an attachment with this id already exists")
+				}
 				return err
 			}
 			if err := os.Rename(tmp, filepath.Join(cfg.AttachmentsDir, key)); err != nil {

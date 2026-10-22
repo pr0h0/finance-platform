@@ -13,7 +13,9 @@ import (
 	"github.com/pr0h0/finance-platform/apps/api/internal/analytics/fin"
 	"github.com/pr0h0/finance-platform/apps/api/internal/analytics/fin/fintest"
 	"github.com/pr0h0/finance-platform/apps/api/internal/ledger"
+	"github.com/pr0h0/finance-platform/apps/api/internal/money"
 	"github.com/pr0h0/finance-platform/apps/api/internal/testdb"
+	"github.com/pr0h0/finance-platform/apps/api/internal/transactions"
 )
 
 func init() {
@@ -99,6 +101,19 @@ func TestRulesApplyAndUndo(t *testing.T) {
 	})
 	if err != nil || len(changed) != 1 || *category(t, pool, c) != groceries {
 		t.Fatalf("auto apply: %v %v", changed, err)
+	}
+
+	// Server write paths (REST/MCP create) run the rules without a manual apply.
+	amt := money.MustParse("12.00", "BAM")
+	var created *ledger.Transaction
+	err = pgx.BeginFunc(fintest.Ctx(user), pool, func(tx pgx.Tx) error {
+		var err error
+		created, err = transactions.Create(fintest.Ctx(user), tx, profile, transactions.Input{Kind: "expense", AccountID: acc,
+			Amount: &amt, BookingDate: "2026-10-06", Description: "Konzum express"}, "manual")
+		return err
+	})
+	if err != nil || created.CategorizationSource != "rule" || *category(t, pool, created.ID) != groceries {
+		t.Fatalf("create did not run rules: %v %+v", err, created)
 	}
 }
 

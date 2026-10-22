@@ -30,6 +30,9 @@
     "@tanstack/react-query": "^5.90.2",
     "@tanstack/react-table": "^8.21.3",
     "@tanstack/react-virtual": "^3.13.12",
+    "@tesseract.js-data/bos": "1.0.0",
+    "@tesseract.js-data/eng": "1.0.0",
+    "@tesseract.js-data/hrv": "1.0.0",
     "lucide-react": "^0.544.0",
     "pdfjs-dist": "^6.4.299",
     "radix-ui": "^1.4.3",
@@ -37,6 +40,7 @@
     "react-dom": "^19.1.1",
     "react-router": "^7.9.3",
     "recharts": "^3.2.1",
+    "tesseract.js": "7.0.0",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
     "zustand": "^5.0.8"
   },

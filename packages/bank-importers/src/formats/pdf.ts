@@ -158,8 +158,11 @@ export function pdfTextImporter(): BankImporter {
 export interface OcrOptions {
   /** tesseract language codes, e.g. 'eng', 'bos', 'hrv', 'srp_latn'. */
   languages?: string[];
-  /** Where tesseract loads language data from (defaults to the tesseract.js CDN). */
-  langPath?: string;
+  /** Self-hosted tesseract assets. Unset = tesseract.js defaults, which download from a CDN
+   * (blocked by the web app's CSP and against the privacy rules), so the web app always sets them. */
+  langPath?: string; // directory with <lang>.traineddata.gz (4.0.0_best_int)
+  workerPath?: string; // tesseract.js dist/worker.min.js
+  corePath?: string; // directory with the tesseract-core*-lstm.wasm.js builds
 }
 
 type OffscreenCanvasCtor = new (
@@ -200,11 +203,11 @@ export async function ocrTextItems(
   opts: OcrOptions = {},
 ): Promise<TextItem[]> {
   const { createWorker } = await import('tesseract.js');
-  const worker = await createWorker(
-    opts.languages ?? ['eng'],
-    undefined,
-    opts.langPath ? { langPath: opts.langPath } : {},
-  );
+  const { languages, ...paths } = opts;
+  const worker = await createWorker(languages ?? ['eng'], undefined, {
+    ...paths,
+    ...(paths.workerPath ? { workerBlobURL: false } : {}),
+  });
   try {
     const items: TextItem[] = [];
     const images = await ocrImages(input, bytes);
@@ -252,7 +255,7 @@ export function ocrImporter(opts: OcrOptions = {}): BankImporter {
     requiresTemplate: true,
     limits: { maxBytes: 20 * 1024 * 1024, maxRows: 5000 },
     limitations: [
-      'Optional and slow; tesseract.js and its language data (~10 MB per language) are downloaded on first use.',
+      'Optional and slow; tesseract.js and its language data must be self-hosted (OcrOptions paths; the web app serves them from /tesseract/) and load on first use.',
       'Scanned PDFs can only be rasterised in a browser; images work everywhere tesseract runs.',
       'OCR misreads digits: every record has low confidence and the batch requires explicit user approval.',
     ],

@@ -135,3 +135,27 @@ export async function syncNow(page: Page) {
   await page.getByRole('button', { name: 'Sync now' }).click();
   await expect(page.getByRole('main')).toContainText(/Waiting to upload\s*0/);
 }
+
+/** Draws a receipt image in the page and attaches it through the open drawer's file input. */
+export async function attachReceipt(page: Page, lines: string[]) {
+  await page.locator('dialog[open] input[type=file]').waitFor({ state: 'attached' });
+  await page.evaluate(async (ls) => {
+    const c = document.createElement('canvas');
+    c.width = 640;
+    c.height = 80 + ls.length * 70;
+    const g = c.getContext('2d') as CanvasRenderingContext2D;
+    g.fillStyle = '#fff';
+    g.fillRect(0, 0, c.width, c.height);
+    g.fillStyle = '#000';
+    g.font = 'bold 44px sans-serif';
+    ls.forEach((l, i) => {
+      g.fillText(l, 30, 80 + i * 70);
+    });
+    const blob = await new Promise<Blob>((r) => c.toBlob((b) => r(b as Blob), 'image/png'));
+    const dt = new DataTransfer();
+    dt.items.add(new File([blob], 'receipt.png', { type: 'image/png' }));
+    const input = document.querySelector('dialog[open] input[type=file]') as HTMLInputElement;
+    input.files = dt.files;
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  }, lines);
+}

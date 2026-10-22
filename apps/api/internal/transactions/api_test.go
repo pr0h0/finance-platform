@@ -760,11 +760,20 @@ func TestAttachments(t *testing.T) {
 		req.Header.Set("Content-Type", mw.FormDataContentType())
 		req.Header.Set("X-Test-User", a.user.String())
 		req.Header.Set("X-Profile-ID", a.profile.String())
+		req.Header.Set("Idempotency-Key", uuid.NewString()) // the web client always sends one
 		rec := httptest.NewRecorder()
 		a.h.ServeHTTP(rec, req)
 		var out map[string]any
 		_ = json.Unmarshal(rec.Body.Bytes(), &out)
 		return rec.Code, out
+	}
+	// a connected device uploads its local attachment under the same id; the id cannot be reused
+	own := uuid.NewString()
+	if code, out := upload("r.txt", []byte("receipt"), map[string]string{"id": own}); code != 201 || out["id"] != own {
+		t.Fatalf("client id upload: %d %v", code, out)
+	}
+	if code, _ := upload("r.txt", []byte("receipt"), map[string]string{"id": own}); code != 409 {
+		t.Fatalf("reused id: %d", code)
 	}
 	png := append([]byte("\x89PNG\r\n\x1a\n"), bytes.Repeat([]byte{0}, 100)...)
 	code, att := upload("../../etc/passwd.png", png, map[string]string{"transactionId": tx.ID.String(), "purpose": "receipt"})

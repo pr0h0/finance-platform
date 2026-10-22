@@ -2,9 +2,11 @@ import { expect, test } from '@playwright/test';
 import {
   addAccounts,
   addTransaction,
+  attachReceipt,
   finishOnboarding,
   onboardConnected,
   shot,
+  startOnboarding,
   syncNow,
   uniqueEmail,
 } from '../lib/app';
@@ -34,8 +36,7 @@ test('connected mode: register, sync to the server, second device, offline edit 
   await syncNow(pa);
   await shot(pa, 'sync-page');
 
-  // the server has it: ask the API with the browser's own session (the cookie is Secure, so only
-  // the browser sends it to 127.0.0.1 over plain http)
+  // the server has it: ask the API with the browser's own session
   const server = await pa.evaluate(async () => {
     const get = (u: string, pid?: string) =>
       fetch(u, { headers: pid ? { 'X-Profile-ID': pid } : {} }).then((r) => r.json());
@@ -50,6 +51,21 @@ test('connected mode: register, sync to the server, second device, offline edit 
   );
   expect(JSON.stringify(server.bal)).toContain('458.00');
 
+  // a receipt attached on device A is uploaded to the server (not only kept in this browser)
+  await pa.goto('/transactions');
+  await pa.getByRole('row', { name: /Synced groceries/ }).click();
+  const drawerA = pa.getByRole('dialog', { name: 'Transaction' });
+  await attachReceipt(pa, ['KONZUM', 'UKUPNO 42.00', '21.10.2026']);
+  await expect(drawerA.getByRole('button', { name: 'receipt.png', exact: true })).toBeVisible();
+  await pa.keyboard.press('Escape');
+  await syncNow(pa);
+  await expect(pa.getByRole('main')).toContainText('Changes the server refused (0)');
+  const files = await pa.evaluate(async () => {
+    const pid = (await (await fetch('/api/v1/profiles')).json()).items[0].id as string;
+    return (await fetch('/api/v1/attachments', { headers: { 'X-Profile-ID': pid } })).json();
+  });
+  expect(files.items.map((f: { fileName: string }) => f.fileName)).toEqual(['receipt.png']);
+
   // second device signs in and downloads the profile
   const b = await browser.newContext();
   const pb = await b.newPage();
@@ -57,6 +73,13 @@ test('connected mode: register, sync to the server, second device, offline edit 
   await finishOnboarding(pb);
   await pb.goto('/transactions');
   await expect(pb.getByRole('row', { name: /Synced groceries/ })).toBeVisible();
+  // device B downloads the receipt from the server and reads it with on-device OCR
+  await pb.getByRole('row', { name: /Synced groceries/ }).click();
+  const drawerB = pb.getByRole('dialog', { name: 'Transaction' });
+  await drawerB.getByRole('button', { name: 'Read receipt' }).click();
+  await expect(drawerB.getByLabel('Receipt total')).toHaveValue('42.00', { timeout: 60_000 });
+  await expect(drawerB.getByLabel('Receipt date')).toHaveValue('2026-10-21');
+  await pb.keyboard.press('Escape');
 
   // device A goes offline, edits, comes back online and syncs
   await pa.goto('/transactions');
@@ -80,4 +103,14 @@ test('connected mode: register, sync to the server, second device, offline edit 
   await expect(pb.getByRole('row', { name: /Edited offline/ })).toBeVisible();
   await a.close();
   await b.close();
+});
+
+test('another server address points to that server’s own web app', async ({ page }) => {
+  await startOnboarding(page);
+  await page.getByRole('button', { name: /Connect to server/ }).click();
+  await page.getByLabel('Server URL').fill('https://other.example.org');
+  await page.getByRole('button', { name: 'Check server' }).click();
+  await expect(
+    page.getByRole('link', { name: /Open https:\/\/other\.example\.org/ }),
+  ).toBeVisible();
 });

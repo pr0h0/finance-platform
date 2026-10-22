@@ -38,19 +38,27 @@ export function ServerStep({ onVerified }: { onVerified: (s: VerifiedServer) => 
   const [error, setError] = useState<string | null>(null);
   const [server, setServer] = useState<VerifiedServer | null>(null);
   const [trust, setTrust] = useState(false);
+  const [elsewhere, setElsewhere] = useState<string | null>(null);
 
   async function check(e: FormEvent) {
     e.preventDefault();
     setError(null);
     setServer(null);
     setTrust(false);
+    setElsewhere(null);
     const n = normalizeServerUrl(url);
     if (!n.ok) {
       setError(n.reason);
       return;
     }
-    setBusy(true);
     const baseUrl = toBaseUrl(n.url);
+    // The browser app talks only to the server that serves it: its CSP (connect-src 'self') and
+    // SameSite session cookies rule out another origin. Every server ships this web app.
+    if (baseUrl) {
+      setElsewhere(n.url);
+      return;
+    }
+    setBusy(true);
     const st = await fetchServerStatus(baseUrl);
     setBusy(false);
     if (st.state === 'ok') setServer({ baseUrl, display: n.url, meta: st.meta });
@@ -97,6 +105,19 @@ export function ServerStep({ onVerified }: { onVerified: (s: VerifiedServer) => 
           {t('server.check', 'Check server')}
         </Button>
       </form>
+      {elsewhere && (
+        <Notice tone="accent" title={t('server.elsewhereTitle', 'Use that server’s own web app')}>
+          <p>
+            {t(
+              'server.elsewhere',
+              'This web app connects to the server it is served from. Every compatible server serves the same app at its own address; open it there. Data on this device stays here (move it with an encrypted backup, or activate sync after signing in there).',
+            )}
+          </p>
+          <a className="font-medium underline" href={elsewhere} rel="noopener">
+            {t('server.openThere', 'Open {{url}}', { url: elsewhere })}
+          </a>
+        </Notice>
+      )}
       {server && (
         <div className="flex flex-col gap-3 rounded-md border border-line p-3">
           <p className="text-sm font-medium">
@@ -203,6 +224,7 @@ export function AuthStep({
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
+  const [setupToken, setSetupToken] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
 
@@ -217,6 +239,7 @@ export function AuthStep({
           email,
           password,
           displayName: displayName || undefined,
+          setupToken: setupToken || undefined,
         });
       const res = await api.login({ email, password });
       const dev = await api.request<{ id: string }>('POST', '/api/v1/devices', {
@@ -243,6 +266,22 @@ export function AuthStep({
           onChange={(e) => setEmail(e.target.value)}
         />
       </Field>
+      {register && server.meta.setupTokenRequired && (
+        <Field
+          label={t('auth.setupToken', 'Setup token')}
+          hint={t(
+            'auth.setupTokenHint',
+            'Shown in the server log (or SETUP_TOKEN in .env). Needed only for the first account.',
+          )}
+        >
+          <Input
+            autoComplete="off"
+            required
+            value={setupToken}
+            onChange={(e) => setSetupToken(e.target.value)}
+          />
+        </Field>
+      )}
       {register && (
         <Field label={t('auth.displayName', 'Display name (optional)')}>
           <Input

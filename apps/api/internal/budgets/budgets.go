@@ -363,15 +363,19 @@ func PeriodFor(b Budget, d time.Time) (time.Time, time.Time, bool) {
 		pe = ps.AddDate(0, 0, 6)
 	default:
 		step := map[string]int{"monthly": 1, "quarterly": 3, "yearly": 12}[b.PeriodType]
+		anchor := b.PeriodAnchorDay
+		if anchor <= 0 { // unset: the start date's day (same rule as the TS engine)
+			anchor = start.Day()
+		}
 		base := fin.Date(start.Year(), start.Month(), 1)
 		months := (d.Year()-base.Year())*12 + int(d.Month()) - int(base.Month())
 		k := months / step
-		ps = fin.AddMonthsClamped(base, k*step, b.PeriodAnchorDay)
+		ps = fin.AddMonthsClamped(base, k*step, anchor)
 		if ps.After(d) {
 			k--
-			ps = fin.AddMonthsClamped(base, k*step, b.PeriodAnchorDay)
+			ps = fin.AddMonthsClamped(base, k*step, anchor)
 		}
-		pe = fin.AddMonthsClamped(base, (k+1)*step, b.PeriodAnchorDay).AddDate(0, 0, -1)
+		pe = fin.AddMonthsClamped(base, (k+1)*step, anchor).AddDate(0, 0, -1)
 	}
 	if ps.Before(start) {
 		ps = start

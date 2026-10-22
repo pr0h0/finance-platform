@@ -538,6 +538,8 @@ export interface ServerMeta {
   publicUrl: string;
   registrationPolicy: 'open' | 'invite_only' | 'closed' | 'first_user';
   mcpEnabled: boolean;
+  /** The server has no users yet and the first (admin) registration needs SETUP_TOKEN. */
+  setupTokenRequired?: boolean;
 }
 
 /** Error body of every non-2xx API response. */

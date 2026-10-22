@@ -1,0 +1,14 @@
+# Isolated E2E stack (scripts/e2e.sh): the production images under project "finplat-e2e", with its
+# own database and no host ports, so browser tests never touch the public instance on 3810.
+#   docker compose -p finplat-e2e -f docker-compose.yml -f docker-compose.e2e.yml up -d --wait
+services:
+  api:
+    environment:
+      PUBLIC_URL: http://localhost:8080
+      ALLOWED_ORIGINS: http://localhost:8080
+      COOKIE_SECURE: "false"
+      REGISTRATION_POLICY: open
+      MCP_ENABLED: "true"
+      BACKUP_SCHEDULE: "off"
+  gateway:
+    ports: !reset []

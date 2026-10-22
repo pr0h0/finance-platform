@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"runtime/debug"
 	"time"
@@ -22,6 +23,18 @@ func MaxBody(n int64) func(http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 		})
 	}
+}
+
+// RealIP sets r.RemoteAddr from X-Real-IP, which only the gateway sets (it overwrites any client
+// value with CF-Connecting-IP from the tunnel, or the TCP peer). Unlike chi's RealIP it ignores
+// True-Client-IP and X-Forwarded-For, which clients control.
+func RealIP(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if ip := net.ParseIP(r.Header.Get("X-Real-IP")); ip != nil {
+			r.RemoteAddr = net.JoinHostPort(ip.String(), "0")
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 // UploadBody replaces the MaxBody limit with n for this request (file uploads).

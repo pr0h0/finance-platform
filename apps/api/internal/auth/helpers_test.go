@@ -54,7 +54,7 @@ func newEnv(t *testing.T, mut func(*config.Config)) *env {
 	}
 	deps := &app.Deps{Config: cfg, DB: pool, Log: slog.New(slog.NewTextHandler(io.Discard, nil))}
 	r := chi.NewRouter()
-	r.Use(middleware.RequestID, middleware.RealIP, httpx.MaxBody(cfg.MaxBodyBytes), auth.Middleware(deps))
+	r.Use(middleware.RequestID, httpx.RealIP, httpx.MaxBody(cfg.MaxBodyBytes), auth.Middleware(deps))
 	r.Route("/api/v1", func(v chi.Router) {
 		for _, reg := range []func(chi.Router, *app.Deps){auth.Register, users.Register, profiles.Register, households.Register,
 			sync.Register, backups.Register, admin.Register, audit.Register} {

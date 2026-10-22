@@ -258,6 +258,17 @@ test('import: stage keeps raw evidence, commit applies rules, duplicates recogni
     amount: m('5.00'),
     bookingDate: '2026-02-01',
   });
+  expect(manual.categorizationSource).toBe('none');
+  const byRule = await svc.createTransaction({
+    kind: 'expense',
+    accountId: checking.id,
+    amount: m('3.00'),
+    bookingDate: '2026-02-01',
+    description: 'Bingo kiosk',
+  });
+  expect(byRule.categorizationSource).toBe('rule');
+  expect(byRule.splits[0]?.categoryId).toBe(food.id);
+  await svc.deleteTransaction(byRule.id); // keep the import assertions below unambiguous
   const rec = (
     rowNumber: number,
     description: string,

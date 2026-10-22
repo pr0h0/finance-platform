@@ -2851,6 +2851,8 @@ export interface components {
             /** @enum {string} */
             registrationPolicy?: "open" | "invite_only" | "closed" | "first_user";
             mcpEnabled?: boolean;
+            /** @description True while the server has no users and the first (admin) registration must present SETUP_TOKEN. */
+            setupTokenRequired?: boolean;
         };
         Health: {
             /** @enum {string} */
@@ -2874,6 +2876,8 @@ export interface components {
             email: string;
             password: string;
             displayName?: string;
+            /** @description Server setup token; required for the first account when meta.setupTokenRequired (403 setup_token_required otherwise). */
+            setupToken?: string;
         };
         LoginRequest: {
             /** Format: email */
@@ -3905,8 +3909,10 @@ export interface components {
             /** @description Book the difference between the statement opening balance and the ledger (opening_balance or adjustment) */
             createOpeningBalance?: boolean;
         };
-        /** @description A file parsed in the web client with @finplat/bank-importers; the server re-validates, recomputes fingerprints and stores the original bytes. */
+        /** @description A file parsed in the web client with @finplat/bank-importers; the server re-validates, recomputes fingerprints and stores the original bytes. A connected device uploading an import it already committed locally sends its own batch id and per-record `id`s (result.records[].id) so its synced transactions link by importRecordId; it then reports commit/rollback through the `import_batches` sync entity (status staged -> committed -> rolled_back only). */
         ClientImportStage: {
+            /** @description Optional client-chosen batch id (409 if taken) */
+            id?: components["schemas"]["Uuid"];
             importerId: string;
             importerVersion: string;
             accountId: components["schemas"]["Uuid"];
@@ -9090,6 +9096,8 @@ export interface operations {
         requestBody: {
             content: {
                 "multipart/form-data": {
+                    /** @description Optional client-chosen id (a connected device uploading its local attachment); must precede the file part; 409 if taken */
+                    id?: components["schemas"]["Uuid"];
                     /** Format: binary */
                     file: string;
                     transactionId?: components["schemas"]["Uuid"];

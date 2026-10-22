@@ -54,6 +54,9 @@ not stop later ops; clients keep rejected ops visible in the sync dashboard.
   MoneyFields})` from its `Register`. `Upsert`/`Delete` are the module's REST service functions (same
   validation) and call `changes.Record(..., OpID)`; `Load` returns the API snapshot, which must contain the
   integer `version`. Unregistered entity types are rejected with `unsupported_entity`.
+  Binary/evidence entities are not pushed as ops: the client engine uploads `attachments` (POST/DELETE
+  /attachments with the client id) and new `import_batches` (POST /imports with client batch and raw record
+  ids) over REST, in outbox order; later `import_batches` status changes (committed, rolled_back) are ops.
 - Each op runs in its own DB transaction with a savepoint: rejected ops leave no partial writes and their
   result is stored under the opId; transient server errors return `rejected/retry` and are NOT stored, so the
   client retries the same op. An opId already used by another profile is rejected (`op_id_conflict`).

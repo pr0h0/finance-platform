@@ -4,9 +4,10 @@
 import { createRegistry, readTablePreview, setPdfWorkerSrc } from '@finplat/bank-importers';
 import { type ImportContext, inputFromBlob, type SourceFormat } from '@finplat/importer-sdk';
 import pdfWorkerUrl from 'pdfjs-dist/legacy/build/pdf.worker.mjs?url';
+import { ocrAssets } from '../../lib/ocr.ts';
 import type { WorkerRequest, WorkerResponse } from './worker-types.ts';
 
-const registry = createRegistry();
+const registry = createRegistry({ ocr: ocrAssets() });
 let pdfReady: Promise<void> | null = null;
 const post = (m: WorkerResponse) => (self as unknown as DedicatedWorkerGlobalScope).postMessage(m);
 

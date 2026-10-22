@@ -42,11 +42,17 @@ func TestLimiter(t *testing.T) {
 }
 
 func TestRegistrationPolicies(t *testing.T) {
-	e := newEnv(t, func(c *config.Config) { c.RegistrationPolicy = "first_user" })
+	e := newEnv(t, func(c *config.Config) { c.RegistrationPolicy = "first_user"; c.SetupToken = "s3tup" })
 	reg := func(email string) resp {
 		return e.anon().do("POST", "/api/v1/auth/register", map[string]any{"email": email, "password": pw})
 	}
-	r := reg("Admin@Example.com")
+	if r := reg("Admin@Example.com"); r.Status != 403 || r.errCode() != "setup_token_required" {
+		t.Fatalf("first user without setup token: %d %s", r.Status, r.Raw)
+	}
+	if r := e.anon().do("POST", "/api/v1/auth/register", map[string]any{"email": "x@example.com", "password": pw, "setupToken": "wrong"}); r.Status != 403 {
+		t.Fatalf("wrong setup token: %d %s", r.Status, r.Raw)
+	}
+	r := e.anon().do("POST", "/api/v1/auth/register", map[string]any{"email": "Admin@Example.com", "password": pw, "setupToken": "s3tup"})
 	if r.Status != 201 || r.Body["isAdmin"] != true || r.Body["passwordHash"] != nil {
 		t.Fatalf("first user: %d %s", r.Status, r.Raw)
 	}

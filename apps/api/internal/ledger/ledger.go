@@ -430,6 +430,12 @@ func uniq(ids []uuid.UUID) []uuid.UUID {
 	return slices.Compact(out)
 }
 
+// AutoCategorize runs the profile's enabled categorization rules on transactions just created by a
+// server write path (REST/MCP create, server-side import commit) and returns the ids it changed.
+// The automation module sets it (it imports transactions, so the call cannot be direct); nil = no
+// rules. Sync pushes do not call it: the device already ran its rules before pushing.
+var AutoCategorize func(ctx context.Context, tx pgx.Tx, profileID uuid.UUID, ids []uuid.UUID) ([]uuid.UUID, error)
+
 // Create inserts t (header, postings, splits, tags) after validating the ledger invariants and records
 // the sync change + audit entry. Zero ids are generated. Returns the stored snapshot.
 func Create(ctx context.Context, tx pgx.Tx, t *Transaction, action string, meta map[string]any) (*Transaction, error) {

@@ -144,7 +144,14 @@ export interface StageImportInput {
   fileSha256: string;
   fileSize: number;
   records: StageRecord[];
+  /** Original file + parsed statements: kept on the device so a connected client can upload the
+   * batch as immutable evidence (sync-client uploads it with POST /imports). */
+  source?: Blob;
+  statements?: unknown[];
 }
+
+/** blobs row holding an import's original file (see StageImportInput.source). */
+export const importSourceKey = (batchId: string) => `import:${batchId}`;
 
 export interface StagedRow {
   record: D.ImportedRawRecord;
@@ -178,6 +185,8 @@ export interface ServiceOptions {
   newId?: () => string;
   /** Called after every committed write (connected mode schedules a sync push). */
   onWrite?: () => void;
+  /** Connected mode: fetch attachment content that is not on this device (uploaded elsewhere). */
+  fetchAttachment?: (id: string) => Promise<Blob>;
 }
 
 const LIABILITIES = new Set(['credit_card', 'loan', 'mortgage', 'other_liability']);
@@ -226,6 +235,7 @@ export class LocalFinanceService {
   private readonly now: () => Date;
   private readonly newId: () => string;
   private readonly onWrite: () => void;
+  private readonly fetchAttachment?: (id: string) => Promise<Blob>;
 
   constructor(
     readonly store: LocalStore,
@@ -235,6 +245,7 @@ export class LocalFinanceService {
     this.now = opts.now ?? (() => new Date());
     this.newId = opts.newId ?? (() => uuidv7());
     this.onWrite = opts.onWrite ?? (() => undefined);
+    this.fetchAttachment = opts.fetchAttachment;
   }
 
   // ------------------------------------------------------------ plumbing
@@ -730,6 +741,12 @@ export class LocalFinanceService {
           ],
           splits: buildSplits(this.newId, v.splits, v.categoryId, v.amount),
         });
+        // rules run on every new uncategorized entry, as on the server (automation.ApplyRules)
+        if (base.categorizationSource === 'none') {
+          const rules = await this.all<D.CategorizationRule>(tx, 'categorization_rules');
+          const o = await this.ruleOutcome(tx, t as D.Transaction & Syncable, rules);
+          if (o) await this.replace(tx, 'transactions', t as D.Transaction & Syncable, o.next);
+        }
         return t.id;
       }
       case 'refund': {
@@ -1442,6 +1459,13 @@ export class LocalFinanceService {
         };
         await tx.put('imported_raw_records', rec);
       }
+      if (input.source)
+        await tx.put('blobs', {
+          id: importSourceKey(batch.id),
+          profileId: this.profileId,
+          blob: input.source,
+          statements: input.statements ?? [],
+        });
       return batch.id;
     });
     return this.importPreview(batchId);
@@ -1626,12 +1650,18 @@ export class LocalFinanceService {
   }
 
   async attachmentContent(id: string): Promise<Blob> {
-    return this.read(async (tx) => {
+    const local = await this.read(async (tx) => {
       await this.load(tx, 'attachments', id, 'attachment');
       const b = await tx.get<{ blob: Blob; profileId: string }>('blobs', id);
-      if (!b || b.profileId !== this.profileId) throw notFound('attachment content');
-      return b.blob;
+      return b && b.profileId === this.profileId ? b.blob : null;
     });
+    if (local) return local;
+    if (!this.fetchAttachment) throw notFound('attachment content');
+    const blob = await this.fetchAttachment(id);
+    await this.store.run('readwrite', ['blobs'], (tx) =>
+      tx.put('blobs', { id, profileId: this.profileId, blob }),
+    );
+    return blob;
   }
 
   async removeAttachment(id: string): Promise<void> {

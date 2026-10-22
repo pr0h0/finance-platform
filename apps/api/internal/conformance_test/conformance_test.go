@@ -11,10 +11,12 @@ import (
 	"math/big"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/pr0h0/finance-platform/apps/api/internal/analytics/fin"
+	"github.com/pr0h0/finance-platform/apps/api/internal/budgets"
 	"github.com/pr0h0/finance-platform/apps/api/internal/exchangerates"
 	"github.com/pr0h0/finance-platform/apps/api/internal/money"
 	"github.com/pr0h0/finance-platform/apps/api/internal/recurrence"
@@ -269,12 +271,72 @@ func TestFXLookup(t *testing.T) {
 	}
 }
 
-// Families whose Go side does not export a pure function yet. The fixtures are the contract.
+// budgets.json "periods" cases against budgets.PeriodFor (the REST/MCP period logic): walk the
+// periods from the start until the one containing `until`.
+func TestBudgetPeriods(t *testing.T) {
+	var f struct {
+		Cases []struct {
+			Name   string `json:"name"`
+			Op     string `json:"op"`
+			Budget struct {
+				PeriodType      string  `json:"periodType"`
+				PeriodAnchorDay int     `json:"periodAnchorDay"`
+				StartDate       string  `json:"startDate"`
+				EndDate         *string `json:"endDate"`
+			} `json:"budget"`
+			Until    string          `json:"until"`
+			Expected json.RawMessage `json:"expected"` // status cases have another shape
+		} `json:"cases"`
+	}
+	load(t, "budgets", &f)
+	n := 0
+	for _, c := range f.Cases {
+		if c.Op != "periods" {
+			continue
+		}
+		n++
+		b := budgets.Budget{PeriodType: c.Budget.PeriodType, PeriodAnchorDay: c.Budget.PeriodAnchorDay, StartDate: c.Budget.StartDate, EndDate: c.Budget.EndDate}
+		t.Run(c.Name, func(t *testing.T) {
+			var got []string
+			until := day(t, c.Until)
+			for d := day(t, b.StartDate); !d.After(until); {
+				ps, pe, ok := budgets.PeriodFor(b, d)
+				if !ok {
+					break // past the end date
+				}
+				if pe.Before(d) || len(got) > 100 {
+					got = append(got, "invalid period for "+fin.Fmt(d)+": "+fin.Fmt(ps)+".."+fin.Fmt(pe))
+					break
+				}
+				got = append(got, fin.Fmt(ps)+".."+fin.Fmt(pe))
+				d = pe.AddDate(0, 0, 1)
+			}
+			var exp []struct{ Start, End string }
+			if err := json.Unmarshal(c.Expected, &exp); err != nil {
+				t.Fatal(err)
+			}
+			var want []string
+			for _, p := range exp {
+				want = append(want, p.Start+".."+p.End)
+			}
+			if strings.Join(got, " ") != strings.Join(want, " ") {
+				t.Errorf("got %v want %v", got, want)
+			}
+		})
+	}
+	if n == 0 {
+		t.Fatal("no periods cases")
+	}
+}
+
+// Families (or ops) whose Go side has no pure function over in-memory data yet: the Go code is
+// DB-bound (analytics, budget status) or its forecast semantics differ (see docs/known-issues.md).
+// The fixtures are the contract; these are listed, not hidden.
 func TestPendingFamilies(t *testing.T) {
 	for name, waitsFor := range map[string]string{
 		"aggregation": "an exported pure aggregation over in-memory transactions (analytics: byCategory/byMerchant/cashflow/netWorth/savingsRate)",
-		"budgets":     "budgets.Periods and budgets.Status over in-memory transactions",
-		"forecast":    "forecasting.Forecast and forecasting.EventsFromPlans",
+		"budgets":     "status cases: budgets.ComputeStatus over in-memory transactions (periods cases run in TestBudgetPeriods)",
+		"forecast":    "forecasting.Project with the TS account semantics (credit limits, native-currency account shortfalls, safe accounts) and EventsFromPlans",
 	} {
 		t.Run(name, func(t *testing.T) {
 			var v any

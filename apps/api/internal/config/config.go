@@ -24,6 +24,7 @@ type Config struct {
 	SessionTTL         time.Duration
 	CookieSecure       bool
 	RegistrationPolicy string // open | invite_only | closed | first_user
+	SetupToken         string // SETUP_TOKEN: required to register the first (admin) account; generated and logged when unset in production
 
 	StorageBackend string // local | s3
 	AttachmentsDir string
@@ -133,6 +134,7 @@ func Load() (*Config, error) {
 		MigrateOnStart:      boolean("MIGRATE_ON_START", true, &errs),
 		SessionTTL:          dur("SESSION_TTL", 30*24*time.Hour, &errs),
 		RegistrationPolicy:  str("REGISTRATION_POLICY", "first_user"),
+		SetupToken:          os.Getenv("SETUP_TOKEN"),
 		StorageBackend:      str("STORAGE_BACKEND", "local"),
 		AttachmentsDir:      str("ATTACHMENTS_DIR", "/data/attachments"),
 		MaxUploadBytes:      num[int64]("MAX_UPLOAD_BYTES", 25<<20, &errs),

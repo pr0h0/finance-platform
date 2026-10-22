@@ -87,7 +87,7 @@ export function Layout({ sections, children }: { sections: Section[]; children: 
   const openPalette = useShell((s) => s.openPalette);
   const openQuickAdd = useShell((s) => s.openQuickAdd);
   const location = useLocation();
-  useShortcuts();
+  useShortcuts(sections);
 
   // move focus to the page heading after navigation (screen readers announce the new page)
   // biome-ignore lint/correctness/useExhaustiveDependencies: runs per navigation

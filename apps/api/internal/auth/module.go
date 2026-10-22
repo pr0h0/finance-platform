@@ -6,6 +6,8 @@ package auth
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/subtle"
 	"encoding/base64"
 	"errors"
 	"net/http"
@@ -32,6 +34,7 @@ const recoveryCodeCount = 10
 // Register mounts this module's routes on the /api/v1 router.
 func Register(r chi.Router, deps *app.Deps) {
 	h := &handlers{deps: deps, ipLimit: NewLimiter(deps.Config.RateLimitAuthPM), keyLimit: NewLimiter(deps.Config.RateLimitAuthPM)}
+	ensureSetupToken(deps)
 	r.Post("/auth/register", httpx.H(h.register))
 	r.Post("/auth/login", httpx.H(h.login))
 	r.Post("/auth/logout", httpx.H(h.logout))
@@ -78,6 +81,32 @@ type registerReq struct {
 	Email       string `json:"email"`
 	Password    string `json:"password"`
 	DisplayName string `json:"displayName"`
+	SetupToken  string `json:"setupToken"`
+}
+
+// ensureSetupToken protects the first (admin) registration on a fresh public server: in
+// production an unset SETUP_TOKEN is generated and logged while the server has no users, so only
+// someone with access to the server logs or .env can claim the admin account.
+func ensureSetupToken(deps *app.Deps) {
+	c := deps.Config
+	if c.SetupToken != "" || c.Env != "production" || deps.DB == nil {
+		return
+	}
+	b := make([]byte, 18)
+	if _, err := rand.Read(b); err != nil {
+		panic(err)
+	}
+	c.SetupToken = base64.RawURLEncoding.EncodeToString(b)
+	var n int
+	if err := deps.DB.QueryRow(context.Background(), `SELECT count(*) FROM users`).Scan(&n); err == nil && n == 0 {
+		deps.Log.Warn("no users yet: the first account (server admin) needs this setup token; set SETUP_TOKEN to choose your own",
+			"setupToken", c.SetupToken)
+	}
+}
+
+// SetupTokenRequired reports whether the next registration must present the setup token.
+func SetupTokenRequired(c *config.Config, userCount int, policy string) bool {
+	return c.SetupToken != "" && userCount == 0 && policy == "first_user"
 }
 
 func (in *registerReq) validate() error {
@@ -164,6 +193,10 @@ func (h *handlers) register(w http.ResponseWriter, r *http.Request) error {
 	policy, err := EffectivePolicy(ctx, tx, h.deps.Config)
 	if err != nil {
 		return err
+	}
+	if SetupTokenRequired(h.deps.Config, count, policy) &&
+		subtle.ConstantTimeCompare([]byte(in.SetupToken), []byte(h.deps.Config.SetupToken)) != 1 {
+		return httpx.NewError(http.StatusForbidden, "setup_token_required", "the first account needs the server setup token (SETUP_TOKEN, or see the API log)")
 	}
 	switch {
 	case policy == "open", count == 0 && policy == "first_user":

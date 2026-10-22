@@ -3924,6 +3924,9 @@ paths:
             schema:
               type: "object"
               properties:
+                id:
+                  $ref: "#/components/schemas/Uuid"
+                  description: "Optional client-chosen id (a connected device uploading its local attachment); must precede the file part; 409 if taken"
                 file:
                   type: "string"
                   format: "binary"
@@ -5407,6 +5410,9 @@ components:
           enum: ["open", "invite_only", "closed", "first_user"]
         mcpEnabled:
           type: "boolean"
+        setupTokenRequired:
+          type: "boolean"
+          description: "True while the server has no users and the first (admin) registration must present SETUP_TOKEN."
       required: ["name", "apiVersion", "schemaVersion", "syncProtocolVersion"]
       additionalProperties: false
     Health:
@@ -5452,6 +5458,9 @@ components:
           maxLength: 1024
         displayName:
           type: "string"
+        setupToken:
+          type: "string"
+          description: "Server setup token; required for the first account when meta.setupTokenRequired (403 setup_token_required otherwise)."
       required: ["email", "password"]
       additionalProperties: false
     LoginRequest:
@@ -7902,8 +7911,11 @@ components:
       additionalProperties: false
     ClientImportStage:
       type: "object"
-      description: "A file parsed in the web client with @finplat/bank-importers; the server re-validates, recomputes fingerprints and stores the original bytes."
+      description: "A file parsed in the web client with @finplat/bank-importers; the server re-validates, recomputes fingerprints and stores the original bytes. A connected device uploading an import it already committed locally sends its own batch id and per-record `id`s (result.records[].id) so its synced transactions link by importRecordId; it then reports commit/rollback through the `import_batches` sync entity (status staged -> committed -> rolled_back only)."
       properties:
+        id:
+          $ref: "#/components/schemas/Uuid"
+          description: "Optional client-chosen batch id (409 if taken)"
         importerId:
           type: "string"
         importerVersion:

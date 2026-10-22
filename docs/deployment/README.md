@@ -48,7 +48,9 @@ Alternatives: Caddy/Traefik/nginx with Let's Encrypt in front of 3810 (forward `
 
 ## First run on the public URL
 With `REGISTRATION_POLICY=first_user`, open https://fin.example.com, choose "Connect to server" and create
-the first account: it becomes the admin. Admins can change the policy at runtime under /admin.
+the first account: it becomes the admin. That registration needs the setup token: `SETUP_TOKEN` from `.env`,
+or, when unset, the one the API logs at startup while there are no users
+(`docker compose -p finplat logs api | grep setupToken`). Admins can change the policy at runtime under /admin.
 
 ## Backups
 - `scripts/backup-db.sh` writes `backups/finplat-<UTC>.dump` (pg_dump custom format);
@@ -57,9 +59,10 @@ the first account: it becomes the admin. Admins can change the policy at runtime
   (`/data/backups`), AES-256-GCM with `BACKUP_ENCRYPTION_KEY`; also `/api/v1/backups` and Settings → Backups.
 
 ## Tests against a running stack
-`scripts/e2e.sh` runs the Playwright suite (tests/e2e) against `E2E_BASE_URL` (default 127.0.0.1:3810). It
-registers test users, so on a public instance run it only with `REGISTRATION_POLICY=open` and reset the
-database afterwards (`docker compose -p finplat down && docker volume rm finplat_pgdata && docker compose -p finplat up -d`).
+`scripts/e2e.sh` builds the images and starts an isolated compose project `finplat-e2e` (fresh database,
+`REGISTRATION_POLICY=open`, no host ports; `docker-compose.e2e.yml`), runs the Playwright suite (tests/e2e) in a
+browser that shares the e2e gateway's network namespace (http://localhost:8080), then removes that project and
+its volumes (`KEEP_E2E_STACK=1` keeps it). The public instance on 3810 and its data are never touched.
 
 ## Resources
 Postgres limit 1 GB, API 512 MB; web/gateway nginx ~20 MB each.
