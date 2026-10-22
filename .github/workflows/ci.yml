@@ -24,6 +24,7 @@ jobs:
       - run: go vet ./...
       - run: go test -race -count=1 ./...
 
+  # Same steps locally (in docker): scripts/ci.sh
   ts:
     runs-on: ubuntu-latest
     steps:
@@ -34,6 +35,8 @@ jobs:
       - run: bun run typecheck
       - run: bun run lint
       - run: bun run test
+      - run: bun run api:check   # packages/api-client/src/schema.gen.ts matches docs/api/openapi.yaml
+      - run: docker run --rm -v "$PWD:/spec" -w /spec redocly/cli:2.67.1 lint docs/api/openapi.yaml
       - run: cd apps/web && bun run build
 
   docker:

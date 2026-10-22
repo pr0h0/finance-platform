@@ -14,5 +14,5 @@ exec_args=(run --rm "${tty[@]}" --user 1000:1000 $(finplat_network_args)
   -v finplat_gomod:/cache/go -v finplat_gobuild:/cache/gobuild
   -e GOCACHE=/cache/gobuild -e GOPATH=/cache/go -e HOME=/tmp -e GOFLAGS=-buildvcs=false
   -e TEST_DATABASE_URL="${TEST_DATABASE_URL:-}"
-  golang:1.27-alpine go "$@")
+  ${GO_ENV:+-e $GO_ENV} "${GO_IMAGE:-golang:1.27-alpine}" go "$@")
 dockerx "${exec_args[@]}"
