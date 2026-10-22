@@ -1,7 +1,7 @@
 // Encrypted local backup: one self-contained, versioned file (format: docs/architecture/backup-format.md).
 // Same format for local-only and connected profiles; the passphrase never leaves the device.
 import type { Profile } from '@finplat/domain';
-import { type LocalStore, SYNCED_TABLES } from '@finplat/storage';
+import { fromStored, type LocalStore, type StoredBlob, SYNCED_TABLES } from '@finplat/storage';
 import sodium from 'libsodium-wrappers-sumo';
 import {
   defaultKdf,
@@ -65,7 +65,7 @@ export async function exportBackup(
       (p) => !opts.profileIds || opts.profileIds.includes(p.id),
     );
     const tables: Payload['tables'] = {};
-    const blobs: { id: string; profileId: string; blob: Blob }[] = [];
+    const blobs: { id: string; profileId: string; blob: Blob | StoredBlob }[] = [];
     for (const p of profiles) {
       for (const t of BACKUP_TABLES) {
         tables[t] ??= [];
@@ -77,7 +77,7 @@ export async function exportBackup(
         );
       }
       blobs.push(
-        ...(await tx.query<{ id: string; profileId: string; blob: Blob }>('blobs', {
+        ...(await tx.query<{ id: string; profileId: string; blob: Blob | StoredBlob }>('blobs', {
           profileId: p.id,
         })),
       );
@@ -95,8 +95,8 @@ export async function exportBackup(
       raw.blobs.map(async (b) => ({
         id: b.id,
         profileId: b.profileId,
-        type: b.blob.type,
-        data: toBase64(new Uint8Array(await b.blob.arrayBuffer())),
+        type: fromStored(b.blob).type,
+        data: toBase64(new Uint8Array(await fromStored(b.blob).arrayBuffer())),
       })),
     ),
   };
@@ -227,7 +227,7 @@ export async function importBackup(
   const blobs = p.blobs.map((b) => ({
     id: b.id,
     profileId: b.profileId,
-    blob: new Blob([fromBase64(b.data) as Uint8Array<ArrayBuffer>], { type: b.type }),
+    blob: { bytes: (fromBase64(b.data) as Uint8Array<ArrayBuffer>).slice().buffer, type: b.type },
   }));
   let rows = 0;
   await store.run('readwrite', ['profiles', 'blobs', ...BACKUP_TABLES], async (tx) => {

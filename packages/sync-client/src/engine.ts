@@ -14,6 +14,7 @@ import { SYNC_PROTOCOL_VERSION } from '@finplat/domain';
 import {
   ackOps,
   allOps,
+  fromStored,
   getCheckpoint,
   getMeta,
   importSourceKey,
@@ -21,6 +22,7 @@ import {
   type OutboxOp,
   pendingOps,
   rejectOp,
+  type StoredBlob,
   type StoreTx,
   SYNCED_TABLES,
   setMeta,
@@ -214,7 +216,7 @@ export class SyncEngine {
             send('DELETE', `/api/v1/attachments/${op.entityId}`, undefined, hdr),
           );
         } else if (op.baseVersion === null) {
-          const row = await this.local<{ blob?: Blob }>('blobs', op.entityId);
+          const row = await this.local<{ blob?: Blob | StoredBlob }>('blobs', op.entityId);
           if (!row?.blob) return done(); // removed again before it was uploaded
           const a = op.data as {
             transactionId?: string | null;
@@ -226,7 +228,7 @@ export class SyncEngine {
             f.set('id', op.entityId);
             if (a.transactionId) f.set('transactionId', a.transactionId);
             f.set('purpose', a.purpose ?? 'receipt');
-            f.set('file', row.blob as Blob, a.fileName ?? 'attachment');
+            f.set('file', fromStored(row.blob as Blob | StoredBlob), a.fileName ?? 'attachment');
             return f;
           };
           await this.retry(() => send('POST', '/api/v1/attachments', form(), hdr));
@@ -234,7 +236,7 @@ export class SyncEngine {
         return done();
       }
       const b = op.data as Record<string, unknown>;
-      const src = await this.local<{ blob?: Blob; statements?: unknown[] }>(
+      const src = await this.local<{ blob?: Blob | StoredBlob; statements?: unknown[] }>(
         'blobs',
         importSourceKey(op.entityId),
       );
@@ -259,7 +261,7 @@ export class SyncEngine {
         accountId: b.accountId,
         fileName: b.fileName,
         fileSha256: b.fileSha256,
-        source: base64(new Uint8Array(await src.blob.arrayBuffer())),
+        source: base64(new Uint8Array(await fromStored(src.blob).arrayBuffer())),
         result: {
           records: recs.map((r) => ({
             id: r.id,

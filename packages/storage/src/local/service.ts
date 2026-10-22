@@ -2,6 +2,7 @@
 // the offline cache of connected mode). Every mutation of a synced entity is written together with
 // an outbox op (sync-protocol.md) in the same store transaction. Calculations use
 // @finplat/finance-engine, never floats.
+
 import type * as D from '@finplat/domain';
 import {
   type AccountBalance,
@@ -36,6 +37,7 @@ import {
   transactionCreate,
   type z,
 } from '@finplat/validation';
+import { fromStored, type StoredBlob, toStored } from '../blobs.ts';
 import { uuidv7 } from '../ids.ts';
 import type { LocalStore, Query, StoreTx } from '../types.ts';
 import { conflict, invalid, notFound, parse, type ServiceError, unprocessable } from './errors.ts';
@@ -1397,6 +1399,7 @@ export class LocalFinanceService {
 
   /** Stage a parsed statement: immutable raw records + batch; duplicates found by fp1 fingerprint. */
   async stageImport(input: StageImportInput): Promise<ImportPreview> {
+    const source = input.source ? await toStored(input.source) : null;
     const batchId = await this.write(async (tx) => {
       const acc = await this.account(tx, input.accountId, 'accountId');
       const dates = input.records.map((r) => r.postingDate).sort();
@@ -1459,11 +1462,11 @@ export class LocalFinanceService {
         };
         await tx.put('imported_raw_records', rec);
       }
-      if (input.source)
+      if (source)
         await tx.put('blobs', {
           id: importSourceKey(batch.id),
           profileId: this.profileId,
-          blob: input.source,
+          blob: source,
           statements: input.statements ?? [],
         });
       return batch.id;
@@ -1605,7 +1608,8 @@ export class LocalFinanceService {
   // ------------------------------------------------------------ attachments
 
   async addAttachment(input: LocalAttachmentInput): Promise<D.Attachment> {
-    const bytes = new Uint8Array(await input.file.arrayBuffer());
+    const stored = await toStored(input.file);
+    const bytes = new Uint8Array(stored.bytes);
     const sha = [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))]
       .map((b) => b.toString(16).padStart(2, '0'))
       .join('');
@@ -1613,7 +1617,7 @@ export class LocalFinanceService {
       const id = this.newId();
       if (input.transactionId)
         await this.load(tx, 'transactions', input.transactionId, 'transaction');
-      await tx.put('blobs', { id, profileId: this.profileId, blob: input.file });
+      await tx.put('blobs', { id, profileId: this.profileId, blob: stored });
       const a = await this.insert<D.Attachment & Syncable>(tx, 'attachments', {
         id,
         transactionId: input.transactionId ?? null,
@@ -1652,14 +1656,15 @@ export class LocalFinanceService {
   async attachmentContent(id: string): Promise<Blob> {
     const local = await this.read(async (tx) => {
       await this.load(tx, 'attachments', id, 'attachment');
-      const b = await tx.get<{ blob: Blob; profileId: string }>('blobs', id);
-      return b && b.profileId === this.profileId ? b.blob : null;
+      const b = await tx.get<{ blob: Blob | StoredBlob; profileId: string }>('blobs', id);
+      return b && b.profileId === this.profileId ? fromStored(b.blob) : null;
     });
     if (local) return local;
     if (!this.fetchAttachment) throw notFound('attachment content');
     const blob = await this.fetchAttachment(id);
+    const stored = await toStored(blob);
     await this.store.run('readwrite', ['blobs'], (tx) =>
-      tx.put('blobs', { id, profileId: this.profileId, blob }),
+      tx.put('blobs', { id, profileId: this.profileId, blob: stored }),
     );
     return blob;
   }
