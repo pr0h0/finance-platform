@@ -46,7 +46,7 @@ test('MCP OAuth: register, consent in the app, token works on /mcp, revoke', asy
     code_challenge_method: 'S256',
     resource: prm.resource,
   });
-  await page.goto(`/oauth/authorize?${q}`);
+  await page.goto(`/oauth/authorize?${q}`, { waitUntil: 'domcontentloaded' });
   await expect(page.getByRole('heading', { name: /Connect “E2E OAuth agent”/ })).toBeVisible();
   // read-only by default: aggregates checked, writes unchecked
   await expect(page.getByRole('checkbox', { name: /Read totals and analytics/ })).toBeChecked();
@@ -86,7 +86,7 @@ test('MCP OAuth: register, consent in the app, token works on /mcp, revoke', asy
   expect(r.status()).toBe(200);
   expect(JSON.stringify((await r.json()).result.structuredContent.netWorth)).toContain('321.00');
 
-  await page.goto('/agents');
+  await page.goto('/agents', { waitUntil: 'domcontentloaded' });
   const row = page.getByRole('row', { name: /E2E OAuth agent/ });
   await expect(row.getByText('OAuth', { exact: true })).toBeVisible();
   await row.getByRole('button', { name: 'Revoke' }).click();

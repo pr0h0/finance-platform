@@ -14,8 +14,9 @@ export default defineConfig({
   expect: { timeout: 15_000 },
   fullyParallel: false,
   workers: 2,
-  // One retry in CI: Firefox sometimes stalls loading the main bundle when two workers run (page.goto
-  // never reaches load; not reproducible alone). Retried tests are reported as flaky, not hidden.
+  // Navigations wait for domcontentloaded: under CPU load Firefox (Juggler) sometimes never reports
+  // `load` although every resource finished (seen in traces), and the SPA renders after DOMContentLoaded
+  // anyway; assertions auto-wait for the UI. One retry in CI; retried tests are reported as flaky.
   retries: process.env.CI ? 1 : 0,
   reporter: [['list']],
   use: {

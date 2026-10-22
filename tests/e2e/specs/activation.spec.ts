@@ -86,7 +86,7 @@ test('activate a local profile: dedupe preview, merge, upload, verify, connected
   expect(s.accounts).toEqual(['Checking']); // merged, not uploaded twice
   expect(s.txs).toContain('Local groceries');
   expect(s.balances).toContain('975.00');
-  await page.goto('/transactions');
+  await page.goto('/transactions', { waitUntil: 'domcontentloaded' });
   await expect(page.getByRole('row', { name: /Local groceries/ })).toBeVisible();
 });
 
@@ -141,7 +141,7 @@ test('E2EE profile: encrypt on device A, enroll and decrypt on B (passphrase) an
     const p = await ctx.newPage();
     await onboardConnected(p, email, false, /E2EE/);
     await finishOnboarding(p).catch(() => undefined);
-    await p.goto('/sync');
+    await p.goto('/sync', { waitUntil: 'domcontentloaded' });
     const card = p.getByRole('region', { name: /^Unlock/ });
     await expect(card).toBeVisible();
     await card.getByLabel('Unlock with').selectOption(secretKind);
@@ -152,15 +152,15 @@ test('E2EE profile: encrypt on device A, enroll and decrypt on B (passphrase) an
     await card.getByRole('button', { name: 'Unlock' }).click();
     await expect(p.getByText('Profile unlocked on this device')).toBeVisible({ timeout: 30_000 });
     await syncNow(p);
-    await p.goto('/transactions');
+    await p.goto('/transactions', { waitUntil: 'domcontentloaded' });
     await expect(p.getByRole('row', { name: /Encrypted lunch/ })).toBeVisible();
     return { ctx, p };
   }
 
   const b = await device('passphrase', passphrase);
   // enrolled: B unlocks by itself after a reload
-  await b.p.reload();
-  await b.p.goto('/sync');
+  await b.p.reload({ waitUntil: 'domcontentloaded' });
+  await b.p.goto('/sync', { waitUntil: 'domcontentloaded' });
   await expect(b.p.getByRole('region', { name: /^Unlock/ })).toBeHidden();
 
   // new data encrypted on A is decrypted on B
@@ -172,7 +172,7 @@ test('E2EE profile: encrypt on device A, enroll and decrypt on B (passphrase) an
   });
   await syncNow(pa);
   await syncNow(b.p);
-  await b.p.goto('/transactions');
+  await b.p.goto('/transactions', { waitUntil: 'domcontentloaded' });
   await expect(b.p.getByRole('row', { name: /Second secret/ })).toBeVisible();
 
   const c = await device('recoveryCode', recovery);

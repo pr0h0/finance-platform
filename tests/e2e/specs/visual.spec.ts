@@ -39,7 +39,7 @@ for (const v of [
       description: 'Groceries',
     });
     for (const p of PAGES) {
-      await page.goto(p);
+      await page.goto(p, { waitUntil: 'domcontentloaded' });
       await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible();
       await page.waitForTimeout(300);
       const overflow = await page.evaluate(

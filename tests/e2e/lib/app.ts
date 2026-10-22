@@ -8,7 +8,7 @@ export interface AccountSpec {
 }
 
 export async function startOnboarding(page: Page, currency = 'BAM') {
-  await page.goto('/');
+  await page.goto('/', { waitUntil: 'domcontentloaded' });
   await page.getByRole('button', { name: 'Get started' }).click();
   await page.getByRole('button', { name: 'Next' }).click(); // language & region (en-US)
   await page.getByLabel('Reporting currency').selectOption(currency);
@@ -92,7 +92,7 @@ export interface EntrySpec {
 
 /** Adds a transaction through the transactions page entry dialog. */
 export async function addTransaction(page: Page, e: EntrySpec) {
-  await page.goto(`/transactions?new=${e.kind}`);
+  await page.goto(`/transactions?new=${e.kind}`, { waitUntil: 'domcontentloaded' });
   const dlg = page.getByRole('dialog', { name: 'New transaction' });
   await expect(dlg).toBeVisible();
   await selectByText(page, e.kind === 'transfer' ? 'From account' : 'Account', e.account);
@@ -145,7 +145,7 @@ export async function onboardConnected(
 
 /** Opens the sync page and runs a sync; returns when nothing is waiting to upload. */
 export async function syncNow(page: Page) {
-  await page.goto('/sync');
+  await page.goto('/sync', { waitUntil: 'domcontentloaded' });
   await page.getByRole('button', { name: 'Sync now' }).click();
   await expect(page.getByRole('main')).toContainText(/Waiting to upload\s*0/);
   await expect(page.getByRole('main')).not.toContainText('Never synchronized', { timeout: 30_000 });
@@ -203,7 +203,7 @@ export async function csrf(page: Page): Promise<string> {
 
 /** Settings → Connect to server: server check and account step of the activation flow. */
 export async function startActivation(page: Page, email: string, register = true) {
-  await page.goto('/settings?tab=connection');
+  await page.goto('/settings?tab=connection', { waitUntil: 'domcontentloaded' });
   await page.getByRole('button', { name: 'Connect to server' }).last().click();
   await page.getByLabel('Server URL').fill(new URL(page.url()).origin);
   await page.getByRole('button', { name: 'Check server' }).click();

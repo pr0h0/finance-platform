@@ -24,7 +24,7 @@ test('passkeys: add in settings, sign out, sign in with the passkey, remove it',
   await onboardConnected(page, email, true);
   await finishOnboarding(page);
 
-  await page.goto('/settings?tab=security');
+  await page.goto('/settings?tab=security', { waitUntil: 'domcontentloaded' });
   await page.getByLabel('Name for the new passkey').fill('E2E key');
   await page.getByRole('button', { name: 'Add passkey' }).click();
   await expect(page.getByRole('cell', { name: /^E2E key/ })).toBeVisible();
@@ -68,7 +68,7 @@ test('passkeys: add in settings, sign out, sign in with the passkey, remove it',
   await finishOnboarding(page);
 
   // last used is recorded; remove the passkey (the password still signs in)
-  await page.goto('/settings?tab=security');
+  await page.goto('/settings?tab=security', { waitUntil: 'domcontentloaded' });
   await expect(page.getByRole('cell', { name: /^Laptop key/ })).toBeVisible();
   await expect(page.getByRole('cell', { name: 'Never' })).toHaveCount(0);
   await page.getByRole('button', { name: 'Remove Laptop key' }).click();
@@ -76,6 +76,8 @@ test('passkeys: add in settings, sign out, sign in with the passkey, remove it',
     .getByRole('dialog', { name: 'Remove passkey?' })
     .getByRole('button', { name: 'Remove' })
     .click();
+  // The open dialog hides the table from the accessibility tree: wait for it to close first.
+  await expect(page.getByRole('dialog', { name: 'Remove passkey?' })).toHaveCount(0);
   await expect(page.getByRole('cell', { name: /^Laptop key/ })).toHaveCount(0);
   const list = await page.evaluate(() => fetch('/api/v1/auth/passkeys').then((r) => r.json()));
   expect(list.items).toEqual([]);

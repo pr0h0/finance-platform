@@ -299,10 +299,13 @@
 ## Integration pass (2026-10-22)
 - E2E suite (`tests/e2e`, `scripts/e2e.sh`) runs every journey in Chromium, Firefox and WebKit (Playwright
   1.63 image) against an isolated `finplat-e2e` stack with Mailpit; `admin.spec.ts` runs alone afterwards because
-  it closes registration for a moment. Firefox occasionally stalls downloading the main bundle under load
-  (page.goto never reaches `load`); see the latest run in implementation-status.md.
-  `server-features.spec.ts` "notification preferences" also fails intermittently in Firefox (preference read back
-  before the save landed); not investigated further.
+  it closes registration for a moment. Firefox under CPU load (three browsers in parallel on a busy host)
+  sometimes never reports a page event to Playwright although every resource finished (traces show the bundle
+  received in ~40 ms and nothing pending), and occasionally hangs before DOMContentLoaded. It does not reproduce
+  with Firefox alone (12/12, 18/18 runs) and blocking service workers does not change it. Navigations now wait
+  for `domcontentloaded` instead of `load`, and CI runs keep one retry; retried tests are reported as flaky. Still failing in
+  Firefox about half the time (even with Firefox alone): `activation.spec.ts` "E2EE profile … B and C", which opens
+  three contexts; one hangs in `page.goto` before DOMContentLoaded. Chromium and WebKit pass it.
 - Real bugs found by the new journeys and fixed: pdf.js worker (`.mjs`) served as octet-stream with nosniff, so every
   PDF import failed in the built app; Bosnian formatting in Chromium; the E2EE fresh-device crash; WebKit Blob
   storage; the "ready to work offline" prompt covering page buttons until closed.

@@ -27,7 +27,7 @@ test('household: invite, accept, shared profile visible to the member, viewer ca
   await finishOnboarding(pb);
 
   // owner: create the household, invite the member, share the profile with the household
-  await pa.goto('/household');
+  await pa.goto('/household', { waitUntil: 'domcontentloaded' });
   await pa.getByRole('region', { name: 'New household' }).getByLabel('Name').fill('Home');
   await pa
     .getByRole('region', { name: 'New household' })
@@ -44,14 +44,14 @@ test('household: invite, accept, shared profile visible to the member, viewer ca
   await expect(pa.getByText(/Shared within “Home”/)).toBeVisible();
 
   // member: accept the invitation
-  await pb.goto('/household');
+  await pb.goto('/household', { waitUntil: 'domcontentloaded' });
   await pb.getByLabel('Invitation token').fill(token);
   await pb.getByRole('button', { name: 'Join' }).click();
   await expect(pb.getByText('You joined the household')).toBeVisible();
   await expect(pb.getByRole('region', { name: 'Home' })).toBeVisible();
 
   // owner: the member is active; give them viewer access to the shared profile
-  await pa.reload();
+  await pa.reload({ waitUntil: 'domcontentloaded' });
   await expect(
     pa.getByRole('region', { name: 'Home' }).getByRole('row', { name: new RegExp(memberEmail) }),
   ).toContainText('active');
@@ -61,16 +61,21 @@ test('household: invite, accept, shared profile visible to the member, viewer ca
   );
 
   // member: the shared profile shows up with the owner's data
-  const shared = await pb.evaluate(async () => {
-    const r = await (await fetch('/api/v1/profiles')).json();
-    return r.items.find((p: { role: string }) => p.role === 'viewer') as { id: string };
-  });
-  expect(shared).toBeTruthy();
-  await pb.reload();
+  // The row already says "viewer" in its own button label, so wait for the grant on the server.
+  const viewerProfile = () =>
+    pb.evaluate(async () => {
+      const r = await (await fetch('/api/v1/profiles')).json();
+      return r.items.find((p: { role: string }) => p.role === 'viewer') as
+        | { id: string }
+        | undefined;
+    });
+  await expect.poll(viewerProfile).toBeTruthy();
+  const shared = (await viewerProfile()) as { id: string };
+  await pb.reload({ waitUntil: 'domcontentloaded' });
   await pb.getByRole('button', { name: 'Switch profile' }).click();
   await pb.getByRole('menuitem').filter({ hasText: 'viewer' }).click();
   await syncNow(pb);
-  await pb.goto('/accounts');
+  await pb.goto('/accounts', { waitUntil: 'domcontentloaded' });
   await expect(pb.getByRole('main').getByText('Family account')).toBeVisible();
 
   // role limits: a viewer cannot change the shared profile, and cannot manage the household

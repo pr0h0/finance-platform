@@ -34,7 +34,7 @@ const SERVER_PAGES = ['/household', '/devices', '/agents', '/admin', '/settings?
 async function scan(page: import('@playwright/test').Page, paths: string[]) {
   const found: string[] = [];
   for (const p of paths) {
-    await page.goto(p);
+    await page.goto(p, { waitUntil: 'domcontentloaded' });
     await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible();
     await page.waitForLoadState('networkidle');
     for (const v of await seriousA11yViolations(page)) found.push(`${p}: ${v}`);

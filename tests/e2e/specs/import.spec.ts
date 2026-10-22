@@ -5,7 +5,7 @@ import { onboardLocal, selectByText, shot } from '../lib/app';
 const FIX = '../../packages/test-fixtures/imports';
 
 async function importFile(page: Page, account: string, file: string, template?: string) {
-  await page.goto('/import');
+  await page.goto('/import', { waitUntil: 'domcontentloaded' });
   await selectByText(page, 'Account', account);
   if (template) await selectByText(page, 'Mapping template', template);
   await page.locator('input[type=file][multiple]').setInputFiles(`${FIX}/${file}`);
@@ -28,7 +28,7 @@ test('import synthetic CSV (with a mapping template) and OFX statements', async 
   ]);
 
   // CSV needs a mapping template: load the synthetic one as JSON and save it
-  await page.goto('/import?tab=mapping');
+  await page.goto('/import?tab=mapping', { waitUntil: 'domcontentloaded' });
   await page.getByText('Import template JSON').click();
   await page
     .getByLabel('Template JSON')
@@ -42,16 +42,16 @@ test('import synthetic CSV (with a mapping template) and OFX statements', async 
   const ofx = await importFile(page, 'OFX bank', 'ofx/statement-v1.ofx');
   expect(ofx).toBe(3);
 
-  await page.goto('/transactions');
+  await page.goto('/transactions', { waitUntil: 'domcontentloaded' });
   await expect(page.getByRole('row', { name: /Uplata plate/ })).toBeVisible();
   await expect(page.getByRole('row', { name: /Employer Ltd/ })).toBeVisible();
   await expect(page.getByRole('row', { name: /Ćevapi/ })).toBeVisible();
-  await page.goto('/accounts');
+  await page.goto('/accounts', { waitUntil: 'domcontentloaded' });
   await expect(page.getByRole('main').getByText('€2,450.50')).toBeVisible(); // −3.50 + 2500 − (USD 50 × 0.92)
   await expect(page.getByRole('main').getByText('BAM 2,319.30')).toBeVisible(); // 2500 − 180.70
 
   // re-importing the same OFX file finds only duplicates
-  await page.goto('/import');
+  await page.goto('/import', { waitUntil: 'domcontentloaded' });
   await selectByText(page, 'Account', 'OFX bank');
   await page.locator('input[type=file][multiple]').setInputFiles(`${FIX}/ofx/statement-v1.ofx`);
   await page.getByRole('button', { name: 'Parse files' }).click();

@@ -9,7 +9,7 @@ test('admin: users (create, disable, enable), registration policy, diagnostics, 
 }) => {
   await onboardConnected(page, ADMIN_EMAIL, false);
   await finishOnboarding(page);
-  await page.goto('/admin');
+  await page.goto('/admin', { waitUntil: 'domcontentloaded' });
   await expect(page.getByRole('heading', { name: 'Administration', level: 1 })).toBeVisible();
 
   // users

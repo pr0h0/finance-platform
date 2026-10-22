@@ -12,11 +12,11 @@ test('MCP: create a client, grant read access, the token works on /mcp', async (
   await addAccounts(page, [{ name: 'Agent bank', type: 'checking', opening: '777.00' }]);
   await finishOnboarding(page);
   // the opening balance must reach the server before the agent can see it
-  await page.goto('/sync');
+  await page.goto('/sync', { waitUntil: 'domcontentloaded' });
   await page.getByRole('button', { name: 'Sync now' }).click();
   await expect(page.getByRole('main')).toContainText(/Waiting to upload\s*0/);
 
-  await page.goto('/agents');
+  await page.goto('/agents', { waitUntil: 'domcontentloaded' });
   await page.getByLabel('Name', { exact: true }).fill('E2E agent');
   await page.getByRole('button', { name: 'Create client' }).click();
   const tokenBox = page

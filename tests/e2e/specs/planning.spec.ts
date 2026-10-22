@@ -16,7 +16,7 @@ test('local mode: budgets, planned expenses and forecast simulation', async ({ p
   // budget: Food limit 400 for the current month → 150 spent, 250 remaining
   const now = new Date();
   const monthStart = iso(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)));
-  await page.goto('/budgets');
+  await page.goto('/budgets', { waitUntil: 'domcontentloaded' });
   await page.getByRole('button', { name: 'New budget' }).click();
   const bd = page.getByRole('dialog', { name: 'New budget' });
   await bd.getByLabel('Name', { exact: true }).fill('Household');
@@ -39,7 +39,7 @@ test('local mode: budgets, planned expenses and forecast simulation', async ({ p
 
   // planned monthly rent from the 1st of next month
   const next = iso(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1)));
-  await page.goto('/planning');
+  await page.goto('/planning', { waitUntil: 'domcontentloaded' });
   await page.getByRole('button', { name: 'Plan transaction' }).click();
   const pd = page.getByRole('dialog', { name: 'New planned transaction' });
   await pd.getByLabel('Description').fill('Rent');
@@ -69,6 +69,6 @@ test('local mode: budgets, planned expenses and forecast simulation', async ({ p
   await shot(page, 'planning');
 
   // nothing was saved by the simulation
-  await page.goto('/transactions');
+  await page.goto('/transactions', { waitUntil: 'domcontentloaded' });
   await expect(page.getByText('New laptop')).toHaveCount(0);
 });

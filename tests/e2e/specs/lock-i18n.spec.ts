@@ -5,7 +5,7 @@ test('app lock: set a PIN, lock, wrong PIN refused, unlock; survives a reload', 
   page,
 }) => {
   await onboardLocal(page);
-  await page.goto('/settings?tab=security');
+  await page.goto('/settings?tab=security', { waitUntil: 'domcontentloaded' });
   const card = page.getByRole('region', { name: 'App lock' });
   await card.getByLabel('Type').selectOption('pin');
   await card.getByLabel('PIN or password').fill('482915');
@@ -26,7 +26,7 @@ test('app lock: set a PIN, lock, wrong PIN refused, unlock; survives a reload', 
   await expect(page.getByRole('heading', { name: 'Settings', level: 1 })).toBeVisible();
 
   // reopening the app asks again
-  await page.reload();
+  await page.reload({ waitUntil: 'domcontentloaded' });
   await expect(page.getByRole('heading', { name: 'App locked' })).toBeVisible();
   await page.getByLabel('PIN').fill('482915');
   await page.getByRole('button', { name: 'Unlock' }).click();
@@ -43,22 +43,22 @@ test('Bosnian: switching the language translates the UI and uses bs-BA number fo
     amount: '0.50',
     description: 'Žvake',
   });
-  await page.goto('/settings');
+  await page.goto('/settings', { waitUntil: 'domcontentloaded' });
   await page.getByLabel('Language', { exact: true }).selectOption('bs');
   await page.getByLabel('Format brojeva i datuma').selectOption('bs-BA');
   await expect(page.getByLabel('Format brojeva i datuma')).toHaveValue('bs-BA');
   await expect(page.getByText(/-1\.234\.567,89/)).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Postavke', level: 1 })).toBeVisible();
   await expect(page.getByRole('navigation').first()).toContainText('Transakcije');
-  await page.goto('/accounts');
+  await page.goto('/accounts', { waitUntil: 'domcontentloaded' });
   await expect(page.getByRole('heading', { name: 'Računi', level: 1 })).toBeVisible();
   // 1234.56 − 0.50 = 1.234,06 KM (dot for thousands, comma for decimals)
   await expect(page.getByRole('main')).toContainText(/1\.234,06\s?KM/);
-  await page.goto('/transactions');
+  await page.goto('/transactions', { waitUntil: 'domcontentloaded' });
   await expect(page.getByRole('row', { name: /Žvake/ })).toContainText(/-0,50\s?KM|−0,50\s?KM/);
   // Data warnings (history starts today, so earlier periods are empty) are Bosnian too.
   for (const path of ['/analytics', '/reports']) {
-    await page.goto(path);
+    await page.goto(path, { waitUntil: 'domcontentloaded' });
     await expect(
       page.getByRole('status').filter({ hasText: 'Evidentirana historija počinje' }).first(),
     ).toBeVisible();

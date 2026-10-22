@@ -10,7 +10,7 @@ test('manual duplicates are flagged; G shortcuts navigate', async ({ page }) => 
       amount: '19.99',
       description: 'Coffee beans',
     });
-  await page.goto('/transactions');
+  await page.goto('/transactions', { waitUntil: 'domcontentloaded' });
   const tab = page.getByRole('tab', { name: 'Possible duplicates (1)' });
   await expect(tab).toBeVisible();
   await tab.click();

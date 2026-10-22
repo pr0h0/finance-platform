@@ -44,7 +44,7 @@ test('local mode: onboarding, accounts, income, expense, transfer, split, analyt
     description: 'To EUR',
   });
 
-  await page.goto('/accounts');
+  await page.goto('/accounts', { waitUntil: 'domcontentloaded' });
   const main = page.getByRole('main');
   await expect(main.getByText('BAM 2,984.02')).toBeVisible(); // 1000 + 2500 − 120.40 − 200 − 195.58
   await expect(main.getByText('BAM 3,625.19')).toBeVisible(); // assets incl. €200 × 1.95583
@@ -52,7 +52,7 @@ test('local mode: onboarding, accounts, income, expense, transfer, split, analyt
   await expect(main.getByText('€200.00').or(main.getByText('EUR 200.00')).first()).toBeVisible();
 
   // split the grocery expense into two categories
-  await page.goto('/transactions');
+  await page.goto('/transactions', { waitUntil: 'domcontentloaded' });
   await page
     .getByRole('row', { name: /Konzum/ })
     .first()
@@ -76,19 +76,19 @@ test('local mode: onboarding, accounts, income, expense, transfer, split, analyt
   await page.keyboard.press('Escape');
 
   // analytics shows the real numbers
-  await page.goto(`/analytics`);
+  await page.goto(`/analytics`, { waitUntil: 'domcontentloaded' });
   const a = page.getByRole('main');
   await expect(a.getByText('BAM 2,500.00').first()).toBeVisible();
   await expect(a.getByText('BAM 120.40').first()).toBeVisible();
   await shot(page, 'analytics-bam');
 
   // switch the reporting currency to EUR in settings → amounts re-valued at the fixed rate
-  await page.goto('/settings');
+  await page.goto('/settings', { waitUntil: 'domcontentloaded' });
   const rc = page.getByRole('region', { name: /Reporting currency of/ });
   await rc.getByLabel('Reporting currency', { exact: true }).selectOption('EUR');
   await rc.getByRole('button', { name: 'Save' }).click();
   await expect(page.getByRole('button', { name: 'Switch profile' })).toContainText('EUR');
-  await page.goto('/analytics');
+  await page.goto('/analytics', { waitUntil: 'domcontentloaded' });
   await expect(
     page
       .getByRole('main')

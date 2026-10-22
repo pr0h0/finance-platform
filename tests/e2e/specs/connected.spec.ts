@@ -52,7 +52,7 @@ test('connected mode: register, sync to the server, second device, offline edit 
   expect(JSON.stringify(server.bal)).toContain('458.00');
 
   // a receipt attached on device A is uploaded to the server (not only kept in this browser)
-  await pa.goto('/transactions');
+  await pa.goto('/transactions', { waitUntil: 'domcontentloaded' });
   await pa.getByRole('row', { name: /Synced groceries/ }).click();
   const drawerA = pa.getByRole('dialog', { name: 'Transaction' });
   await attachReceipt(pa, ['KONZUM', 'UKUPNO 42.00', '21.10.2026']);
@@ -71,7 +71,7 @@ test('connected mode: register, sync to the server, second device, offline edit 
   const pb = await b.newPage();
   await onboardConnected(pb, email, false);
   await finishOnboarding(pb);
-  await pb.goto('/transactions');
+  await pb.goto('/transactions', { waitUntil: 'domcontentloaded' });
   await expect(pb.getByRole('row', { name: /Synced groceries/ })).toBeVisible();
   // device B downloads the receipt from the server and reads it with on-device OCR
   await pb.getByRole('row', { name: /Synced groceries/ }).click();
@@ -82,7 +82,7 @@ test('connected mode: register, sync to the server, second device, offline edit 
   await pb.keyboard.press('Escape');
 
   // device A goes offline, edits, comes back online and syncs
-  await pa.goto('/transactions');
+  await pa.goto('/transactions', { waitUntil: 'domcontentloaded' });
   await expect(pa.getByRole('row', { name: /Synced groceries/ })).toBeVisible();
   await a.setOffline(true);
   await pa.evaluate(() => window.dispatchEvent(new Event('offline')));
@@ -100,7 +100,7 @@ test('connected mode: register, sync to the server, second device, offline edit 
   await syncNow(pa);
 
   await syncNow(pb);
-  await pb.goto('/transactions');
+  await pb.goto('/transactions', { waitUntil: 'domcontentloaded' });
   await expect(pb.getByRole('row', { name: /Edited offline/ })).toBeVisible();
   await a.close();
   await b.close();

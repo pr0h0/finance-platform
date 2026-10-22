@@ -44,7 +44,7 @@ test('MCP proposal: an agent proposes, the user approves one and rejects another
   });
   await syncNow(page);
 
-  await page.goto('/agents');
+  await page.goto('/agents', { waitUntil: 'domcontentloaded' });
   await page.getByLabel('Name', { exact: true }).fill('Proposing agent');
   await page.getByRole('button', { name: 'Create client' }).click();
   const tokenBox = page
@@ -101,7 +101,7 @@ test('MCP proposal: an agent proposes, the user approves one and rejects another
 
   // 2nd proposal: rejected -> nothing changes
   await call('update_transaction_category', { transactionId: before.id, categoryId: transport });
-  await page.reload();
+  await page.reload({ waitUntil: 'domcontentloaded' });
   await page.getByRole('tab', { name: 'Approvals' }).click();
   await page
     .getByRole('listitem')
@@ -117,6 +117,6 @@ test('MCP proposal: an agent proposes, the user approves one and rejects another
 
   // the synced device shows the applied category
   await syncNow(page);
-  await page.goto('/transactions');
+  await page.goto('/transactions', { waitUntil: 'domcontentloaded' });
   await expect(page.getByRole('row', { name: /Corner cafe/ })).not.toContainText('Groceries');
 });

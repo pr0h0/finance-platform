@@ -60,7 +60,7 @@ test('notification preferences: email channel on, test email arrives in the mail
   const email = uniqueEmail('mail');
   await onboardConnected(page, email, true);
   await finishOnboarding(page);
-  await page.goto('/settings?tab=notifications');
+  await page.goto('/settings?tab=notifications', { waitUntil: 'domcontentloaded' });
   await expect(page.getByText(`Sent to ${email}`)).toBeVisible();
   await page.getByRole('switch', { name: 'Email notifications' }).click();
   await page.getByRole('checkbox', { name: /Budget alerts.* — email/ }).check();
@@ -75,7 +75,7 @@ test('notification preferences: email channel on, test email arrives in the mail
   expect(prefs.email.budgets).toBe(true);
   expect(prefs.email.sync).toBe(false);
   expect(prefs.quietHoursStart).toBe('22:00');
-  await page.reload();
+  await page.reload({ waitUntil: 'domcontentloaded' });
   await expect(page.getByRole('switch', { name: 'Email notifications' })).toHaveAttribute(
     'aria-checked',
     'true',
