@@ -16,32 +16,59 @@ security:
   - bearer: []
 tags:
   - name: "meta"
+    description: "Health check and server identity/compatibility."
   - name: "auth"
+    description: "Registration, login/logout, sessions, CSRF, account recovery, setup token."
   - name: "users"
+    description: "Current user and user settings."
   - name: "profiles"
+    description: "Financial profiles (Feature 92) and profile membership."
   - name: "households"
+    description: "Households, membership and invitations (Feature 93)."
   - name: "accounts"
+    description: "Financial accounts and account types."
   - name: "ledger"
+    description: "Balances reconstructed from postings, balance history, reconciliation, opening balances."
   - name: "transactions"
+    description: "Transactions, postings, splits, tags, refunds, transfers, templates, bulk edit."
   - name: "categories"
+    description: "Category hierarchy."
   - name: "merchants"
+    description: "Merchants, aliases and description normalization."
   - name: "budgets"
+    description: "Budgets, periods, allocations, rollover, templates."
   - name: "planning"
+    description: "Planned transactions, occurrences, matching, subscriptions, bill calendar, installments."
   - name: "recurrence"
+    description: "Recurrence schedules and their expansion."
   - name: "currency"
+    description: "Currency definitions and conversion."
   - name: "exchangerates"
+    description: "Exchange-rate providers, snapshots and manual overrides."
   - name: "forecasting"
+    description: "Cash-flow forecasts, safe-to-spend, what-if scenarios."
   - name: "analytics"
+    description: "Aggregations, reports (CSV/XLSX/PDF), insights and anomalies."
   - name: "savings"
+    description: "Savings goals, contributions, completion estimates and emergency-fund coverage."
   - name: "imports"
+    description: "Importer registry, staging, preview, commit, rollback, reprocessing, templates, inbox."
   - name: "attachments"
+    description: "File uploads and downloads (receipts, statements); local or S3 storage."
   - name: "automation"
+    description: "Categorization rules, suggestions, duplicate and recurring detection."
   - name: "notifications"
+    description: "In-app notifications, delivery preferences, email and Web Push."
   - name: "sync"
+    description: "Sync push/pull/snapshot/status/conflicts, E2EE key envelopes and devices."
   - name: "mcp"
+    description: "Remote MCP server: client registry, grants, proposals, Streamable HTTP transport and OAuth 2.1."
   - name: "backups"
+    description: "Encrypted backups, restore and data export (portability)."
   - name: "admin"
+    description: "Self-hosted administration: server settings, users, registration policy, diagnostics."
   - name: "audit"
+    description: "Audit log queries."
 paths:
   /api/health:
     get:
@@ -55,6 +82,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Health"
+        "401":
+          description: "An explicit Authorization bearer token was sent and is invalid (invalid_token)"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
         default:
           $ref: "#/components/responses/Error"
       security: []
@@ -70,6 +103,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Meta"
+        "401":
+          description: "An explicit Authorization bearer token was sent and is invalid (invalid_token)"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
         default:
           $ref: "#/components/responses/Error"
       security: []
@@ -92,6 +131,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/User"
+        "400":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
       security: []
@@ -114,6 +155,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/LoginResponse"
+        "400":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
       security: []
@@ -125,6 +168,8 @@ paths:
       responses:
         "204":
           description: "No content"
+        "401":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/auth/session:
@@ -139,6 +184,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/LoginResponse"
+        "401":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/auth/password:
@@ -162,6 +209,10 @@ paths:
       responses:
         "204":
           description: "No content"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/auth/recovery-codes:
@@ -182,6 +233,8 @@ paths:
                     items:
                       type: "string"
                 additionalProperties: false
+        "401":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/auth/recover:
@@ -207,6 +260,8 @@ paths:
       responses:
         "204":
           description: "No content"
+        "400":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
       security: []
@@ -230,6 +285,8 @@ paths:
                   nextCursor:
                     type: "string"
                 required: ["items"]
+        "401":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/sessions/{id}:
@@ -242,6 +299,12 @@ paths:
       responses:
         "204":
           description: "No content"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/users/me:
@@ -256,6 +319,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/User"
+        "401":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
     patch:
@@ -283,6 +348,10 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/User"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/users/me/settings:
@@ -297,6 +366,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Settings"
+        "401":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
     put:
@@ -316,6 +387,10 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Settings"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/profiles:
@@ -338,6 +413,8 @@ paths:
                   nextCursor:
                     type: "string"
                 required: ["items"]
+        "401":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
     post:
@@ -359,6 +436,10 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Profile"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/profiles/{id}:
@@ -375,6 +456,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Profile"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
     patch:
@@ -396,6 +483,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Profile"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
     delete:
@@ -407,6 +500,12 @@ paths:
       responses:
         "204":
           description: "No content"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/profiles/{id}/members:
@@ -431,6 +530,12 @@ paths:
                   nextCursor:
                     type: "string"
                 required: ["items"]
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/profiles/{id}/members/{userId}:
@@ -464,6 +569,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ProfileMember"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
     delete:
@@ -480,6 +591,12 @@ paths:
       responses:
         "204":
           description: "No content"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/profiles/{id}/settings:
@@ -496,6 +613,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Settings"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
     put:
@@ -517,6 +640,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Settings"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
     patch:
@@ -539,6 +668,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Settings"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/households:
@@ -561,6 +696,8 @@ paths:
                   nextCursor:
                     type: "string"
                 required: ["items"]
+        "401":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
     post:
@@ -585,6 +722,10 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Household"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/households/{id}:
@@ -601,6 +742,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Household"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
     patch:
@@ -626,6 +773,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Household"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
     delete:
@@ -637,6 +790,12 @@ paths:
       responses:
         "204":
           description: "No content"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/households/{id}/invitations:
@@ -672,6 +831,12 @@ paths:
                   inviteToken:
                     type: "string"
                 additionalProperties: false
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/household-invitations/accept:
@@ -697,6 +862,10 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Household"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/households/{id}/members/{memberId}:
@@ -729,6 +898,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HouseholdMember"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
     delete:
@@ -745,6 +920,12 @@ paths:
       responses:
         "204":
           description: "No content"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/account-types:
@@ -767,6 +948,8 @@ paths:
                   nextCursor:
                     type: "string"
                 required: ["items"]
+        "401":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/accounts:
@@ -797,6 +980,12 @@ paths:
                   nextCursor:
                     type: "string"
                 required: ["items"]
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
     post:
@@ -819,6 +1008,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Account"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/accounts/{id}:
@@ -836,6 +1031,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Account"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
     patch:
@@ -858,6 +1061,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Account"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
     delete:
@@ -870,6 +1081,14 @@ paths:
       responses:
         "204":
           description: "No content"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/balances:
@@ -932,6 +1151,12 @@ paths:
                     items:
                       type: "string"
                 additionalProperties: false
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/accounts/{id}/balance-history:
@@ -961,6 +1186,14 @@ paths:
                     items:
                       $ref: "#/components/schemas/BalancePoint"
                 additionalProperties: false
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/reconciliations:
@@ -995,6 +1228,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Reconciliation"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/transactions:
@@ -1079,6 +1318,12 @@ paths:
                   nextCursor:
                     type: "string"
                 required: ["items"]
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
     post:
@@ -1101,6 +1346,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Transaction"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/transactions/{id}:
@@ -1118,6 +1369,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Transaction"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
     patch:
@@ -1141,6 +1400,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Transaction"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
     delete:
@@ -1153,6 +1420,14 @@ paths:
       responses:
         "204":
           description: "No content"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/transactions/{id}/splits:
@@ -1177,6 +1452,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Transaction"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/transactions/{id}/adjustments:
@@ -1201,6 +1484,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Transaction"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/transactions/{id}/refunds:
@@ -1226,6 +1517,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Transaction"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/transactions/{id}/duplicate:
@@ -1254,6 +1553,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Transaction"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/transactions/bulk:
@@ -1277,6 +1584,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/BulkResult"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/transactions/{id}/history:
@@ -1302,6 +1615,14 @@ paths:
                   nextCursor:
                     type: "string"
                 required: ["items"]
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/transactions/{id}/undo:
@@ -1320,6 +1641,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Transaction"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/transactions/export:
@@ -1344,6 +1673,12 @@ paths:
             application/json:
               schema:
                 type: "string"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/tags:
@@ -1370,6 +1705,12 @@ paths:
                   nextCursor:
                     type: "string"
                 required: ["items"]
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
     post:
@@ -1392,6 +1733,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Tag"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/tags/{id}:
@@ -1409,6 +1756,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Tag"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
     patch:
@@ -1431,6 +1786,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Tag"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
     delete:
@@ -1443,6 +1806,14 @@ paths:
       responses:
         "204":
           description: "No content"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/transaction-templates:
@@ -1469,6 +1840,12 @@ paths:
                   nextCursor:
                     type: "string"
                 required: ["items"]
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
     post:
@@ -1491,6 +1868,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/TransactionTemplate"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/transaction-templates/{id}:
@@ -1508,6 +1891,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/TransactionTemplate"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
     patch:
@@ -1530,6 +1921,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/TransactionTemplate"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
     delete:
@@ -1542,6 +1941,14 @@ paths:
       responses:
         "204":
           description: "No content"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/split-templates:
@@ -1568,6 +1975,12 @@ paths:
                   nextCursor:
                     type: "string"
                 required: ["items"]
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
     post:
@@ -1590,6 +2003,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SplitTemplate"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/split-templates/{id}:
@@ -1607,6 +2026,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SplitTemplate"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
     patch:
@@ -1629,6 +2056,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SplitTemplate"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
     delete:
@@ -1641,6 +2076,14 @@ paths:
       responses:
         "204":
           description: "No content"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/categories:
@@ -1667,6 +2110,12 @@ paths:
                   nextCursor:
                     type: "string"
                 required: ["items"]
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
     post:
@@ -1689,6 +2138,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Category"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/categories/defaults:
@@ -1710,6 +2165,12 @@ paths:
                   created:
                     type: "integer"
                 additionalProperties: false
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/categories/{id}:
@@ -1727,6 +2188,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Category"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
     patch:
@@ -1749,6 +2218,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Category"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
     delete:
@@ -1761,6 +2238,14 @@ paths:
       responses:
         "204":
           description: "No content"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/merchants:
@@ -1791,6 +2276,12 @@ paths:
                   nextCursor:
                     type: "string"
                 required: ["items"]
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
     post:
@@ -1813,6 +2304,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Merchant"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/merchants/match:
@@ -1840,6 +2337,12 @@ paths:
                   normalized:
                     type: "string"
                 additionalProperties: false
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/merchants/{id}:
@@ -1857,6 +2360,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Merchant"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
     patch:
@@ -1879,6 +2390,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Merchant"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
     delete:
@@ -1891,6 +2410,14 @@ paths:
       responses:
         "204":
           description: "No content"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/budgets:
@@ -1917,6 +2444,12 @@ paths:
                   nextCursor:
                     type: "string"
                 required: ["items"]
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
     post:
@@ -1939,6 +2472,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Budget"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/budgets/{id}:
@@ -1956,6 +2495,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Budget"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
     patch:
@@ -1978,6 +2525,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Budget"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
     delete:
@@ -1990,6 +2545,14 @@ paths:
       responses:
         "204":
           description: "No content"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/budgets/{id}/status:
@@ -2011,6 +2574,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/BudgetStatus"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/budgets/{id}/periods/close:
@@ -2029,6 +2600,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/BudgetStatus"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/budgets/{id}/instantiate:
@@ -2060,6 +2639,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Budget"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/recurrences:
@@ -2086,6 +2673,12 @@ paths:
                   nextCursor:
                     type: "string"
                 required: ["items"]
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
     post:
@@ -2108,6 +2701,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Recurrence"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/recurrences/{id}:
@@ -2125,6 +2724,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Recurrence"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
     patch:
@@ -2147,6 +2754,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Recurrence"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
     delete:
@@ -2159,6 +2774,14 @@ paths:
       responses:
         "204":
           description: "No content"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/recurrences/{id}/occurrences:
@@ -2184,6 +2807,14 @@ paths:
                     items:
                       $ref: "#/components/schemas/Date"
                 additionalProperties: false
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/recurrences/preview:
@@ -2214,6 +2845,12 @@ paths:
                     items:
                       $ref: "#/components/schemas/Date"
                 additionalProperties: false
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/plans:
@@ -2245,6 +2882,12 @@ paths:
                   nextCursor:
                     type: "string"
                 required: ["items"]
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
     post:
@@ -2267,6 +2910,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Plan"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/plans/{id}:
@@ -2284,6 +2933,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Plan"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
     patch:
@@ -2306,6 +2963,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Plan"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
     delete:
@@ -2318,6 +2983,14 @@ paths:
       responses:
         "204":
           description: "No content"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/plans/occurrences:
@@ -2346,6 +3019,12 @@ paths:
                   nextCursor:
                     type: "string"
                 required: ["items"]
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/plans/{id}/occurrences/{date}:
@@ -2375,6 +3054,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Occurrence"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/plans/match-suggestions:
@@ -2401,6 +3088,12 @@ paths:
                   nextCursor:
                     type: "string"
                 required: ["items"]
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/plans/planned-vs-actual:
@@ -2420,6 +3113,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AnalyticsRows"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/plans/annual:
@@ -2441,6 +3140,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AnalyticsRows"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/bill-calendar:
@@ -2467,6 +3172,12 @@ paths:
                   nextCursor:
                     type: "string"
                 required: ["items"]
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/subscriptions:
@@ -2493,6 +3204,12 @@ paths:
                   nextCursor:
                     type: "string"
                 required: ["items"]
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
     post:
@@ -2515,6 +3232,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Subscription"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/subscriptions/{id}:
@@ -2532,6 +3255,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Subscription"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
     patch:
@@ -2554,6 +3285,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Subscription"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
     delete:
@@ -2566,6 +3305,14 @@ paths:
       responses:
         "204":
           description: "No content"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/currencies:
@@ -2588,6 +3335,8 @@ paths:
                   nextCursor:
                     type: "string"
                 required: ["items"]
+        "401":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/convert:
@@ -2610,6 +3359,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ConvertResult"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/exchange-rates:
@@ -2658,6 +3413,12 @@ paths:
                   nextCursor:
                     type: "string"
                 required: ["items"]
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
     post:
@@ -2680,6 +3441,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ExchangeRate"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/exchange-rates/{id}:
@@ -2693,6 +3460,14 @@ paths:
       responses:
         "204":
           description: "No content"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/exchange-rate-providers:
@@ -2715,6 +3490,8 @@ paths:
                   nextCursor:
                     type: "string"
                 required: ["items"]
+        "401":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/exchange-rate-providers/{id}/refresh:
@@ -2736,6 +3513,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ExchangeRateProvider"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/forecasts/cash-flow:
@@ -2763,6 +3546,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Forecast"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/forecasts/safe-to-spend:
@@ -2812,6 +3601,12 @@ paths:
                   complete:
                     type: "boolean"
                 additionalProperties: false
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/forecasts/scenarios:
@@ -2834,6 +3629,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Forecast"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/forecasts/long-term:
@@ -2855,6 +3656,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Forecast"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/goals/{id}/projection:
@@ -2890,6 +3697,14 @@ paths:
                   progress:
                     $ref: "#/components/schemas/Decimal"
                 additionalProperties: false
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/goals/emergency-fund:
@@ -2907,6 +3722,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/EmergencyFund"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/analytics/conversion-fees:
@@ -2930,6 +3751,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AnalyticsRows"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/analytics/spending-by-category:
@@ -2958,6 +3785,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AnalyticsRows"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/analytics/spending-by-merchant:
@@ -2986,6 +3819,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AnalyticsRows"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/analytics/income-vs-expenses:
@@ -3014,6 +3853,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AnalyticsRows"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/analytics/trends:
@@ -3042,6 +3887,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AnalyticsRows"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/analytics/compare:
@@ -3084,6 +3935,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AnalyticsRows"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/analytics/savings-rate:
@@ -3112,6 +3969,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AnalyticsRows"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/analytics/recurring-costs:
@@ -3140,6 +4003,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AnalyticsRows"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/analytics/net-worth:
@@ -3168,6 +4037,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AnalyticsRows"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/analytics/currency-exposure:
@@ -3196,6 +4071,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AnalyticsRows"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/analytics/monthly-summary:
@@ -3224,6 +4105,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AnalyticsRows"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/analytics/import-coverage:
@@ -3252,6 +4139,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AnalyticsRows"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/analytics/insights:
@@ -3276,6 +4169,12 @@ paths:
                   nextCursor:
                     type: "string"
                 required: ["items"]
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/analytics/anomalies:
@@ -3307,6 +4206,12 @@ paths:
                   nextCursor:
                     type: "string"
                 required: ["items"]
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/analytics/anomalies/{transactionId}/dismiss:
@@ -3329,6 +4234,14 @@ paths:
       responses:
         "204":
           description: "No content"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
     delete:
@@ -3350,6 +4263,14 @@ paths:
       responses:
         "204":
           description: "No content"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/reports/{kind}:
@@ -3384,6 +4305,14 @@ paths:
             application/json:
               schema:
                 type: "object"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/goals:
@@ -3410,6 +4339,12 @@ paths:
                   nextCursor:
                     type: "string"
                 required: ["items"]
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
     post:
@@ -3432,6 +4367,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Goal"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/goals/{id}:
@@ -3449,6 +4390,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Goal"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
     patch:
@@ -3471,6 +4420,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Goal"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
     delete:
@@ -3483,6 +4440,14 @@ paths:
       responses:
         "204":
           description: "No content"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/goals/{id}/contributions:
@@ -3508,6 +4473,14 @@ paths:
                   nextCursor:
                     type: "string"
                 required: ["items"]
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
     post:
@@ -3531,6 +4504,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Contribution"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/goals/{id}/contributions/{contributionId}:
@@ -3549,6 +4530,14 @@ paths:
       responses:
         "204":
           description: "No content"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/importers:
@@ -3571,6 +4560,8 @@ paths:
                   nextCursor:
                     type: "string"
                 required: ["items"]
+        "401":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/import-templates:
@@ -3597,6 +4588,12 @@ paths:
                   nextCursor:
                     type: "string"
                 required: ["items"]
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
     post:
@@ -3619,6 +4616,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ImportTemplate"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/import-templates/{id}:
@@ -3636,6 +4639,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ImportTemplate"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
     patch:
@@ -3658,6 +4669,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ImportTemplate"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
     delete:
@@ -3670,6 +4689,14 @@ paths:
       responses:
         "204":
           description: "No content"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/imports:
@@ -3696,6 +4723,12 @@ paths:
                   nextCursor:
                     type: "string"
                 required: ["items"]
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
     post:
@@ -3732,6 +4765,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ImportBatch"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/imports/{id}:
@@ -3749,6 +4788,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ImportBatch"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/imports/{id}/preview:
@@ -3768,6 +4815,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ImportPreview"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/imports/{id}/commit:
@@ -3792,6 +4847,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ImportBatch"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/imports/{id}/rollback:
@@ -3810,6 +4873,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ImportBatch"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/imports/{id}/reprocess:
@@ -3828,6 +4899,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ImportBatch"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/imports/{id}/records:
@@ -3855,6 +4934,14 @@ paths:
                   nextCursor:
                     type: "string"
                 required: ["items"]
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/imports/coverage:
@@ -3890,6 +4977,12 @@ paths:
                     items:
                       $ref: "#/components/schemas/ImportCoverage"
                 required: ["accounts"]
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/imports/inbox:
@@ -3928,6 +5021,12 @@ paths:
                   nextCursor:
                     type: "string"
                 required: ["items"]
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/imports/{id}/source:
@@ -3946,6 +5045,14 @@ paths:
               schema:
                 type: "string"
                 format: "binary"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/attachments:
@@ -3981,6 +5088,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Attachment"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
     get:
@@ -4010,6 +5123,12 @@ paths:
                   nextCursor:
                     type: "string"
                 required: ["items"]
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/attachments/{id}:
@@ -4027,6 +5146,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Attachment"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
     patch:
@@ -4063,6 +5190,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Attachment"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
     delete:
@@ -4075,6 +5210,14 @@ paths:
       responses:
         "204":
           description: "No content"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/attachments/{id}/content:
@@ -4093,6 +5236,14 @@ paths:
               schema:
                 type: "string"
                 format: "binary"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/rules:
@@ -4119,6 +5270,12 @@ paths:
                   nextCursor:
                     type: "string"
                 required: ["items"]
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
     post:
@@ -4141,6 +5298,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Rule"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/rules/{id}:
@@ -4158,6 +5321,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Rule"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
     patch:
@@ -4180,6 +5351,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Rule"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
     delete:
@@ -4192,6 +5371,14 @@ paths:
       responses:
         "204":
           description: "No content"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/rules/{id}/apply:
@@ -4227,6 +5414,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/RuleApplyResult"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/rules/applications/{applicationId}/undo:
@@ -4249,6 +5444,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/BulkResult"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/suggestions:
@@ -4277,6 +5480,12 @@ paths:
                   nextCursor:
                     type: "string"
                 required: ["items"]
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/duplicates:
@@ -4303,6 +5512,12 @@ paths:
                   nextCursor:
                     type: "string"
                 required: ["items"]
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/recurring-candidates:
@@ -4327,6 +5542,12 @@ paths:
                   nextCursor:
                     type: "string"
                 required: ["items"]
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/notifications:
@@ -4356,6 +5577,8 @@ paths:
                   nextCursor:
                     type: "string"
                 required: ["items"]
+        "401":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/notifications/{id}/read:
@@ -4368,6 +5591,12 @@ paths:
       responses:
         "204":
           description: "No content"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/notifications/read-all:
@@ -4378,6 +5607,8 @@ paths:
       responses:
         "204":
           description: "No content"
+        "401":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/notifications/preferences:
@@ -4406,6 +5637,8 @@ paths:
                       pushSubscriptions:
                         type: "integer"
                     required: ["emailConfigured", "emailAddress", "pushPublicKey", "pushSubscriptions"]
+        "401":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
     put:
@@ -4425,6 +5658,10 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/NotificationPreferences"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/notifications/push-subscriptions:
@@ -4441,6 +5678,10 @@ paths:
       responses:
         "204":
           description: "No content"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
     delete:
@@ -4460,6 +5701,10 @@ paths:
       responses:
         "204":
           description: "No content"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/notifications/test:
@@ -4481,6 +5726,10 @@ paths:
       responses:
         "204":
           description: "Delivered"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/notifications/{id}:
@@ -4493,6 +5742,12 @@ paths:
       responses:
         "204":
           description: "No content"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/sync/push:
@@ -4515,6 +5770,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/PushResponse"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/sync/pull:
@@ -4545,6 +5806,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/PullResponse"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/sync/status:
@@ -4561,6 +5828,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SyncStatus"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/sync/conflicts:
@@ -4592,6 +5865,12 @@ paths:
                   nextCursor:
                     type: "string"
                 required: ["items"]
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/sync/conflicts/{id}/resolve:
@@ -4616,6 +5895,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Conflict"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/sync/snapshot:
@@ -4633,6 +5920,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/PullResponse"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/sync/keys:
@@ -4657,6 +5950,12 @@ paths:
                   nextCursor:
                     type: "string"
                 required: ["items"]
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
     post:
@@ -4678,6 +5977,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/KeyEnvelope"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/devices:
@@ -4700,6 +6005,8 @@ paths:
                   nextCursor:
                     type: "string"
                 required: ["items"]
+        "401":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
     post:
@@ -4719,6 +6026,10 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Device"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/devices/{id}:
@@ -4745,6 +6056,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Device"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
     delete:
@@ -4756,6 +6073,12 @@ paths:
       responses:
         "204":
           description: "No content"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/mcp/clients:
@@ -4778,6 +6101,8 @@ paths:
                   nextCursor:
                     type: "string"
                 required: ["items"]
+        "401":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
     post:
@@ -4797,6 +6122,10 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/McpClientCreated"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/mcp/clients/{id}:
@@ -4827,6 +6156,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/McpClient"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
     delete:
@@ -4838,6 +6173,12 @@ paths:
       responses:
         "204":
           description: "No content"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/mcp/clients/{id}/grants:
@@ -4867,6 +6208,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/McpClient"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/mcp/proposals:
@@ -4897,6 +6244,12 @@ paths:
                   nextCursor:
                     type: "string"
                 required: ["items"]
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/mcp/proposals/{id}/approve:
@@ -4920,6 +6273,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/McpProposal"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/mcp/proposals/{id}/reject:
@@ -4937,6 +6298,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/McpProposal"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/mcp/proposals/approve-batch:
@@ -4975,6 +6344,12 @@ paths:
                   nextCursor:
                     type: "string"
                 required: ["items"]
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/mcp/oauth/authorize:
@@ -4989,6 +6364,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/McpOAuthRequest"
+        "401":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
     post:
@@ -5020,6 +6397,10 @@ paths:
                   redirectUrl:
                     type: "string"
                 required: ["redirectUrl"]
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/mcp/tools:
@@ -5036,6 +6417,8 @@ paths:
                 type: "array"
                 items:
                   type: "object"
+        "401":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /mcp:
@@ -5061,7 +6444,174 @@ paths:
             text/event-stream:
               schema:
                 type: "string"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "404":
+          description: "MCP is disabled on this server (MCP_ENABLED=false)"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
         default:
+          $ref: "#/components/responses/Error"
+    get:
+      tags: ["mcp"]
+      summary: "Not supported: the transport is stateless and opens no server-sent event stream (405, Allow: POST)"
+      operationId: "mcp_transport_get"
+      security:
+        - mcpToken: []
+      responses:
+        "405":
+          $ref: "#/components/responses/Error"
+        default:
+          $ref: "#/components/responses/Error"
+  /.well-known/oauth-protected-resource:
+    get:
+      tags: ["mcp"]
+      summary: "OAuth protected resource metadata for /mcp (RFC 9728)"
+      operationId: "oauth_protected_resource"
+      security: []
+      responses:
+        "200":
+          $ref: "#/components/responses/OAuthMetadata"
+        "404":
+          $ref: "#/components/responses/Error"
+  /.well-known/oauth-protected-resource/mcp:
+    get:
+      tags: ["mcp"]
+      summary: "OAuth protected resource metadata (path-suffixed form, RFC 9728 §3.1)"
+      operationId: "oauth_protected_resource_mcp"
+      security: []
+      responses:
+        "200":
+          $ref: "#/components/responses/OAuthMetadata"
+        "404":
+          $ref: "#/components/responses/Error"
+  /.well-known/oauth-authorization-server:
+    get:
+      tags: ["mcp"]
+      summary: "OAuth authorization server metadata (RFC 8414): S256 PKCE, public clients only"
+      operationId: "oauth_authorization_server"
+      security: []
+      responses:
+        "200":
+          $ref: "#/components/responses/OAuthMetadata"
+        "404":
+          $ref: "#/components/responses/Error"
+  /oauth/authorize:
+    get:
+      tags: ["mcp"]
+      summary: "OAuth authorization endpoint; validates the request and redirects to the consent page /agents/authorize"
+      operationId: "oauth_authorize"
+      security: []
+      parameters:
+        - { name: "response_type", in: "query", required: true, schema: { type: "string", enum: ["code"] } }
+        - { name: "client_id", in: "query", required: true, schema: { type: "string" } }
+        - { name: "redirect_uri", in: "query", required: true, schema: { type: "string" } }
+        - { name: "code_challenge", in: "query", required: true, schema: { type: "string" } }
+        - { name: "code_challenge_method", in: "query", required: true, schema: { type: "string", enum: ["S256"] } }
+        - { name: "state", in: "query", schema: { type: "string" } }
+        - { name: "scope", in: "query", schema: { type: "string" } }
+        - { name: "resource", in: "query", schema: { type: "string" } }
+      responses:
+        "302":
+          description: "To the consent page, or back to the client's redirect_uri with an OAuth error"
+        "400":
+          $ref: "#/components/responses/OAuthError"
+        "404":
+          $ref: "#/components/responses/Error"
+  /oauth/register:
+    post:
+      tags: ["mcp"]
+      summary: "Dynamic client registration (RFC 7591), public clients only"
+      operationId: "oauth_register"
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: "object"
+              properties:
+                redirect_uris: { type: "array", items: { type: "string" }, minItems: 1, maxItems: 10 }
+                client_name: { type: "string" }
+                client_uri: { type: "string" }
+                grant_types: { type: "array", items: { type: "string", enum: ["authorization_code", "refresh_token"] } }
+                response_types: { type: "array", items: { type: "string", enum: ["code"] } }
+                token_endpoint_auth_method: { type: "string", enum: ["none"] }
+              required: ["redirect_uris"]
+      responses:
+        "201":
+          $ref: "#/components/responses/OAuthMetadata"
+        "400":
+          $ref: "#/components/responses/OAuthError"
+        "429":
+          $ref: "#/components/responses/Error"
+  /oauth/token:
+    post:
+      tags: ["mcp"]
+      summary: "Token endpoint: authorization_code (+ PKCE verifier) or refresh_token (rotating)"
+      operationId: "oauth_token"
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: "object"
+              properties:
+                grant_type: { type: "string", enum: ["authorization_code", "refresh_token"] }
+                client_id: { type: "string" }
+                code: { type: "string" }
+                code_verifier: { type: "string" }
+                redirect_uri: { type: "string" }
+                refresh_token: { type: "string" }
+                resource: { type: "string" }
+              required: ["grant_type", "client_id"]
+      responses:
+        "200":
+          description: "Access token (fpa_, 1 h) and refresh token (fpr_, 30 days)"
+          content:
+            application/json:
+              schema:
+                type: "object"
+                properties:
+                  access_token: { type: "string" }
+                  token_type: { type: "string", enum: ["Bearer"] }
+                  expires_in: { type: "integer" }
+                  refresh_token: { type: "string" }
+                  scope: { type: "string" }
+                required: ["access_token", "token_type", "expires_in"]
+        "400":
+          $ref: "#/components/responses/OAuthError"
+        "401":
+          $ref: "#/components/responses/OAuthError"
+        "429":
+          $ref: "#/components/responses/Error"
+  /oauth/revoke:
+    post:
+      tags: ["mcp"]
+      summary: "Token revocation (RFC 7009); revokes the access and refresh token together"
+      operationId: "oauth_revoke"
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: "object"
+              properties:
+                token: { type: "string" }
+                token_type_hint: { type: "string" }
+              required: ["token"]
+      responses:
+        "200":
+          description: "Revoked (also returned for unknown tokens)"
+        "400":
+          $ref: "#/components/responses/OAuthError"
+        "429":
           $ref: "#/components/responses/Error"
   /api/v1/backups:
     get:
@@ -5083,6 +6633,8 @@ paths:
                   nextCursor:
                     type: "string"
                 required: ["items"]
+        "401":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
     post:
@@ -5110,6 +6662,10 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Backup"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/backups/{id}/download:
@@ -5127,6 +6683,12 @@ paths:
               schema:
                 type: "string"
                 format: "binary"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/backups/restore:
@@ -5161,6 +6723,10 @@ paths:
                   counts:
                     type: "object"
                 additionalProperties: false
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/backups/{id}:
@@ -5173,6 +6739,12 @@ paths:
       responses:
         "204":
           description: "No content"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/export:
@@ -5189,6 +6761,12 @@ paths:
             application/json:
               schema:
                 type: "object"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/admin/settings:
@@ -5203,6 +6781,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AdminSettings"
+        "401":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
     put:
@@ -5222,6 +6802,10 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AdminSettings"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/admin/users:
@@ -5247,6 +6831,8 @@ paths:
                   nextCursor:
                     type: "string"
                 required: ["items"]
+        "401":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
     post:
@@ -5266,6 +6852,10 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/User"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/admin/users/{id}:
@@ -5294,6 +6884,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/User"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/admin/stats:
@@ -5308,6 +6904,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AdminStats"
+        "401":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/admin/diagnostics:
@@ -5350,6 +6948,8 @@ paths:
                     type: "integer"
                   activeSessions:
                     type: "integer"
+        "401":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/audit:
@@ -5390,6 +6990,12 @@ paths:
                   nextCursor:
                     type: "string"
                 required: ["items"]
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/admin/audit:
@@ -5429,6 +7035,8 @@ paths:
                   nextCursor:
                     type: "string"
                 required: ["items"]
+        "401":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
 components:
@@ -5505,6 +7113,23 @@ components:
       style: "form"
       explode: true
   responses:
+    OAuthMetadata:
+      description: "JSON metadata document (RFC 8414 / RFC 9728 / RFC 7591 fields)"
+      content:
+        application/json:
+          schema:
+            type: "object"
+            additionalProperties: true
+    OAuthError:
+      description: "OAuth error (RFC 6749 §5.2)"
+      content:
+        application/json:
+          schema:
+            type: "object"
+            properties:
+              error: { type: "string" }
+              error_description: { type: "string" }
+            required: ["error"]
     Error:
       description: "Error"
       content:

@@ -11,6 +11,7 @@
     "typecheck": "bun run --filter '*' typecheck",
     "test": "bun test packages apps/web/src",
     "lint": "biome check .",
+    "api:check": "bun run --filter @finplat/api-client check-generated",
     "format": "biome format --write ."
   },
   "devDependencies": {

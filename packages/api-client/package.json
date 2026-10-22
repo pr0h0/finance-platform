@@ -9,7 +9,8 @@
   "scripts": {
     "typecheck": "tsc --noEmit -p .",
     "test": "bun test",
-    "generate": "openapi-typescript ../../docs/api/openapi.yaml -o src/schema.gen.ts"
+    "generate": "openapi-typescript ../../docs/api/openapi.yaml -o src/schema.gen.ts",
+    "check-generated": "openapi-typescript ../../docs/api/openapi.yaml -o /tmp/schema.gen.ts && diff -q /tmp/schema.gen.ts src/schema.gen.ts || (echo \"schema.gen.ts is stale: run scripts/bun.sh run --filter @finplat/api-client generate\" && exit 1)"
   },
   "dependencies": {
     "@finplat/domain": "workspace:*",
