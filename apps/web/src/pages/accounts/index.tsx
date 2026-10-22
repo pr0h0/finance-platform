@@ -19,8 +19,10 @@ import {
   PageHeader,
   today,
 } from '../../features/transactions/ui.tsx';
+import { useT } from '../../lib/i18n.ts';
 
 export default function AccountsPage() {
+  const t = useT();
   const { ops, profile, profileId, locale } = useLedgerEnv();
   const accounts = useEntities('accounts');
   const rates = useQuery({ queryKey: qk(profileId, 'rates'), queryFn: () => ops.rateSnapshots() });
@@ -58,19 +60,26 @@ export default function AccountsPage() {
   return (
     <div>
       <PageHeader
-        title="Accounts"
+        title={t('nav.accounts', 'Accounts')}
         actions={
           <Button variant="primary" onClick={() => setEditing('new')}>
-            <Plus size={14} aria-hidden /> New account
+            <Plus size={14} aria-hidden /> {t('accounts.page.newAccount', 'New account')}
           </Button>
         }
       >
-        Totals in {base}; balances are computed from transactions.
+        {t(
+          'accounts.page.totalsInBaseBalances',
+          'Totals in {{base}}; balances are computed from transactions.',
+          { base: base },
+        )}
       </PageHeader>
       {accounts.error && <ErrorText error={String(accounts.error)} />}
       {accounts.data?.length === 0 && (
-        <Empty title="No accounts yet">
-          Add your bank accounts, cash, cards and loans to start tracking.
+        <Empty title={t('accounts.page.noAccountsYet', 'No accounts yet')}>
+          {t(
+            'accounts.page.addYourBankAccounts',
+            'Add your bank accounts, cash, cards and loans to start tracking.',
+          )}
         </Empty>
       )}
       {groups.map(
@@ -82,13 +91,17 @@ export default function AccountsPage() {
                   id={`grp-${g.cls}`}
                   className="text-sm font-semibold tracking-wide text-muted uppercase"
                 >
-                  {g.cls === 'asset' ? 'Assets' : 'Liabilities'}
+                  {g.cls === 'asset'
+                    ? t('reports.page.assets', 'Assets')
+                    : t('reports.page.liabilities', 'Liabilities')}
                 </h2>
                 <span className="text-sm">
                   <MoneyText value={g.total} locale={locale} className="font-semibold" />
                   {g.missing.length > 0 && (
                     <span className="ml-2 text-xs text-warn">
-                      excludes {g.missing.join(', ')} (no rate)
+                      {t('accounts.page.excludesJoinNoRate', 'excludes {{join}} (no rate)', {
+                        join: g.missing.join(', '),
+                      })}
                     </span>
                   )}
                 </span>
@@ -111,9 +124,15 @@ export default function AccountsPage() {
                             />
                           )}
                           <span className="truncate">{a.name}</span>
-                          {a.isArchived && <Badge>archived</Badge>}
-                          {a.isMultiCurrency && <Badge tone="blue">multi-currency</Badge>}
-                          {!a.includeInNetWorth && <Badge>not in net worth</Badge>}
+                          {a.isArchived && <Badge>{t('accounts.page.archived', 'archived')}</Badge>}
+                          {a.isMultiCurrency && (
+                            <Badge tone="blue">
+                              {t('accounts.page.multiCurrency', 'multi-currency')}
+                            </Badge>
+                          )}
+                          {!a.includeInNetWorth && (
+                            <Badge>{t('accounts.page.notInNetWorth', 'not in net worth')}</Badge>
+                          )}
                         </span>
                         <span className="text-xs text-muted">
                           {TYPE_LABEL[a.accountType]} · {a.currency}
@@ -132,7 +151,8 @@ export default function AccountsPage() {
                         )}
                         {a.creditLimit && (
                           <span className="block text-xs text-muted">
-                            limit <MoneyText value={a.creditLimit} locale={locale} />
+                            {t('accounts.page.limit', 'limit')}{' '}
+                            <MoneyText value={a.creditLimit} locale={locale} />
                           </span>
                         )}
                       </span>
@@ -150,14 +170,20 @@ export default function AccountsPage() {
             checked={showArchived}
             onChange={(e) => setShowArchived(e.target.checked)}
           />{' '}
-          Show {archivedCount} archived
+          {t('accounts.page.showArchivedcountArchived', 'Show {{archivedCount}} archived', {
+            archivedCount: archivedCount,
+          })}
         </label>
       )}
 
       <Dialog
         open={!!editing}
         onClose={() => setEditing(null)}
-        title={editing === 'new' ? 'New account' : 'Edit account'}
+        title={
+          editing === 'new'
+            ? t('accounts.page.newAccount', 'New account')
+            : t('accounts.page.editAccount', 'Edit account')
+        }
       >
         {editing && (
           <AccountForm
@@ -172,7 +198,7 @@ export default function AccountsPage() {
       <Dialog
         open={!!open && !editing}
         onClose={() => setOpenId(null)}
-        title={open?.name ?? 'Account'}
+        title={open?.name ?? t('quick.account', 'Account')}
         side
       >
         {open && (

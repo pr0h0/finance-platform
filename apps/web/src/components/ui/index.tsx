@@ -15,7 +15,7 @@ import {
   type TextareaHTMLAttributes,
   useId,
 } from 'react';
-import { errorText } from '../../lib/i18n.ts';
+import { errorText, useT } from '../../lib/i18n.ts';
 
 export const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(' ');
 
@@ -311,11 +311,16 @@ export function Notice({
 }
 
 export function ErrorBox({ error }: { error: unknown }) {
+  const t = useT();
   if (!error) return null;
   return (
     <Notice tone="neg" role="alert" title={errorText(error)}>
       {(error as { requestId?: string }).requestId && (
-        <span className="text-xs">Request {(error as { requestId?: string }).requestId}</span>
+        <span className="text-xs">
+          {t('ui.page.requestV', 'Request {{v}}', {
+            v: (error as { requestId?: string }).requestId ?? '',
+          })}
+        </span>
       )}
     </Notice>
   );
@@ -384,6 +389,7 @@ export function Dialog({
   footer?: ReactNode;
   wide?: boolean;
 }) {
+  const t = useT();
   return (
     <RD.Root open={open} onOpenChange={onOpenChange}>
       <RD.Portal>
@@ -405,7 +411,7 @@ export function Dialog({
               )}
             </div>
             <RD.Close asChild>
-              <IconButton label="Close" size="sm">
+              <IconButton label={t('common.close', 'Close')} size="sm">
                 <X className="size-4" aria-hidden />
               </IconButton>
             </RD.Close>
@@ -438,6 +444,7 @@ export function ConfirmDialog({
   busy?: boolean;
   onConfirm: () => void;
 }) {
+  const t = useT();
   return (
     <Dialog
       open={open}
@@ -445,7 +452,7 @@ export function ConfirmDialog({
       title={title}
       footer={
         <>
-          <Button onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button onClick={() => onOpenChange(false)}>{t('common.cancel', 'Cancel')}</Button>
           <Button variant={danger ? 'danger' : 'primary'} busy={busy} onClick={onConfirm}>
             {confirmLabel}
           </Button>

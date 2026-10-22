@@ -1,6 +1,5 @@
 // i18n (i18next) + exact locale formatting (format.ts). English is the source catalog; Bosnian
-// (bs) is a skeleton that falls back to English. Add a language: copy locales/bs.ts, register it
-// in CATALOGS. The web app can wrap `createI18n()` with react-i18next if it wants hooks.
+// (bs) is complete (typechecked). Add a language: copy locales/bs.ts, register it in CATALOGS. The web app can wrap `createI18n()` with react-i18next if it wants hooks.
 import i18next, { type i18n, type TOptions } from 'i18next';
 import { bs } from './locales/bs.ts';
 import { type Catalog, en, type MessageKey } from './locales/en.ts';

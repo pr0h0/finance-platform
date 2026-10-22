@@ -9,6 +9,7 @@ import {
 } from '@finplat/finance-engine';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
+import { useT } from '../../lib/i18n.ts';
 import { qk, type Refs, useLedgerEnv, useTransactions, useWrite } from './data.ts';
 import { primaryAmount } from './model.ts';
 import { Button, Empty, MoneyText } from './ui.tsx';
@@ -52,17 +53,21 @@ function Members({
   byId: Map<string, D.Transaction>;
   refs: Refs;
 }) {
+  const t = useT();
   const { locale } = useLedgerEnv();
   return (
     <ul className="text-sm">
       {g.transactionIds.map((id) => {
-        const t = byId.get(id);
-        if (!t) return null;
+        const tx = byId.get(id);
+        if (!tx) return null;
         return (
           <li key={id}>
-            {t.bookingDate} · {t.description || t.payee || '(no description)'} ·{' '}
-            <MoneyText value={primaryAmount(t)} locale={locale} signed /> ·{' '}
-            {refs.accountName(t.postings[0]?.accountId ?? '')} · {t.source}
+            {tx.bookingDate} ·{' '}
+            {tx.description ||
+              tx.payee ||
+              t('transactions.duplicates.noDescription', '(no description)')}{' '}
+            · <MoneyText value={primaryAmount(tx)} locale={locale} signed /> ·{' '}
+            {refs.accountName(tx.postings[0]?.accountId ?? '')} · {tx.source}
           </li>
         );
       })}
@@ -72,19 +77,24 @@ function Members({
 
 /** Notice in the details drawer when this transaction looks like another one. */
 export function DuplicateNotice({ tx, refs }: { tx: D.Transaction; refs: Refs }) {
+  const t = useT();
   const { groups, dismiss, byId } = useDuplicates();
   const g = groups.find((x) => x.transactionIds.includes(tx.id));
   if (!g) return null;
   return (
     <section
       role="status"
-      aria-label="Possible duplicate"
+      aria-label={t('transactions.duplicates.possibleDuplicate', 'Possible duplicate')}
       className="mb-3 rounded-md border border-warn/50 bg-warn/10 p-3 text-sm"
     >
-      <p className="font-medium">Possible duplicate ({g.reasons.join(', ')})</p>
+      <p className="font-medium">
+        {t('transactions.duplicates.possibleDuplicateJoin', 'Possible duplicate ({{join}})', {
+          join: g.reasons.join(', '),
+        })}
+      </p>
       <Members g={g} byId={byId} refs={refs} />
       <Button size="sm" className="mt-2" onClick={() => dismiss.mutate(g)}>
-        Not a duplicate
+        {t('transactions.duplicates.notADuplicate', 'Not a duplicate')}
       </Button>
     </section>
   );
@@ -92,11 +102,15 @@ export function DuplicateNotice({ tx, refs }: { tx: D.Transaction; refs: Refs })
 
 /** The "Possible duplicates" view of the transactions page. */
 export function DuplicatesList({ refs, onOpen }: { refs: Refs; onOpen: (id: string) => void }) {
+  const t = useT();
   const { groups, dismiss, byId } = useDuplicates();
   if (groups.length === 0)
     return (
-      <Empty title="No possible duplicates">
-        Transactions on the same account with the same amount a few days apart are listed here.
+      <Empty title={t('transactions.duplicates.noPossibleDuplicates', 'No possible duplicates')}>
+        {t(
+          'transactions.duplicates.transactionsOnTheSame',
+          'Transactions on the same account with the same amount a few days apart are listed here.',
+        )}
       </Empty>
     );
   return (
@@ -104,17 +118,21 @@ export function DuplicatesList({ refs, onOpen }: { refs: Refs; onOpen: (id: stri
       {groups.map((g) => (
         <li key={groupKey(g)} className="rounded-md border border-line p-3">
           <p className="mb-1 text-xs text-muted">
-            Score {g.score} · {g.reasons.join(', ')}
+            {t('transactions.duplicates.scoreScoreJoin', 'Score {{score}} · {{join}}', {
+              score: g.score,
+              join: g.reasons.join(', '),
+            })}
           </p>
           <Members g={g} byId={byId} refs={refs} />
           <div className="mt-2 flex flex-wrap gap-2">
             {g.transactionIds.map((id, i) => (
               <Button key={id} size="sm" onClick={() => onOpen(id)}>
-                Open #{i + 1}
+                {t('transactions.duplicates.open', 'Open #')}
+                {i + 1}
               </Button>
             ))}
             <Button size="sm" variant="ghost" onClick={() => dismiss.mutate(g)}>
-              Not a duplicate
+              {t('transactions.duplicates.notADuplicate', 'Not a duplicate')}
             </Button>
           </div>
         </li>

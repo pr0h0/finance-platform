@@ -22,10 +22,7 @@ export function PreferencesForm() {
     <div className="grid gap-4 sm:grid-cols-2">
       <Field
         label={t('settings.language', 'Language')}
-        hint={t(
-          'settings.languageHint',
-          'Bosnian is partially translated; missing text is shown in English.',
-        )}
+        hint={t('settings.languageHint', 'Language of the interface.')}
       >
         <Select
           value={prefs.language}

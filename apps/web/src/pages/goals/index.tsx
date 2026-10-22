@@ -27,6 +27,7 @@ import { emergencyFund, goalRows } from '../../features/goals/compute.ts';
 import { PRIORITY_LABEL } from '../../features/planning/labels.ts';
 import { describeRRule } from '../../features/planning/rrule.ts';
 import { useFormat } from '../../lib/format.ts';
+import { useT } from '../../lib/i18n.ts';
 
 const KIND_LABEL = {
   general: 'General',
@@ -42,6 +43,7 @@ const BASIS = {
 } as const;
 
 export default function GoalsPage() {
+  const t = useT();
   const snap = useSnapshot();
   const f = useFormat();
   const [edit, setEdit] = useState<{ goal?: SavingsGoal } | null>(null);
@@ -49,7 +51,7 @@ export default function GoalsPage() {
   const del = useOpsMutation((ops, id: string) => ops.remove('savings_contributions', id));
   if (snap.error)
     return (
-      <Page title="Savings goals">
+      <Page title={t('goals.page.savingsGoals', 'Savings goals')}>
         <ErrorText error={snap.error} />
       </Page>
     );
@@ -59,32 +61,32 @@ export default function GoalsPage() {
   const ef = emergencyFund(s);
   return (
     <Page
-      title="Savings goals"
+      title={t('goals.page.savingsGoals', 'Savings goals')}
       actions={
         <Button variant="primary" onClick={() => setEdit({})}>
-          <Plus aria-hidden className="size-4" /> New goal
+          <Plus aria-hidden className="size-4" /> {t('goals.page.newGoal', 'New goal')}
         </Button>
       }
     >
-      <Card title="Emergency fund">
+      <Card title={t('goals.page.emergencyFund', 'Emergency fund')}>
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           <Stat
-            label="Months covered"
+            label={t('goals.page.monthsCovered', 'Months covered')}
             value={ef.months ?? '—'}
             hint={ef.target ? `Target ${ef.target} months` : undefined}
           />
           <Stat
-            label="Reserve"
+            label={t('goals.page.reserve', 'Reserve')}
             value={<Amount value={ef.reserve} />}
-            hint="Saved in emergency-fund goals"
+            hint={t('goals.page.savedInEmergencyFund', 'Saved in emergency-fund goals')}
           />
           <Stat
-            label="Essential expenses / month"
+            label={t('goals.page.essentialExpensesMonth', 'Essential expenses / month')}
             value={<Amount value={ef.monthly} />}
             hint={
               ef.basis === 'essential_plans'
-                ? 'From recurring plans marked Essential'
-                : 'No essential plans: 6-month average spending'
+                ? t('goals.page.fromRecurringPlansMarked', 'From recurring plans marked Essential')
+                : t('goals.page.noEssentialPlans6', 'No essential plans: 6-month average spending')
             }
           />
           {ef.target && ef.months && (
@@ -110,7 +112,7 @@ export default function GoalsPage() {
 
       {rows.length === 0 && (
         <Card>
-          <Empty>No goals yet.</Empty>
+          <Empty>{t('goals.page.noGoalsYet', 'No goals yet.')}</Empty>
         </Card>
       )}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -141,7 +143,8 @@ export default function GoalsPage() {
                   <Amount value={p.saved} />
                 </span>
                 <span className="text-muted">
-                  of <Amount value={g.targetAmount} /> · {f.percent(p.progress, 0)}
+                  {t('goals.page.of', 'of')} <Amount value={g.targetAmount} /> ·{' '}
+                  {f.percent(p.progress, 0)}
                 </span>
               </div>
               <ProgressBar
@@ -156,23 +159,29 @@ export default function GoalsPage() {
                 ]}
               />
               <dl className="grid grid-cols-2 gap-x-4 gap-y-1">
-                <dt className="text-muted">Remaining</dt>
+                <dt className="text-muted">{t('goals.page.remaining', 'Remaining')}</dt>
                 <dd>
                   <Amount value={p.remaining} />
                 </dd>
-                <dt className="text-muted">Estimated completion</dt>
+                <dt className="text-muted">
+                  {t('goals.page.estimatedCompletion', 'Estimated completion')}
+                </dt>
                 <dd>
                   {p.estimatedCompletionDate ? f.date(p.estimatedCompletionDate) : '—'}
                   <span className="block text-xs text-muted">{BASIS[p.basis]}</span>
                 </dd>
                 {g.targetDate && (
                   <>
-                    <dt className="text-muted">Target date</dt>
+                    <dt className="text-muted">{t('goals.page.targetDate', 'Target date')}</dt>
                     <dd>
                       {f.date(g.targetDate)}{' '}
                       {p.onTrack !== null && (
                         <span className={p.onTrack ? 'text-pos' : 'text-warn'}>
-                          ({p.onTrack ? 'on track' : 'behind'})
+                          (
+                          {p.onTrack
+                            ? t('goals.page.onTrack', 'on track')
+                            : t('goals.page.behind', 'behind')}
+                          )
                         </span>
                       )}
                     </dd>
@@ -180,7 +189,9 @@ export default function GoalsPage() {
                 )}
                 {p.requiredMonthly && (
                   <>
-                    <dt className="text-muted">Needed per month</dt>
+                    <dt className="text-muted">
+                      {t('goals.page.neededPerMonth', 'Needed per month')}
+                    </dt>
                     <dd>
                       <Amount value={p.requiredMonthly} />
                     </dd>
@@ -188,7 +199,9 @@ export default function GoalsPage() {
                 )}
                 {plan && (
                   <>
-                    <dt className="text-muted">Planned transfer</dt>
+                    <dt className="text-muted">
+                      {t('goals.page.plannedTransfer', 'Planned transfer')}
+                    </dt>
                     <dd>
                       <Amount value={plan.amount} /> · {describeRRule(plan.rrule)}
                     </dd>
@@ -196,12 +209,16 @@ export default function GoalsPage() {
                 )}
               </dl>
               <div className="flex gap-2">
-                <Button onClick={() => setContrib(g)}>Add contribution</Button>
+                <Button onClick={() => setContrib(g)}>
+                  {t('goals.page.addContribution', 'Add contribution')}
+                </Button>
               </div>
               {contributions.length > 0 && (
                 <details>
                   <summary className="cursor-pointer text-xs text-muted">
-                    Contributions ({contributions.length})
+                    {t('goals.page.contributionsLength', 'Contributions ({{length}})', {
+                      length: contributions.length,
+                    })}
                   </summary>
                   <ul className="mt-1 divide-y divide-line">
                     {contributions.map((c) => (
@@ -213,7 +230,7 @@ export default function GoalsPage() {
                           <Amount value={c.amount} tone />
                           <Button
                             variant="ghost"
-                            aria-label="Delete contribution"
+                            aria-label={t('goals.page.deleteContribution', 'Delete contribution')}
                             onClick={() => confirm('Delete this contribution?') && del.mutate(c.id)}
                           >
                             <Trash2 aria-hidden className="size-3.5" />
@@ -231,11 +248,17 @@ export default function GoalsPage() {
       <Dialog
         open={!!edit}
         onClose={() => setEdit(null)}
-        title={edit?.goal ? 'Edit goal' : 'New goal'}
+        title={
+          edit?.goal ? t('goals.page.editGoal', 'Edit goal') : t('goals.page.newGoal', 'New goal')
+        }
       >
         {edit && <GoalForm snap={s} goal={edit.goal} onDone={() => setEdit(null)} />}
       </Dialog>
-      <Dialog open={!!contrib} onClose={() => setContrib(null)} title="Contribution">
+      <Dialog
+        open={!!contrib}
+        onClose={() => setContrib(null)}
+        title={t('goals.page.contribution', 'Contribution')}
+      >
         {contrib && <ContributionForm goal={contrib} onDone={() => setContrib(null)} />}
       </Dialog>
     </Page>
@@ -251,6 +274,7 @@ function GoalForm({
   goal?: SavingsGoal;
   onDone: () => void;
 }) {
+  const t = useT();
   const f = useFormat();
   const [name, setName] = useState(goal?.name ?? '');
   const [kind, setKind] = useState(goal?.kind ?? 'general');
@@ -303,10 +327,10 @@ function GoalForm({
   const currencies = [...new Set([snap.currency, ...snap.accounts.map((a) => a.currency)])];
   return (
     <form onSubmit={submit} className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-      <Field label="Name">
+      <Field label={t('account.name', 'Name')}>
         <Input required value={name} onChange={(e) => setName(e.target.value)} />
       </Field>
-      <Field label="Kind">
+      <Field label={t('backup.kind', 'Kind')}>
         <Select value={kind} onChange={(e) => setKind(e.target.value as typeof kind)}>
           {GOAL_KINDS.map((k) => (
             <option key={k} value={k}>
@@ -315,14 +339,14 @@ function GoalForm({
           ))}
         </Select>
       </Field>
-      <Field label="Currency">
+      <Field label={t('account.currency', 'Currency')}>
         <Select value={currency} disabled={!!goal} onChange={(e) => setCurrency(e.target.value)}>
           {currencies.map((c) => (
             <option key={c}>{c}</option>
           ))}
         </Select>
       </Field>
-      <Field label="Target amount">
+      <Field label={t('goals.page.targetAmount', 'Target amount')}>
         <Input
           required
           inputMode="decimal"
@@ -330,18 +354,21 @@ function GoalForm({
           onChange={(e) => setTarget(e.target.value)}
         />
       </Field>
-      <Field label="Already saved">
+      <Field label={t('goals.page.alreadySaved', 'Already saved')}>
         <Input inputMode="decimal" value={starting} onChange={(e) => setStarting(e.target.value)} />
       </Field>
-      <Field label="Target date (optional)">
+      <Field label={t('goals.page.targetDateOptional', 'Target date (optional)')}>
         <Input type="date" value={targetDate} onChange={(e) => setTargetDate(e.target.value)} />
       </Field>
       <Field
-        label="Savings account (optional)"
-        hint="Recurring planned transfers into it drive the estimate"
+        label={t('goals.page.savingsAccountOptional', 'Savings account (optional)')}
+        hint={t(
+          'goals.page.recurringPlannedTransfersInto',
+          'Recurring planned transfers into it drive the estimate',
+        )}
       >
         <Select value={accountId} onChange={(e) => setAccountId(e.target.value)}>
-          <option value="">None</option>
+          <option value="">{t('common.none', 'None')}</option>
           {snap.accounts.map((a) => (
             <option key={a.id} value={a.id}>
               {a.name}
@@ -350,7 +377,7 @@ function GoalForm({
         </Select>
       </Field>
       {kind === 'emergency_fund' && (
-        <Field label="Months of essentials to cover">
+        <Field label={t('goals.page.monthsOfEssentialsTo', 'Months of essentials to cover')}>
           <Input
             type="number"
             min={1}
@@ -360,7 +387,7 @@ function GoalForm({
           />
         </Field>
       )}
-      <Field label="Priority">
+      <Field label={t('goals.page.priority', 'Priority')}>
         <Select value={priority} onChange={(e) => setPriority(e.target.value as typeof priority)}>
           {PRIORITIES.map((p) => (
             <option key={p} value={p}>
@@ -370,7 +397,7 @@ function GoalForm({
         </Select>
       </Field>
       {goal && (
-        <Field label="Status">
+        <Field label={t('sync.status', 'Status')}>
           <Select value={status} onChange={(e) => setStatus(e.target.value as typeof status)}>
             {GOAL_STATUSES.map((p) => (
               <option key={p}>{p}</option>
@@ -390,15 +417,15 @@ function GoalForm({
               remove.mutate(undefined, { onSuccess: onDone, onError: setErr })
             }
           >
-            Delete
+            {t('common.delete', 'Delete')}
           </Button>
         ) : (
           <span />
         )}
         <div className="flex gap-2">
-          <Button onClick={onDone}>Cancel</Button>
+          <Button onClick={onDone}>{t('common.cancel', 'Cancel')}</Button>
           <Button type="submit" variant="primary" disabled={save.isPending}>
-            Save
+            {t('common.save', 'Save')}
           </Button>
         </div>
       </div>
@@ -407,6 +434,7 @@ function GoalForm({
 }
 
 function ContributionForm({ goal, onDone }: { goal: SavingsGoal; onDone: () => void }) {
+  const t = useT();
   const f = useFormat();
   const [amount, setAmount] = useState('');
   const [withdraw, setWithdraw] = useState(false);
@@ -443,23 +471,23 @@ function ContributionForm({ goal, onDone }: { goal: SavingsGoal; onDone: () => v
           onChange={(e) => setAmount(e.target.value)}
         />
       </Field>
-      <Field label="Date">
+      <Field label={t('transaction.date', 'Date')}>
         <Input type="date" required value={date} onChange={(e) => setDate(e.target.value)} />
       </Field>
       <label className="flex items-center gap-2 text-sm">
         <input type="checkbox" checked={withdraw} onChange={(e) => setWithdraw(e.target.checked)} />{' '}
-        Withdrawal
+        {t('goals.page.withdrawal', 'Withdrawal')}
       </label>
-      <Field label="Notes">
+      <Field label={t('transaction.notes', 'Notes')}>
         <Input value={notes} onChange={(e) => setNotes(e.target.value)} />
       </Field>
       <div className="col-span-full">
         <ErrorText error={err} />
       </div>
       <div className="col-span-full flex justify-end gap-2">
-        <Button onClick={onDone}>Cancel</Button>
+        <Button onClick={onDone}>{t('common.cancel', 'Cancel')}</Button>
         <Button type="submit" variant="primary" disabled={save.isPending}>
-          Save
+          {t('common.save', 'Save')}
         </Button>
       </div>
     </form>

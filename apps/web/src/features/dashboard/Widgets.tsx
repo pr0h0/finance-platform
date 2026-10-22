@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router';
 import { useData } from '../../app/data.tsx';
 import { useFormat } from '../../lib/format.ts';
+import { useT } from '../../lib/i18n.ts';
 import { type ChartRow, MoneyChart } from '../analytics/chart.tsx';
 import { transactionsLink } from '../analytics/drill.ts';
 import { useOpsQuery } from '../analytics/hooks.ts';
@@ -72,6 +73,7 @@ export function WidgetBody({ id, snap }: { id: WidgetId; snap: Snapshot }) {
 }
 
 function TotalBalance({ snap }: { snap: Snapshot }) {
+  const t = useT();
   const { netWorth: nw } = accountBreakdown(snap);
   return (
     <>
@@ -80,7 +82,8 @@ function TotalBalance({ snap }: { snap: Snapshot }) {
         value={<Amount value={nw.netWorth} />}
         hint={
           <>
-            Assets <Amount value={nw.assets} /> · Liabilities <Amount value={nw.liabilities} />
+            {t('reports.page.assets', 'Assets')} <Amount value={nw.assets} />{' '}
+            {t('dashboard.widgets.liabilities', '· Liabilities')} <Amount value={nw.liabilities} />
           </>
         }
       />
@@ -90,6 +93,7 @@ function TotalBalance({ snap }: { snap: Snapshot }) {
 }
 
 function MonthFigure({ snap, which }: { snap: Snapshot; which: WidgetId }) {
+  const t = useT();
   const f = useFormat();
   const m = monthSummary(snap);
   const from = startOfMonth(snap.today);
@@ -120,7 +124,11 @@ function MonthFigure({ snap, which }: { snap: Snapshot; which: WidgetId }) {
       <Stat
         label={f.month(snap.today.slice(0, 7))}
         value={value}
-        hint={which === 'savings-rate' ? '(income − spending) / income' : undefined}
+        hint={
+          which === 'savings-rate'
+            ? t('dashboard.widgets.incomeSpendingIncome', '(income − spending) / income')
+            : undefined
+        }
       />
       <DataBanner missingRates={m.missingRates} />
     </>
@@ -128,16 +136,22 @@ function MonthFigure({ snap, which }: { snap: Snapshot; which: WidgetId }) {
 }
 
 function MonthEnd({ snap }: { snap: Snapshot }) {
+  const t = useT();
   const f = useFormat();
   const p = monthEndProjection(snap);
   return (
     <Stat
-      label="Expected, from balances and plans"
+      label={t('dashboard.widgets.expectedFromBalancesAnd', 'Expected, from balances and plans')}
       value={<Amount value={p.amount} tone />}
       hint={
         <>
-          Lowest <Amount value={p.lowest.amount} tone /> on {f.date(p.lowest.date)}
-          {!p.complete && ' · incomplete (missing rates or accounts)'}
+          {t('dashboard.widgets.lowest', 'Lowest')} <Amount value={p.lowest.amount} tone />{' '}
+          {t('dashboard.widgets.onDate', 'on {{date}}', { date: f.date(p.lowest.date) })}
+          {!p.complete &&
+            t(
+              'dashboard.widgets.incompleteMissingRatesOr',
+              '· incomplete (missing rates or accounts)',
+            )}
         </>
       }
     />
@@ -145,14 +159,15 @@ function MonthEnd({ snap }: { snap: Snapshot }) {
 }
 
 function Accounts({ snap }: { snap: Snapshot }) {
+  const t = useT();
   const f = useFormat();
   const { rows } = accountBreakdown(snap);
   if (!rows.length)
     return (
       <Empty>
-        No accounts yet.{' '}
+        {t('dashboard.widgets.noAccountsYet', 'No accounts yet.')}{' '}
         <Link className="underline" to="/accounts">
-          Add one
+          {t('dashboard.widgets.addOne', 'Add one')}
         </Link>
         .
       </Empty>
@@ -167,7 +182,9 @@ function Accounts({ snap }: { snap: Snapshot }) {
           >
             {r.account.name}
             <span className="ml-2 text-xs text-muted">
-              {r.account.classification === 'liability' ? 'liability' : r.account.accountType}
+              {r.account.classification === 'liability'
+                ? t('dashboard.widgets.liability', 'liability')
+                : r.account.accountType}
             </span>
           </Link>
           <span className="hidden w-24 sm:block">
@@ -198,16 +215,20 @@ function Accounts({ snap }: { snap: Snapshot }) {
 }
 
 function Bills({ snap }: { snap: Snapshot }) {
+  const t = useT();
   const f = useFormat();
   const bills = upcomingBills(snap).slice(0, 8);
-  if (!bills.length) return <Empty>No bills due in the next 30 days.</Empty>;
+  if (!bills.length)
+    return (
+      <Empty>{t('dashboard.widgets.noBillsDueIn', 'No bills due in the next 30 days.')}</Empty>
+    );
   return (
     <ul className="space-y-1 text-sm">
       {bills.map((b) => (
         <li key={`${b.planId}|${b.occurrenceDate}`} className="flex justify-between gap-2">
           <span className="truncate">
             <span className={b.overdue ? 'text-neg' : 'text-muted'}>
-              {b.overdue ? 'Overdue' : f.date(b.date)}
+              {b.overdue ? t('dashboard.widgets.overdue', 'Overdue') : f.date(b.date)}
             </span>{' '}
             {b.plan.description}
           </span>
@@ -219,6 +240,7 @@ function Bills({ snap }: { snap: Snapshot }) {
 }
 
 function Budgets({ snap }: { snap: Snapshot }) {
+  const t = useT();
   const active = snap.budgets.filter(
     (b) =>
       !b.isTemplate &&
@@ -239,9 +261,9 @@ function Budgets({ snap }: { snap: Snapshot }) {
   if (!active.length)
     return (
       <Empty>
-        No active budgets.{' '}
+        {t('dashboard.widgets.noActiveBudgets', 'No active budgets.')}{' '}
         <Link className="underline" to="/budgets">
-          Create one
+          {t('dashboard.widgets.createOne', 'Create one')}
         </Link>
         .
       </Empty>
@@ -263,7 +285,10 @@ function Budgets({ snap }: { snap: Snapshot }) {
                 </span>
               </div>
               <ProgressBar
-                label="actual, committed, remaining"
+                label={t(
+                  'dashboard.widgets.actualCommittedRemaining',
+                  'actual, committed, remaining',
+                )}
                 parts={[
                   {
                     value: Number(s.totals.actual.amount) / lim,
@@ -290,8 +315,10 @@ function Budgets({ snap }: { snap: Snapshot }) {
 }
 
 function Categories({ snap }: { snap: Snapshot }) {
+  const t = useT();
   const r = categoryDistribution(snap);
-  if (!r.rows.length) return <Empty>No spending this month.</Empty>;
+  if (!r.rows.length)
+    return <Empty>{t('dashboard.widgets.noSpendingThisMonth', 'No spending this month.')}</Empty>;
   const total = Number(r.total.amount) || 1;
   const top = r.rows.slice(0, 6);
   return (
@@ -338,16 +365,17 @@ function Categories({ snap }: { snap: Snapshot }) {
 }
 
 function Trend({ snap }: { snap: Snapshot }) {
+  const t = useT();
   const f = useFormat();
-  const t = spendingTrend(snap);
-  const rows: ChartRow[] = t.periods.map((p) => ({
+  const trend = spendingTrend(snap);
+  const rows: ChartRow[] = trend.periods.map((p) => ({
     x: p.period,
     label: f.month(p.period),
     money: { income: p.income, expense: p.expense },
   }));
   return (
     <MoneyChart
-      title="Income and spending, last 6 months"
+      title={t('dashboard.widgets.incomeAndSpendingLast', 'Income and spending, last 6 months')}
       rows={rows}
       height={200}
       series={[
@@ -370,8 +398,9 @@ function TxList({
   }[];
   snap: Snapshot;
 }) {
+  const t = useT();
   const f = useFormat();
-  if (!items.length) return <Empty>Nothing yet.</Empty>;
+  if (!items.length) return <Empty>{t('dashboard.widgets.nothingYet', 'Nothing yet.')}</Empty>;
   return (
     <ul className="space-y-1 text-sm">
       {items.map((t) => (
@@ -384,7 +413,7 @@ function TxList({
       ))}
       <li className="pt-1 text-xs">
         <Link className="text-accent hover:underline" to="/transactions">
-          All transactions
+          {t('dashboard.widgets.allTransactions', 'All transactions')}
         </Link>
         <span className="sr-only"> ({snap.transactions.length})</span>
       </li>
@@ -430,15 +459,16 @@ function Largest({ snap }: { snap: Snapshot }) {
 }
 
 function Subscriptions({ snap }: { snap: Snapshot }) {
+  const t = useT();
   const f = useFormat();
   const c = subscriptionCosts(snap);
   const live = c.rows.filter((r) => r.sub.status === 'active' || r.sub.status === 'trial');
   if (!live.length)
     return (
       <Empty>
-        No subscriptions tracked.{' '}
+        {t('dashboard.widgets.noSubscriptionsTracked', 'No subscriptions tracked.')}{' '}
         <Link className="underline" to="/subscriptions">
-          Add one
+          {t('dashboard.widgets.addOne', 'Add one')}
         </Link>
         .
       </Empty>
@@ -446,11 +476,11 @@ function Subscriptions({ snap }: { snap: Snapshot }) {
   return (
     <>
       <Stat
-        label="Monthly equivalent"
+        label={t('subscriptions.page.monthlyEquivalent', 'Monthly equivalent')}
         value={<Amount value={c.monthly} />}
         hint={
           <>
-            Annual <Amount value={c.annual} />
+            {t('reports.page.annual', 'Annual')} <Amount value={c.annual} />
           </>
         }
       />
@@ -467,14 +497,15 @@ function Subscriptions({ snap }: { snap: Snapshot }) {
 }
 
 function Goals({ snap }: { snap: Snapshot }) {
+  const t = useT();
   const f = useFormat();
   const g = goalProgress(snap);
   if (!g.length)
     return (
       <Empty>
-        No savings goals.{' '}
+        {t('dashboard.widgets.noSavingsGoals', 'No savings goals.')}{' '}
         <Link className="underline" to="/goals">
-          Create one
+          {t('dashboard.widgets.createOne', 'Create one')}
         </Link>
         .
       </Empty>
@@ -505,8 +536,12 @@ function Goals({ snap }: { snap: Snapshot }) {
 }
 
 function Insights({ snap }: { snap: Snapshot }) {
+  const t = useT();
   const list = insights(snap);
-  if (!list.length) return <Empty>No notable changes this month.</Empty>;
+  if (!list.length)
+    return (
+      <Empty>{t('dashboard.widgets.noNotableChangesThis', 'No notable changes this month.')}</Empty>
+    );
   return (
     <ul className="space-y-2 text-sm">
       {list.slice(0, 4).map((i) => (
@@ -519,7 +554,7 @@ function Insights({ snap }: { snap: Snapshot }) {
       ))}
       <li className="text-xs">
         <Link className="text-accent hover:underline" to="/analytics#insights">
-          All insights
+          {t('dashboard.widgets.allInsights', 'All insights')}
         </Link>
       </li>
     </ul>
@@ -527,9 +562,10 @@ function Insights({ snap }: { snap: Snapshot }) {
 }
 
 function Coverage({ snap }: { snap: Snapshot }) {
+  const t = useT();
   const f = useFormat();
   const rows = importCoverage(snap);
-  if (!rows.length) return <Empty>No accounts.</Empty>;
+  if (!rows.length) return <Empty>{t('dashboard.widgets.noAccounts', 'No accounts.')}</Empty>;
   return (
     <div className="space-y-1 text-xs">
       {rows.map((r) => (
@@ -551,9 +587,11 @@ function Coverage({ snap }: { snap: Snapshot }) {
         </div>
       ))}
       <p className="text-muted">
-        Last 12 months from {f.month(addMonths(snap.today, -11).slice(0, 7))}.{' '}
+        {t('dashboard.widgets.last12MonthsFrom', 'Last 12 months from {{month}}.', {
+          month: f.month(addMonths(snap.today, -11).slice(0, 7)),
+        })}{' '}
         <Link className="text-accent hover:underline" to="/import">
-          Import Center
+          {t('dashboard.widgets.importCenter', 'Import Center')}
         </Link>
       </p>
     </div>
@@ -561,6 +599,7 @@ function Coverage({ snap }: { snap: Snapshot }) {
 }
 
 function SyncHealth() {
+  const t = useT();
   const { mode, engine, profile } = useData();
   const f = useFormat();
   const q = useQuery({
@@ -572,25 +611,35 @@ function SyncHealth() {
   if (mode !== 'remote')
     return (
       <p className="text-sm text-muted">
-        Local-only mode: data stays in this browser.{' '}
+        {t('dashboard.widgets.localOnlyModeData', 'Local-only mode: data stays in this browser.')}{' '}
         <Link className="text-accent hover:underline" to="/sync">
-          Sync settings
+          {t('dashboard.widgets.syncSettings', 'Sync settings')}
         </Link>
       </p>
     );
   const s = q.data;
-  if (!s) return <p className="text-sm text-muted">Checking…</p>;
+  if (!s)
+    return <p className="text-sm text-muted">{t('dashboard.widgets.checking', 'Checking…')}</p>;
   const ok = !s.lastError && !s.rejected.length && !s.conflicts.length;
   return (
     <div className="text-sm">
-      <p className={ok ? 'text-pos' : 'text-warn'}>{ok ? 'Healthy' : 'Needs attention'}</p>
+      <p className={ok ? 'text-pos' : 'text-warn'}>
+        {ok
+          ? t('dashboard.widgets.healthy', 'Healthy')
+          : t('dashboard.widgets.needsAttention', 'Needs attention')}
+      </p>
       <p className="text-muted">
-        Last sync {s.lastSyncAt ? f.dateTime(s.lastSyncAt) : 'never'} · {s.pending} pending ·{' '}
-        {s.rejected.length} rejected · {s.conflicts.length} conflicts
+        {t('devices.lastSync', 'Last sync')}{' '}
+        {s.lastSyncAt ? f.dateTime(s.lastSyncAt) : t('dashboard.widgets.never', 'never')}{' '}
+        {t(
+          'dashboard.widgets.pendingPendingLengthRejected',
+          '· {{pending}} pending · {{length}} rejected · {{length2}} conflicts',
+          { pending: s.pending, length: s.rejected.length, length2: s.conflicts.length },
+        )}
       </p>
       {s.lastError && <p className="text-neg">{s.lastError.message}</p>}
       <Link className="text-xs text-accent hover:underline" to="/sync">
-        Sync dashboard
+        {t('dashboard.widgets.syncDashboard', 'Sync dashboard')}
       </Link>
     </div>
   );

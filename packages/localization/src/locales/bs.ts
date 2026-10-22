@@ -1,7 +1,8 @@
-// Bosnian (bs) — skeleton. Untranslated keys fall back to English; translators fill in the rest.
-import type { Catalog } from './en.ts';
+// Bosnian (bs, latinica). Complete: `satisfies` fails the typecheck when en gains a key bs lacks.
+// Terminology as used by banks in BiH: račun, transakcija, rashod, prihod, budžet, štednja, izvod.
+import type { Catalog, MessageKey } from './en.ts';
 
-export const bs: Catalog = {
+export const bs = {
   'app.name': 'Finansijska platforma',
   'common.save': 'Sačuvaj',
   'common.cancel': 'Otkaži',
@@ -9,11 +10,18 @@ export const bs: Catalog = {
   'common.edit': 'Uredi',
   'common.add': 'Dodaj',
   'common.close': 'Zatvori',
+  'common.back': 'Nazad',
+  'common.next': 'Dalje',
+  'common.confirm': 'Potvrdi',
   'common.search': 'Pretraga',
   'common.loading': 'Učitavanje…',
+  'common.retry': 'Pokušaj ponovo',
+  'common.none': 'Ništa',
+  'common.all': 'Sve',
   'common.today': 'Danas',
   'common.yes': 'Da',
   'common.no': 'Ne',
+
   'nav.dashboard': 'Pregled',
   'nav.transactions': 'Transakcije',
   'nav.accounts': 'Računi',
@@ -24,16 +32,123 @@ export const bs: Catalog = {
   'nav.imports': 'Uvoz',
   'nav.settings': 'Postavke',
   'nav.sync': 'Sinhronizacija',
+
+  'mode.title': 'Kako želite koristiti aplikaciju?',
   'mode.local': 'Samo lokalno',
+  'mode.local.description':
+    'Bez korisničkog računa i bez servera. Podaci ostaju u ovom pregledniku i rade bez interneta. Podaci preglednika mogu se izgubiti kada se obrišu podaci stranice, zato redovno pravite šifrovane rezervne kopije.',
   'mode.connect': 'Poveži se sa serverom',
+  'mode.connect.description':
+    'Prijavite se na kompatibilan server (vlastiti ili samostalno hostovan) za sinhronizaciju između uređaja. Aplikacija radi i bez interneta i sinhronizuje se kada se veza vrati.',
+  'mode.change': 'Promijeni način rada',
+
+  'server.url': 'Adresa servera',
+  'server.checking': 'Provjera servera…',
+  'server.incompatible': 'Ovaj server nije kompatibilan: {{reason}}',
+  'server.unreachable': 'Server nije dostupan.',
+  'server.httpsRequired': 'Server mora koristiti https.',
+
+  'storage.usage': 'Iskorišteno {{used}} od {{quota}}',
+  'storage.persisted': 'Zaštićeno od automatskog čišćenja preglednika',
+  'storage.notPersisted': 'Preglednik može obrisati ove podatke kada ponestane prostora',
+  'storage.quotaExceeded':
+    'Prostor preglednika je pun. Izvezite rezervnu kopiju i oslobodite prostor.',
+  'storage.unavailable': 'Ovaj preglednik ne dozvoljava lokalnu pohranu (privatni način rada?).',
+
+  'sync.status': 'Status',
   'sync.connected': 'Povezano',
   'sync.offline': 'Van mreže',
+  'sync.syncing': 'Sinhronizacija…',
+  'sync.lastSync': 'Posljednja sinhronizacija {{when}}',
+  'sync.never': 'Nikad sinhronizovano',
+  'sync.pending_one': '{{count}} promjena čeka slanje',
+  'sync.pending_few': '{{count}} promjene čekaju slanje',
+  'sync.pending_other': '{{count}} promjena čeka slanje',
+  'sync.rejected': 'Promjene koje je server odbio',
+  'sync.conflicts': 'Konflikti',
+  'sync.conflict.fields': 'Promijenjeno na oba uređaja: {{fields}}',
+  'sync.conflict.keepServer': 'Zadrži verziju sa servera',
+  'sync.conflict.keepMine': 'Zadrži moju verziju',
+  'sync.conflict.merge': 'Spoji',
+  'sync.devices': 'Povezani uređaji',
   'sync.syncNow': 'Sinhronizuj sada',
+  'sync.activate.title': 'Pokreni sinhronizaciju ovog profila',
+  'sync.activate.duplicates': 'Ovi zapisi izgledaju kao da već postoje na serveru',
+  'sync.activate.uploading': 'Slanje {{done}} od {{total}}',
+  'sync.activate.verifyFailed':
+    'Provjera nije uspjela; sinhronizacija nije aktivirana. Lokalni podaci su nepromijenjeni.',
+  'sync.disconnect': 'Prekini vezu',
+  'sync.disconnect.pending':
+    'Broj promjena koje još nisu poslane: {{count}}. Ostaju na ovom uređaju i šalju se kada se ponovo povežete.',
+  'sync.disconnect.keepsData':
+    'Prekid veze zadržava sve podatke na ovom uređaju. Brisanje podataka sa servera je zasebna radnja.',
+
+  'e2ee.title': 'Šifrovanje s kraja na kraj',
+  'e2ee.explain':
+    'Server čuva samo šifrovane podatke. Analitika i AI funkcije koje rade na serveru nisu dostupne za ovaj profil.',
+  'e2ee.serverReadable':
+    'Server može čitati podatke: šifrovani su u prijenosu i na disku kod operatera servera, ali nisu šifrovani s kraja na kraj.',
+  'e2ee.passphrase': 'Lozinka za šifrovanje',
+  'e2ee.recoveryCode': 'Kod za oporavak',
+  'e2ee.recoveryCode.warning':
+    'Zapišite ovaj kod i čuvajte ga na sigurnom. Ako izgubite i lozinku i ovaj kod, podaci se ne mogu povratiti.',
+  'e2ee.wrongSecret': 'Pogrešna lozinka ili kod za oporavak.',
+
+  'backup.export': 'Izvezi šifrovanu rezervnu kopiju',
+  'backup.import': 'Vrati iz rezervne kopije',
+  'backup.passphrase': 'Lozinka rezervne kopije',
+  'backup.wrongPassphrase': 'Pogrešna lozinka ili oštećena datoteka rezervne kopije.',
+  'backup.newerVersion': 'Ovu rezervnu kopiju je napravila novija verzija aplikacije.',
+  'backup.restored': 'Rezervna kopija je vraćena.',
+
+  'account.name': 'Naziv',
+  'account.type': 'Vrsta',
+  'account.currency': 'Valuta',
+  'account.openingBalance': 'Početno stanje',
+  'account.balance': 'Stanje',
+  'account.archived': 'Arhiviran',
+  'accountType.checking': 'Tekući račun',
+  'accountType.savings': 'Štedni račun',
+  'accountType.cash': 'Gotovina',
+  'accountType.wallet': 'Novčanik',
+  'accountType.prepaid': 'Prepaid kartica',
+  'accountType.investment': 'Investicije',
+  'accountType.other_asset': 'Ostala imovina',
+  'accountType.credit_card': 'Kreditna kartica',
+  'accountType.loan': 'Kredit',
+  'accountType.mortgage': 'Stambeni kredit',
+  'accountType.other_liability': 'Ostale obaveze',
+
   'transaction.kind.income': 'Prihod',
   'transaction.kind.expense': 'Rashod',
-  'transaction.kind.transfer': 'Prenos',
+  'transaction.kind.transfer': 'Prijenos',
+  'transaction.kind.refund': 'Povrat',
+  'transaction.kind.adjustment': 'Korekcija',
+  'transaction.kind.opening_balance': 'Početno stanje',
+  'transaction.kind.fx': 'Mjenjačka transakcija',
   'transaction.amount': 'Iznos',
   'transaction.date': 'Datum',
+  'transaction.description': 'Opis',
   'transaction.category': 'Kategorija',
   'transaction.uncategorized': 'Bez kategorije',
-};
+  'transaction.splits': 'Podjela',
+  'transaction.splits.remaining': 'Preostalo za raspodjelu: {{amount}}',
+  'transaction.tags': 'Oznake',
+  'transaction.merchant': 'Trgovac',
+  'transaction.notes': 'Bilješke',
+  'transaction.attachments': 'Prilozi',
+  'transaction.imported': 'Uvezeno iz {{file}}',
+
+  'error.validation_failed': 'Provjerite označena polja.',
+  'error.conflict': 'Ovaj zapis je promijenjen negdje drugo. Osvježite i pokušajte ponovo.',
+  'error.not_found': 'Nije pronađeno.',
+  'error.forbidden': 'Nemate pristup ovome.',
+  'error.unauthenticated': 'Prijavite se ponovo. Lokalni podaci su sačuvani.',
+  'error.network_error':
+    'Nema veze. Promjene su sačuvane na ovom uređaju i sinhronizovaće se kasnije.',
+  'error.imported_evidence':
+    'Uvezeni iznosi i datumi su dokaz iz banke; umjesto toga evidentirajte korekciju.',
+  'error.rate_unavailable': 'Nema kursa za taj datum. Unesite stvarno primljeni iznos.',
+  'error.invariant_violation': 'Ova promjena bi prekršila finansijsko pravilo: {{message}}',
+  'error.unknown': 'Nešto nije u redu.',
+} satisfies Record<MessageKey, string> & Catalog;

@@ -27,6 +27,7 @@ import {
   useRef,
   useState,
 } from 'react';
+import { useT } from '../lib/i18n.ts';
 import { type Mode, useApp } from './store.ts';
 
 export type SessionState = 'n/a' | 'checking' | 'ok' | 'expired' | 'offline';
@@ -65,6 +66,7 @@ export function makeApi(
 }
 
 export function DataProvider({ children }: { children: ReactNode }) {
+  const t = useT();
   const mode = useApp((s) => s.mode);
   const storeName = useApp((s) => s.storeName);
   const connection = useApp((s) => s.connection);
@@ -263,14 +265,16 @@ export function DataProvider({ children }: { children: ReactNode }) {
   if (fatal)
     return (
       <div role="alert" className="mx-auto max-w-lg p-8 text-sm">
-        <h1 className="mb-2 text-lg font-semibold">Storage unavailable</h1>
+        <h1 className="mb-2 text-lg font-semibold">
+          {t('app.data.storageUnavailable', 'Storage unavailable')}
+        </h1>
         <p>{fatal}</p>
       </div>
     );
   if (mode && !ready)
     return (
       <p className="p-8 text-sm text-muted" role="status">
-        Opening local database…
+        {t('app.data.openingLocalDatabase', 'Opening local database…')}
       </p>
     );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

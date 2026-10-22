@@ -7,6 +7,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Ban, Copy, FileUp, RotateCcw, Trash2, Undo2 } from 'lucide-react';
 import { type ReactNode, useEffect, useState } from 'react';
 import { useData } from '../../app/data.tsx';
+import { useT } from '../../lib/i18n.ts';
 import { ocrAssets } from '../../lib/ocr.ts';
 import {
   describeError,
@@ -41,12 +42,18 @@ export function DetailDrawer({
   refs: Refs;
   onClose: () => void;
 }) {
+  const t = useT();
   const all = useTransactions();
   const tx = all.data?.find((t) => t.id === txId);
   if (!tx)
     return (
       <p className="text-sm text-muted">
-        {all.isLoading ? 'Loading…' : 'This transaction no longer exists.'}
+        {all.isLoading
+          ? t('common.loading', 'Loading…')
+          : t(
+              'transactions.detailDrawer.thisTransactionNoLonger',
+              'This transaction no longer exists.',
+            )}
       </p>
     );
   return (
@@ -71,6 +78,7 @@ function Detail({
   refs: Refs;
   onClose: () => void;
 }) {
+  const t = useT();
   const { locale } = useLedgerEnv();
   const amt = primaryAmount(tx);
   const related = tx.relatedTransactionId
@@ -99,59 +107,89 @@ function Detail({
             {tx.status}
           </Badge>
           <Badge>{tx.source}</Badge>
-          {tx.categorizationSource !== 'none' && <Badge>category: {tx.categorizationSource}</Badge>}
+          {tx.categorizationSource !== 'none' && (
+            <Badge>
+              {t(
+                'transactions.detailDrawer.categoryCategorizationsource',
+                'category: {{categorizationSource}}',
+                { categorizationSource: tx.categorizationSource },
+              )}
+            </Badge>
+          )}
         </div>
       </div>
       <DuplicateNotice tx={tx} refs={refs} />
       {tx.conversion && (
         <p className="mb-2 text-sm">
-          Exchanged <MoneyText value={tx.conversion.from} locale={locale} /> →{' '}
-          <MoneyText value={tx.conversion.to} locale={locale} /> at {tx.conversion.rate} (
-          {tx.conversion.method}, {tx.conversion.rateDate})
+          {t('transactions.detailDrawer.exchanged', 'Exchanged')}{' '}
+          <MoneyText value={tx.conversion.from} locale={locale} /> →{' '}
+          <MoneyText value={tx.conversion.to} locale={locale} />{' '}
+          {t(
+            'transactions.detailDrawer.atRateMethodRatedate',
+            'at {{rate}} ({{method}}, {{rateDate}})',
+            {
+              rate: tx.conversion.rate,
+              method: tx.conversion.method,
+              rateDate: tx.conversion.rateDate,
+            },
+          )}
           {tx.conversion.fee && (
             <>
-              , fee <MoneyText value={tx.conversion.fee} locale={locale} />
+              {t('transactions.detailDrawer.fee', ', fee')}{' '}
+              <MoneyText value={tx.conversion.fee} locale={locale} />
             </>
           )}
         </p>
       )}
       {tx.postings[0]?.originalAmount && (
         <p className="mb-2 text-sm">
-          Original amount <MoneyText value={tx.postings[0].originalAmount} locale={locale} />
+          {t('transactions.detailDrawer.originalAmount', 'Original amount')}{' '}
+          <MoneyText value={tx.postings[0].originalAmount} locale={locale} />
         </p>
       )}
       {related && (
         <p className="mb-2 text-sm">
-          Linked to {related.kind} “{related.description || related.payee}” on {related.bookingDate}{' '}
+          {t('transactions.detailDrawer.linkedTo', 'Linked to {{kind}} “{{name}}” on {{date}}', {
+            kind: related.kind,
+            name: related.description || related.payee || '',
+            date: related.bookingDate,
+          })}{' '}
           (<MoneyText value={primaryAmount(related)} locale={locale} />)
         </p>
       )}
 
       <EditFields tx={tx} refs={refs} />
       {SPLIT_KINDS.has(tx.kind) && (
-        <Section title="Categories and splits">
+        <Section
+          title={t('transactions.detailDrawer.categoriesAndSplits', 'Categories and splits')}
+        >
           <SplitEditor tx={tx} refs={refs} />
         </Section>
       )}
       {tx.importRecordId && (
-        <Section title="Original bank record (read-only)">
+        <Section
+          title={t(
+            'transactions.detailDrawer.originalBankRecordRead',
+            'Original bank record (read-only)',
+          )}
+        >
           <RawRecord id={tx.importRecordId} />
         </Section>
       )}
-      <Section title="Attachments">
+      <Section title={t('transaction.attachments', 'Attachments')}>
         <Attachments tx={tx} />
       </Section>
       {tx.kind === 'expense' && (
-        <Section title="Refunds">
+        <Section title={t('transactions.detailDrawer.refunds', 'Refunds')}>
           <Refunds tx={tx} all={all} refs={refs} />
         </Section>
       )}
       {(tx.kind === 'expense' || tx.kind === 'income') && (
-        <Section title="Planned transaction">
+        <Section title={t('transactions.detailDrawer.plannedTransaction', 'Planned transaction')}>
           <PlanMatch tx={tx} />
         </Section>
       )}
-      <Section title="History">
+      <Section title={t('mcp.history', 'History')}>
         <History tx={tx} />
       </Section>
       <Actions tx={tx} onClose={onClose} />
@@ -160,6 +198,7 @@ function Detail({
 }
 
 function EditFields({ tx, refs }: { tx: D.Transaction; refs: Refs }) {
+  const t = useT();
   const { locale } = useLedgerEnv();
   const amt = primaryAmount(tx);
   const editableAmount = !tx.importRecordId && tx.splits.length <= 1 && tx.postings.length === 1;
@@ -219,9 +258,9 @@ function EditFields({ tx, refs }: { tx: D.Transaction; refs: Refs }) {
   };
 
   return (
-    <Section title="Details">
+    <Section title={t('transactions.detailDrawer.details', 'Details')}>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <Field label="Description">
+        <Field label={t('transaction.description', 'Description')}>
           {(id) => (
             <input
               id={id}
@@ -231,7 +270,7 @@ function EditFields({ tx, refs }: { tx: D.Transaction; refs: Refs }) {
             />
           )}
         </Field>
-        <Field label="Payee">
+        <Field label={t('transactions.detailDrawer.payee', 'Payee')}>
           {(id) => (
             <input
               id={id}
@@ -241,7 +280,7 @@ function EditFields({ tx, refs }: { tx: D.Transaction; refs: Refs }) {
             />
           )}
         </Field>
-        <Field label="Merchant">
+        <Field label={t('transaction.merchant', 'Merchant')}>
           {(id) => (
             <select
               id={id}
@@ -249,7 +288,7 @@ function EditFields({ tx, refs }: { tx: D.Transaction; refs: Refs }) {
               value={f.merchantId}
               onChange={(e) => up({ merchantId: e.target.value })}
             >
-              <option value="">None</option>
+              <option value="">{t('common.none', 'None')}</option>
               {refs.merchants.map((m) => (
                 <option key={m.id} value={m.id}>
                   {m.name}
@@ -258,7 +297,7 @@ function EditFields({ tx, refs }: { tx: D.Transaction; refs: Refs }) {
             </select>
           )}
         </Field>
-        <Field label="Reference">
+        <Field label={t('transactions.detailDrawer.reference', 'Reference')}>
           {(id) => (
             <input
               id={id}
@@ -269,8 +308,12 @@ function EditFields({ tx, refs }: { tx: D.Transaction; refs: Refs }) {
           )}
         </Field>
         <Field
-          label="Booking date"
-          hint={tx.importRecordId ? 'Fixed by the bank record' : undefined}
+          label={t('transactions.detailDrawer.bookingDate', 'Booking date')}
+          hint={
+            tx.importRecordId
+              ? t('transactions.detailDrawer.fixedByTheBank', 'Fixed by the bank record')
+              : undefined
+          }
         >
           {(id, d) => (
             <input
@@ -288,9 +331,15 @@ function EditFields({ tx, refs }: { tx: D.Transaction; refs: Refs }) {
           label={`Amount (${amt?.currency ?? ''})`}
           hint={
             tx.importRecordId
-              ? 'Fixed by the bank record; record an adjustment instead'
+              ? t(
+                  'transactions.detailDrawer.fixedByTheBank2',
+                  'Fixed by the bank record; record an adjustment instead',
+                )
               : !editableAmount
-                ? 'Change splits or postings to change the amount'
+                ? t(
+                    'transactions.detailDrawer.changeSplitsOrPostings',
+                    'Change splits or postings to change the amount',
+                  )
                 : undefined
           }
         >
@@ -306,7 +355,7 @@ function EditFields({ tx, refs }: { tx: D.Transaction; refs: Refs }) {
             />
           )}
         </Field>
-        <Field label="Status">
+        <Field label={t('sync.status', 'Status')}>
           {(id) => (
             <select
               id={id}
@@ -315,9 +364,14 @@ function EditFields({ tx, refs }: { tx: D.Transaction; refs: Refs }) {
               disabled={tx.status === 'reconciled'}
               onChange={(e) => up({ status: e.target.value as typeof f.status })}
             >
-              <option value="cleared">Cleared</option>
-              <option value="pending">Pending</option>
-              <option value="void">Void (archived, not counted)</option>
+              <option value="cleared">{t('transactions.detailDrawer.cleared', 'Cleared')}</option>
+              <option value="pending">{t('transactions.detailDrawer.pending', 'Pending')}</option>
+              <option value="void">
+                {t(
+                  'transactions.detailDrawer.voidArchivedNotCounted',
+                  'Void (archived, not counted)',
+                )}
+              </option>
             </select>
           )}
         </Field>
@@ -327,12 +381,14 @@ function EditFields({ tx, refs }: { tx: D.Transaction; refs: Refs }) {
             checked={f.excludeFromReports}
             onChange={(e) => up({ excludeFromReports: e.target.checked })}
           />{' '}
-          Exclude from reports
+          {t('transactions.detailDrawer.excludeFromReports', 'Exclude from reports')}
         </label>
       </div>
       {refs.tags.length > 0 && (
         <fieldset className="mt-3">
-          <legend className="mb-1 text-xs font-medium text-muted">Tags</legend>
+          <legend className="mb-1 text-xs font-medium text-muted">
+            {t('transaction.tags', 'Tags')}
+          </legend>
           <div className="flex flex-wrap gap-2">
             {refs.tags.map((t) => (
               <label key={t.id} className="flex items-center gap-1 text-sm">
@@ -353,7 +409,7 @@ function EditFields({ tx, refs }: { tx: D.Transaction; refs: Refs }) {
           </div>
         </fieldset>
       )}
-      <Field label="Notes" className="mt-3">
+      <Field label={t('transaction.notes', 'Notes')} className="mt-3">
         {(id) => (
           <textarea
             id={id}
@@ -366,9 +422,9 @@ function EditFields({ tx, refs }: { tx: D.Transaction; refs: Refs }) {
       </Field>
       <div className="mt-3 flex items-center gap-2">
         <Button variant="primary" size="sm" onClick={submit} disabled={save.isPending}>
-          Save details
+          {t('transactions.detailDrawer.saveDetails', 'Save details')}
         </Button>
-        {ok && <span className="text-xs text-pos">Saved</span>}
+        {ok && <span className="text-xs text-pos">{t('settings.saved', 'Saved')}</span>}
       </div>
       <ErrorText error={err} />
     </Section>
@@ -376,6 +432,7 @@ function EditFields({ tx, refs }: { tx: D.Transaction; refs: Refs }) {
 }
 
 function RawRecord({ id }: { id: string }) {
+  const t = useT();
   const { store, profile } = useData();
   const q = useQuery({
     queryKey: qk(profile?.id ?? '', 'raw', id),
@@ -387,11 +444,14 @@ function RawRecord({ id }: { id: string }) {
       return r && r.profileId === profile?.id ? r : null;
     },
   });
-  if (q.isLoading) return <p className="text-sm">Loading…</p>;
+  if (q.isLoading) return <p className="text-sm">{t('common.loading', 'Loading…')}</p>;
   if (!q.data)
     return (
       <p className="text-sm text-muted">
-        The source record is not in this device's database (it may not have been synced).
+        {t(
+          'transactions.detailDrawer.theSourceRecordIs',
+          "The source record is not in this device's database (it may not have been synced).",
+        )}
       </p>
     );
   const r = q.data;
@@ -429,10 +489,16 @@ function RawRecord({ id }: { id: string }) {
             </div>
           ))}
       </dl>
-      {r.warnings.length > 0 && <p className="mt-2 text-warn">Warnings: {r.warnings.join('; ')}</p>}
+      {r.warnings.length > 0 && (
+        <p className="mt-2 text-warn">
+          {t('transactions.detailDrawer.warningsJoin', 'Warnings: {{join}}', {
+            join: r.warnings.join('; '),
+          })}
+        </p>
+      )}
       <details className="mt-2">
         <summary className="cursor-pointer text-xs text-muted">
-          Raw fields as read from the file
+          {t('transactions.detailDrawer.rawFieldsAsRead', 'Raw fields as read from the file')}
         </summary>
         <pre className="mt-1 max-h-60 overflow-auto rounded bg-surface-2 p-2 text-xs">
           {JSON.stringify(r.raw, null, 2)}
@@ -443,6 +509,7 @@ function RawRecord({ id }: { id: string }) {
 }
 
 function Attachments({ tx }: { tx: D.Transaction }) {
+  const t = useT();
   const { ops, profileId } = useLedgerEnv();
   const list = useQuery({
     queryKey: qk(profileId, 'attachments', tx.id),
@@ -507,10 +574,14 @@ function Attachments({ tx }: { tx: D.Transaction }) {
             >
               {a.fileName}
             </button>
-            <span className="text-xs text-muted">{Math.ceil(a.sizeBytes / 1024)} KB</span>
+            <span className="text-xs text-muted">
+              {t('transactions.detailDrawer.ceilKb', '{{ceil}} KB', {
+                ceil: Math.ceil(a.sizeBytes / 1024),
+              })}
+            </span>
             {a.contentType.startsWith('image/') && (
               <Button size="sm" variant="ghost" onClick={() => setScan(a)}>
-                Read receipt
+                {t('transactions.detailDrawer.readReceipt', 'Read receipt')}
               </Button>
             )}
             <Button
@@ -526,7 +597,12 @@ function Attachments({ tx }: { tx: D.Transaction }) {
       </ul>
       <label className="flex cursor-pointer items-center gap-2 rounded-md border border-dashed border-line p-3 text-sm text-muted focus-within:ring-2">
         <FileUp size={16} aria-hidden />{' '}
-        {add.isPending ? 'Uploading…' : 'Add receipt or document (drop files here)'}
+        {add.isPending
+          ? t('transactions.detailDrawer.uploading', 'Uploading…')
+          : t(
+              'transactions.detailDrawer.addReceiptOrDocument',
+              'Add receipt or document (drop files here)',
+            )}
         <input
           type="file"
           multiple
@@ -543,10 +619,10 @@ function Attachments({ tx }: { tx: D.Transaction }) {
             {view.name}
             <span className="flex gap-2">
               <a href={view.url} download={view.name} className="text-accent underline">
-                Download
+                {t('backup.downloadOne', 'Download')}
               </a>
               <button type="button" onClick={() => setView(null)} className="underline">
-                Close
+                {t('common.close', 'Close')}
               </button>
             </span>
           </figcaption>
@@ -560,10 +636,16 @@ function Attachments({ tx }: { tx: D.Transaction }) {
               rel="noreferrer"
               className="text-sm text-accent underline"
             >
-              Open PDF in a new tab
+              {t('transactions.detailDrawer.openPdfInA', 'Open PDF in a new tab')}
             </a>
           ) : (
-            <p className="text-sm">No preview for {view.type}; use Download.</p>
+            <p className="text-sm">
+              {t(
+                'transactions.detailDrawer.noPreviewForType',
+                'No preview for {{type}}; use Download.',
+                { type: view.type },
+              )}
+            </p>
           )}
         </figure>
       )}
@@ -572,6 +654,7 @@ function Attachments({ tx }: { tx: D.Transaction }) {
 }
 
 function Refunds({ tx, all, refs }: { tx: D.Transaction; all: D.Transaction[]; refs: Refs }) {
+  const t = useT();
   const { locale } = useLedgerEnv();
   const total = absMoney(primaryAmount(tx) as D.Money);
   const refunds = all.filter(
@@ -612,13 +695,16 @@ function Refunds({ tx, all, refs }: { tx: D.Transaction; all: D.Transaction[]; r
     <div className="flex flex-col gap-2 text-sm">
       {refunds.map((r) => (
         <p key={r.id}>
-          {r.bookingDate}: <MoneyText value={primaryAmount(r)} locale={locale} /> to{' '}
-          {refs.accountName(r.postings[0]?.accountId ?? '')}
+          {r.bookingDate}: <MoneyText value={primaryAmount(r)} locale={locale} />{' '}
+          {t('transactions.detailDrawer.toAccountname', 'to {{accountName}}', {
+            accountName: refs.accountName(r.postings[0]?.accountId ?? ''),
+          })}
         </p>
       ))}
       <p className="text-muted">
-        Refunded <MoneyText value={fromMinor(refunded, total.currency)} locale={locale} /> of{' '}
-        <MoneyText value={total} locale={locale} />
+        {t('transactions.detailDrawer.refunded', 'Refunded')}{' '}
+        <MoneyText value={fromMinor(refunded, total.currency)} locale={locale} />{' '}
+        {t('goals.page.of', 'of')} <MoneyText value={total} locale={locale} />
       </p>
       {left > 0n && (
         <div className="flex flex-wrap items-end gap-2">
@@ -633,7 +719,7 @@ function Refunds({ tx, all, refs }: { tx: D.Transaction; all: D.Transaction[]; r
               />
             )}
           </Field>
-          <Field label="Date">
+          <Field label={t('transaction.date', 'Date')}>
             {(id) => (
               <input
                 id={id}
@@ -644,7 +730,7 @@ function Refunds({ tx, all, refs }: { tx: D.Transaction; all: D.Transaction[]; r
               />
             )}
           </Field>
-          <Field label="Into account">
+          <Field label={t('transactions.detailDrawer.intoAccount', 'Into account')}>
             {(id) => (
               <select
                 id={id}
@@ -661,7 +747,7 @@ function Refunds({ tx, all, refs }: { tx: D.Transaction; all: D.Transaction[]; r
             )}
           </Field>
           <Button size="sm" onClick={submit} disabled={create.isPending}>
-            Record refund
+            {t('transactions.detailDrawer.recordRefund', 'Record refund')}
           </Button>
         </div>
       )}
@@ -671,6 +757,7 @@ function Refunds({ tx, all, refs }: { tx: D.Transaction; all: D.Transaction[]; r
 }
 
 function PlanMatch({ tx }: { tx: D.Transaction }) {
+  const t = useT();
   const { ops, profileId, locale } = useLedgerEnv();
   const plans = useEntities('planned_transactions');
   const from = shift(tx.bookingDate, -31);
@@ -686,11 +773,22 @@ function PlanMatch({ tx }: { tx: D.Transaction }) {
   const byId = new Map((plans.data ?? []).map((p) => [p.id, p]));
   const sugg = matchPlanned(occ.data ?? [], plans.data ?? [], [tx], 10);
   const candidates = (occ.data ?? []).filter((o) => byId.get(o.planId)?.kind === tx.kind);
-  if (!plans.data?.length) return <p className="text-sm text-muted">No planned transactions.</p>;
+  if (!plans.data?.length)
+    return (
+      <p className="text-sm text-muted">
+        {t('transactions.detailDrawer.noPlannedTransactions', 'No planned transactions.')}
+      </p>
+    );
   return (
     <div className="flex flex-col gap-1 text-sm">
       {candidates.length === 0 && (
-        <p className="text-muted">No open {tx.kind} occurrences within a month of this date.</p>
+        <p className="text-muted">
+          {t(
+            'transactions.detailDrawer.noOpenKindOccurrences',
+            'No open {{kind}} occurrences within a month of this date.',
+            { kind: tx.kind },
+          )}
+        </p>
       )}
       {candidates.map((o) => {
         const p = byId.get(o.planId);
@@ -703,8 +801,15 @@ function PlanMatch({ tx }: { tx: D.Transaction }) {
             className="flex items-center justify-between gap-2"
           >
             <span>
-              {o.date} · {p?.description || 'Plan'} · <MoneyText value={o.amount} locale={locale} />
-              {s && <Badge tone="green">suggested {Math.round(Number(s.score) * 100)}%</Badge>}
+              {o.date} · {p?.description || t('transactions.detailDrawer.plan', 'Plan')} ·{' '}
+              <MoneyText value={o.amount} locale={locale} />
+              {s && (
+                <Badge tone="green">
+                  {t('transactions.detailDrawer.suggestedRound', 'suggested {{round}}%', {
+                    round: Math.round(Number(s.score) * 100),
+                  })}
+                </Badge>
+              )}
             </span>
             <Button
               size="sm"
@@ -714,7 +819,7 @@ function PlanMatch({ tx }: { tx: D.Transaction }) {
                   .catch((e) => setErr(describeError(e)))
               }
             >
-              Match
+              {t('transactions.detailDrawer.match', 'Match')}
             </Button>
           </div>
         );
@@ -735,6 +840,7 @@ interface AuditEntry {
 }
 
 function History({ tx }: { tx: D.Transaction }) {
+  const t = useT();
   const { api, profileId, syncNow } = useLedgerEnv();
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -749,14 +855,25 @@ function History({ tx }: { tx: D.Transaction }) {
   if (!api)
     return (
       <p className="text-sm text-muted">
-        Created {tx.createdAt.slice(0, 16).replace('T', ' ')}, last changed{' '}
-        {tx.updatedAt.slice(0, 16).replace('T', ' ')} (version {tx.version}). The full change
-        history and undo are kept by the server and need connected mode.
+        {t(
+          'transactions.detailDrawer.createdSliceLastChanged',
+          'Created {{slice}}, last changed {{slice2}} (version {{version}}). The full change history and undo are kept by the server and need connected mode.',
+          {
+            slice: tx.createdAt.slice(0, 16).replace('T', ' '),
+            slice2: tx.updatedAt.slice(0, 16).replace('T', ' '),
+            version: tx.version,
+          },
+        )}
       </p>
     );
   if (tx.serverVersion === 0)
     return (
-      <p className="text-sm text-muted">Not synced yet; history appears after the next sync.</p>
+      <p className="text-sm text-muted">
+        {t(
+          'transactions.detailDrawer.notSyncedYetHistory',
+          'Not synced yet; history appears after the next sync.',
+        )}
+      </p>
     );
   const undo = async () => {
     setErr(null);
@@ -785,7 +902,8 @@ function History({ tx }: { tx: D.Transaction }) {
       </ol>
       {h.error && <ErrorText error={describeError(h.error)} />}
       <Button size="sm" onClick={undo} disabled={busy}>
-        <Undo2 size={14} aria-hidden /> Undo last change
+        <Undo2 size={14} aria-hidden />{' '}
+        {t('transactions.detailDrawer.undoLastChange', 'Undo last change')}
       </Button>
       <ErrorText error={err} />
     </div>
@@ -793,6 +911,7 @@ function History({ tx }: { tx: D.Transaction }) {
 }
 
 function Actions({ tx, onClose }: { tx: D.Transaction; onClose: () => void }) {
+  const t = useT();
   const [err, setErr] = useState<string | null>(null);
   const dup = useWrite((ops) => ops.createTransaction(duplicateInput(tx, today())));
   const setStatus = useWrite((ops, status: 'void' | 'cleared') =>
@@ -806,17 +925,20 @@ function Actions({ tx, onClose }: { tx: D.Transaction; onClose: () => void }) {
     <section className="flex flex-wrap gap-2 border-t border-line pt-4">
       {canDuplicate && (
         <Button size="sm" onClick={() => run(dup.mutateAsync(undefined))}>
-          <Copy size={14} aria-hidden /> Duplicate (today)
+          <Copy size={14} aria-hidden />{' '}
+          {t('transactions.detailDrawer.duplicateToday', 'Duplicate (today)')}
         </Button>
       )}
       {tx.status !== 'reconciled' &&
         (tx.status === 'void' ? (
           <Button size="sm" onClick={() => run(setStatus.mutateAsync('cleared'))}>
-            <RotateCcw size={14} aria-hidden /> Restore (unvoid)
+            <RotateCcw size={14} aria-hidden />{' '}
+            {t('transactions.detailDrawer.restoreUnvoid', 'Restore (unvoid)')}
           </Button>
         ) : (
           <Button size="sm" onClick={() => run(setStatus.mutateAsync('void'))}>
-            <Ban size={14} aria-hidden /> Void / archive
+            <Ban size={14} aria-hidden />{' '}
+            {t('transactions.detailDrawer.voidArchive', 'Void / archive')}
           </Button>
         ))}
       <Button
@@ -830,7 +952,10 @@ function Actions({ tx, onClose }: { tx: D.Transaction; onClose: () => void }) {
           ) && run(del.mutateAsync(undefined), !tx.importRecordId)
         }
       >
-        <Trash2 size={14} aria-hidden /> {tx.importRecordId ? 'Exclude (imported)' : 'Delete'}
+        <Trash2 size={14} aria-hidden />{' '}
+        {tx.importRecordId
+          ? t('transactions.detailDrawer.excludeImported', 'Exclude (imported)')
+          : t('common.delete', 'Delete')}
       </Button>
       <ErrorText error={err} />
     </section>
@@ -850,6 +975,7 @@ function ReceiptScan({
   a: D.Attachment;
   onDone: () => void;
 }) {
+  const t = useT();
   const { ops } = useLedgerEnv();
   const amt = primaryAmount(tx);
   const amountEditable =
@@ -940,7 +1066,7 @@ function ReceiptScan({
       />
       <span className="text-xs text-muted">
         {conf[k] === null
-          ? 'not found'
+          ? t('transactions.detailDrawer.notFound', 'not found')
           : `${Math.round((conf[k] as number) * 100)}% OCR confidence`}
       </span>
     </div>
@@ -948,28 +1074,46 @@ function ReceiptScan({
 
   return (
     <fieldset className="flex flex-col gap-2 rounded-md border border-line p-3 text-sm">
-      <legend className="font-medium">Receipt values from {a.fileName}</legend>
-      {!vals && !err && <p className="text-muted">Reading the receipt on this device…</p>}
+      <legend className="font-medium">
+        {t(
+          'transactions.detailDrawer.receiptValuesFromFilename',
+          'Receipt values from {{fileName}}',
+          { fileName: a.fileName },
+        )}
+      </legend>
+      {!vals && !err && (
+        <p className="text-muted">
+          {t(
+            'transactions.detailDrawer.readingTheReceiptOn',
+            'Reading the receipt on this device…',
+          )}
+        </p>
+      )}
       {vals && (
         <>
           <p className="text-xs text-muted">
-            OCR misreads digits. Check each value and tick the ones to apply.
+            {t(
+              'transactions.detailDrawer.ocrMisreadsDigitsCheck',
+              'OCR misreads digits. Check each value and tick the ones to apply.',
+            )}
           </p>
           {row('total', 'Total', !amountEditable)}
           {!amountEditable && (
             <p className="text-xs text-muted">
-              The amount of this transaction is not editable here (imported, split or
-              multi-posting).
+              {t(
+                'transactions.detailDrawer.theAmountOfThis',
+                'The amount of this transaction is not editable here (imported, split or multi-posting).',
+              )}
             </p>
           )}
           {row('date', 'Date')}
           {row('merchant', 'Payee')}
           <div className="flex gap-2">
             <Button size="sm" variant="primary" disabled={save.isPending} onClick={apply}>
-              Apply selected
+              {t('transactions.detailDrawer.applySelected', 'Apply selected')}
             </Button>
             <Button size="sm" variant="ghost" onClick={onDone}>
-              Close
+              {t('common.close', 'Close')}
             </Button>
           </div>
         </>

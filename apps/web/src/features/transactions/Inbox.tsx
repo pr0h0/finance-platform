@@ -9,11 +9,13 @@ import {
 } from '@finplat/finance-engine';
 import { Inbox as InboxIcon } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useT } from '../../lib/i18n.ts';
 import { describeError, type Refs, useLedgerEnv, useTransactions, useWrite } from './data.ts';
 import { isUncategorized, primaryAmount } from './model.ts';
 import { Badge, Button, Empty, ErrorText, inputCls, MoneyText } from './ui.tsx';
 
 export function Inbox({ refs, onOpen }: { refs: Refs; onOpen: (t: D.Transaction) => void }) {
+  const t = useT();
   const { locale } = useLedgerEnv();
   const all = useTransactions();
   const [skipped, setSkipped] = useState<Set<string>>(new Set());
@@ -109,11 +111,11 @@ export function Inbox({ refs, onOpen }: { refs: Refs; onOpen: (t: D.Transaction)
     return () => window.removeEventListener('keydown', onKey);
   });
 
-  if (all.isLoading) return <p className="text-sm">Loading…</p>;
+  if (all.isLoading) return <p className="text-sm">{t('common.loading', 'Loading…')}</p>;
   if (!cur)
     return (
-      <Empty title="Inbox zero">
-        Every transaction has a category.
+      <Empty title={t('transactions.inbox.inboxZero', 'Inbox zero')}>
+        {t('transactions.inbox.everyTransactionHasA', 'Every transaction has a category.')}
         {skipped.size > 0 && ` ${skipped.size} skipped this session.`}
       </Empty>
     );
@@ -121,59 +123,81 @@ export function Inbox({ refs, onOpen }: { refs: Refs; onOpen: (t: D.Transaction)
   return (
     <div className="grid gap-4 lg:grid-cols-[1fr_22rem]">
       <ul
-        aria-label="Uncategorized transactions"
+        aria-label={t('transactions.inbox.uncategorizedTransactions', 'Uncategorized transactions')}
         className="max-h-[calc(100dvh-14rem)] overflow-auto rounded-lg border border-line"
       >
-        {items.slice(0, 500).map((t, i) => (
-          <li key={t.id}>
+        {items.slice(0, 500).map((tx, i) => (
+          <li key={tx.id}>
             <button
               type="button"
-              aria-current={t.id === cur.id}
+              aria-current={tx.id === cur.id}
               onClick={() => setCursor(i)}
-              className={`flex w-full items-center justify-between gap-2 border-b border-line px-3 py-2 text-left text-sm ${t.id === cur.id ? 'bg-accent/10' : ''}`}
+              className={`flex w-full items-center justify-between gap-2 border-b border-line px-3 py-2 text-left text-sm ${tx.id === cur.id ? 'bg-accent/10' : ''}`}
             >
               <span className="min-w-0">
                 <span className="block truncate">
-                  {t.description || t.payee || refs.merchantName(t.merchantId) || 'No description'}
+                  {tx.description ||
+                    tx.payee ||
+                    refs.merchantName(tx.merchantId) ||
+                    t('transactions.transactionTable.noDescription', 'No description')}
                 </span>
                 <span className="text-xs text-muted">
-                  {t.bookingDate} · {refs.accountName(t.postings[0]?.accountId ?? '')}
+                  {tx.bookingDate} · {refs.accountName(tx.postings[0]?.accountId ?? '')}
                 </span>
               </span>
-              <MoneyText value={primaryAmount(t)} locale={locale} signed />
+              <MoneyText value={primaryAmount(tx)} locale={locale} signed />
             </button>
           </li>
         ))}
       </ul>
       <aside
-        aria-label="Categorize"
+        aria-label={t('transactions.inbox.categorize', 'Categorize')}
         className="flex flex-col gap-3 rounded-lg border border-line p-3"
       >
         <div className="flex items-center gap-2 text-sm text-muted">
-          <InboxIcon size={16} aria-hidden /> {items.length} uncategorized
+          <InboxIcon size={16} aria-hidden />{' '}
+          {t('transactions.inbox.lengthUncategorized', '{{length}} uncategorized', {
+            length: items.length,
+          })}
         </div>
         <div>
-          <p className="font-medium">{cur.description || cur.payee || 'No description'}</p>
+          <p className="font-medium">
+            {cur.description ||
+              cur.payee ||
+              t('transactions.transactionTable.noDescription', 'No description')}
+          </p>
           <p className="text-sm">
             <MoneyText value={primaryAmount(cur)} locale={locale} signed /> · {cur.bookingDate}
           </p>
           {cur.payee && cur.payee !== cur.description && (
             <p className="text-xs text-muted">{cur.payee}</p>
           )}
-          {cur.splits.length > 1 && <Badge tone="amber">split: edit in details</Badge>}
+          {cur.splits.length > 1 && (
+            <Badge tone="amber">
+              {t('transactions.inbox.splitEditInDetails', 'split: edit in details')}
+            </Badge>
+          )}
         </div>
         {suggestion && (
           <Button variant="primary" onClick={() => pick(suggestion.categoryId)}>
-            Accept {refs.categoryLabel(suggestion.categoryId)}{' '}
-            <kbd className="ml-1 text-xs opacity-80">Enter</kbd>
+            {t('transactions.inbox.acceptCategorylabel', 'Accept {{categoryLabel}}', {
+              categoryLabel: refs.categoryLabel(suggestion.categoryId),
+            })}{' '}
+            <kbd className="ml-1 text-xs opacity-80">{t('transactions.inbox.enter', 'Enter')}</kbd>
           </Button>
         )}
-        {suggestion && <p className="-mt-2 text-xs text-muted">Suggested from {suggestion.why}</p>}
+        {suggestion && (
+          <p className="-mt-2 text-xs text-muted">
+            {t('transactions.inbox.suggestedFromWhy', 'Suggested from {{why}}', {
+              why: suggestion.why,
+            })}
+          </p>
+        )}
         <input
           ref={search}
           type="search"
-          aria-label="Find category"
-          placeholder="Find category ( / )"
+          aria-label={t('transactions.inbox.findCategory', 'Find category')}
+          placeholder={t('transactions.inbox.findCategory2', 'Find category ( / )')}
           className={inputCls}
           value={q}
           onChange={(e) => setQ(e.target.value)}
@@ -195,14 +219,17 @@ export function Inbox({ refs, onOpen }: { refs: Refs; onOpen: (t: D.Transaction)
         <ErrorText error={err} />
         <div className="flex gap-2">
           <Button size="sm" onClick={() => setSkipped((s) => new Set(s).add(cur.id))}>
-            Skip (s)
+            {t('transactions.inbox.skipS', 'Skip (s)')}
           </Button>
           <Button size="sm" onClick={() => onOpen(cur)}>
-            Details (o)
+            {t('transactions.inbox.detailsO', 'Details (o)')}
           </Button>
         </div>
         <p className="text-xs text-muted">
-          j/k move · Enter accept · 1–9 pick · / search · s skip · o open
+          {t(
+            'transactions.inbox.jKMoveEnter',
+            'j/k move · Enter accept · 1–9 pick · / search · s skip · o open',
+          )}
         </p>
       </aside>
     </div>

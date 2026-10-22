@@ -24,14 +24,16 @@ import {
   WandSparkles,
 } from 'lucide-react';
 import { type ComponentType, lazy } from 'react';
+import { useT } from '../lib/i18n.ts';
 
 type Page = { default: ComponentType };
 const pages = import.meta.glob<Page>('../pages/*/index.tsx');
 
 function Missing() {
+  const t = useT();
   return (
     <p className="text-sm text-muted" role="status">
-      This section is not available in this build.
+      {t('app.routes.thisSectionIsNot', 'This section is not available in this build.')}
     </p>
   );
 }

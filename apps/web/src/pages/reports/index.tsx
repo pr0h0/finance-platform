@@ -28,8 +28,10 @@ import {
   reportRange,
 } from '../../features/reports/report.ts';
 import { useFormat } from '../../lib/format.ts';
+import { useT } from '../../lib/i18n.ts';
 
 export default function ReportsPage() {
+  const t = useT();
   const snap = useSnapshot();
   const f = useFormat();
   const [kind, setKind] = useState<ReportKind>('monthly');
@@ -37,7 +39,7 @@ export default function ReportsPage() {
   const [customTo, setCustomTo] = useState<string | null>(null);
   if (snap.error)
     return (
-      <Page title="Reports">
+      <Page title={t('reports.page.reports', 'Reports')}>
         <ErrorText error={snap.error} />
       </Page>
     );
@@ -63,21 +65,21 @@ export default function ReportsPage() {
 
   return (
     <Page
-      title="Reports"
+      title={t('reports.page.reports', 'Reports')}
       actions={
         <>
           <Button onClick={() => downloadCsv(`${fileBase}.csv`, reportCsv(r))}>
             <Download aria-hidden className="size-4" /> CSV
           </Button>
           <Button onClick={() => window.print()}>
-            <Printer aria-hidden className="size-4" /> PDF / Print
+            <Printer aria-hidden className="size-4" /> {t('reports.page.pdfPrint', 'PDF / Print')}
           </Button>
         </>
       }
     >
       <Card className="no-print">
         <div className="flex flex-wrap items-end gap-3">
-          <Field label="Report">
+          <Field label={t('reports.page.report', 'Report')}>
             <Select
               value={kind}
               onChange={(e) => {
@@ -85,22 +87,22 @@ export default function ReportsPage() {
                 setDate(null);
               }}
             >
-              <option value="monthly">Monthly</option>
-              <option value="quarterly">Quarterly</option>
-              <option value="annual">Annual</option>
-              <option value="custom">Custom dates</option>
+              <option value="monthly">{t('backup.monthly', 'Monthly')}</option>
+              <option value="quarterly">{t('reports.page.quarterly', 'Quarterly')}</option>
+              <option value="annual">{t('reports.page.annual', 'Annual')}</option>
+              <option value="custom">{t('reports.page.customDates', 'Custom dates')}</option>
             </Select>
           </Field>
           {kind === 'custom' ? (
             <>
-              <Field label="From">
+              <Field label={t('reports.page.from', 'From')}>
                 <Input
                   type="date"
                   value={range.from}
                   onChange={(e) => e.target.value && setDate(e.target.value)}
                 />
               </Field>
-              <Field label="To">
+              <Field label={t('reports.page.to', 'To')}>
                 <Input
                   type="date"
                   value={range.to}
@@ -111,9 +113,9 @@ export default function ReportsPage() {
             </>
           ) : (
             <div className="flex gap-1">
-              <Button onClick={() => step(-1)}>Previous</Button>
+              <Button onClick={() => step(-1)}>{t('reports.page.previous', 'Previous')}</Button>
               <Button onClick={() => step(1)} disabled={addDays(range.to, 1) > s.today}>
-                Next
+                {t('common.next', 'Next')}
               </Button>
             </div>
           )}
@@ -123,36 +125,52 @@ export default function ReportsPage() {
       <article className="space-y-4" aria-label={title}>
         <h2 className="text-lg font-semibold">{title}</h2>
         <p className="text-xs text-muted">
-          All amounts in {r.currency}, converted at booking-date rates. Generated {f.date(s.today)}.
+          {t(
+            'reports.page.allAmountsInCurrency',
+            'All amounts in {{currency}}, converted at booking-date rates. Generated {{date}}.',
+            { currency: r.currency, date: f.date(s.today) },
+          )}
         </p>
         <DataBanner missingRates={r.missingRates} warnings={r.warnings} />
         <Card>
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
-            <Stat label="Income" value={<Amount value={r.totals.income} />} />
-            <Stat label="Expenses" value={<Amount value={r.totals.expense} />} />
-            <Stat label="Net" value={<Amount value={r.totals.net} tone />} />
             <Stat
-              label="Savings rate"
+              label={t('transaction.kind.income', 'Income')}
+              value={<Amount value={r.totals.income} />}
+            />
+            <Stat
+              label={t('reports.page.expenses', 'Expenses')}
+              value={<Amount value={r.totals.expense} />}
+            />
+            <Stat
+              label={t('reports.page.net', 'Net')}
+              value={<Amount value={r.totals.net} tone />}
+            />
+            <Stat
+              label={t('reports.page.savingsRate', 'Savings rate')}
               value={r.totals.savingsRate ? f.percent(r.totals.savingsRate) : '—'}
             />
             <Stat
-              label="Net worth change"
+              label={t('reports.page.netWorthChange', 'Net worth change')}
               value={
                 <Amount value={subtract(r.netWorth.end.netWorth, r.netWorth.start.netWorth)} tone />
               }
               hint={
                 <>
-                  end <Amount value={r.netWorth.end.netWorth} />
+                  {t('reports.page.end', 'end')} <Amount value={r.netWorth.end.netWorth} />
                 </>
               }
             />
           </div>
         </Card>
-        <Card title="Cash flow">
+        <Card title={t('reports.page.cashFlow', 'Cash flow')}>
           {rows.length ? (
             <ChartFrame name={`${fileBase}-cashflow`}>
               <MoneyChart
-                title="Income and expenses in the report period"
+                title={t(
+                  'reports.page.incomeAndExpensesIn',
+                  'Income and expenses in the report period',
+                )}
                 rows={rows}
                 series={[
                   { key: 'income', label: 'Income', color: SERIES[0] as string },
@@ -161,37 +179,54 @@ export default function ReportsPage() {
               />
             </ChartFrame>
           ) : (
-            <Empty>No income or expenses in this period.</Empty>
+            <Empty>
+              {t('reports.page.noIncomeOrExpenses', 'No income or expenses in this period.')}
+            </Empty>
           )}
         </Card>
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-          <RowsCard title="Spending by category" rows={r.categories} />
-          <RowsCard title="Income by category" rows={r.income} />
-          <RowsCard title="Top merchants" rows={r.merchants} />
+          <RowsCard
+            title={t('reports.page.spendingByCategory', 'Spending by category')}
+            rows={r.categories}
+          />
+          <RowsCard
+            title={t('reports.page.incomeByCategory', 'Income by category')}
+            rows={r.income}
+          />
+          <RowsCard title={t('reports.page.topMerchants', 'Top merchants')} rows={r.merchants} />
         </div>
-        <Card title="Net worth">
+        <Card title={t('reports.page.netWorth', 'Net worth')}>
           <dl className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
-            <dt className="text-muted">Start ({f.date(addDays(r.from, -1))})</dt>
+            <dt className="text-muted">
+              {t('reports.page.startDate', 'Start ({{date}})', {
+                date: f.date(addDays(r.from, -1)),
+              })}
+            </dt>
             <dd>
               <Amount value={r.netWorth.start.netWorth} />
             </dd>
-            <dt className="text-muted">End ({f.date(r.to)})</dt>
+            <dt className="text-muted">
+              {t('reports.page.endDate', 'End ({{date}})', { date: f.date(r.to) })}
+            </dt>
             <dd>
               <Amount value={r.netWorth.end.netWorth} />
             </dd>
-            <dt className="text-muted">Assets</dt>
+            <dt className="text-muted">{t('reports.page.assets', 'Assets')}</dt>
             <dd>
               <Amount value={r.netWorth.end.assets} />
             </dd>
-            <dt className="text-muted">Liabilities</dt>
+            <dt className="text-muted">{t('reports.page.liabilities', 'Liabilities')}</dt>
             <dd>
               <Amount value={r.netWorth.end.liabilities} />
             </dd>
           </dl>
         </Card>
         <p className="no-print flex items-center gap-1 text-xs text-muted">
-          <FileDown aria-hidden className="size-3.5" /> PDF: choose "Save as PDF" in the print
-          dialog; navigation and controls are hidden in print.
+          <FileDown aria-hidden className="size-3.5" />{' '}
+          {t(
+            'reports.page.pdfChooseSaveAs',
+            'PDF: choose "Save as PDF" in the print dialog; navigation and controls are hidden in print.',
+          )}
         </p>
       </article>
     </Page>
@@ -210,6 +245,7 @@ function RowsCard({
     count: number;
   }[];
 }) {
+  const t = useT();
   return (
     <Card title={title}>
       {rows.length ? (
@@ -227,7 +263,7 @@ function RowsCard({
           </tbody>
         </table>
       ) : (
-        <Empty>None.</Empty>
+        <Empty>{t('reports.page.none', 'None.')}</Empty>
       )}
     </Card>
   );

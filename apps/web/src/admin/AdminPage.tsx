@@ -92,7 +92,13 @@ function Users() {
                   <td>
                     <Badge tone={u.status === 'active' ? 'pos' : 'warn'}>{u.status}</Badge>
                   </td>
-                  <td>{u.isAdmin ? <Badge tone="accent">admin</Badge> : 'user'}</td>
+                  <td>
+                    {u.isAdmin ? (
+                      <Badge tone="accent">{t('settings.securityTab.admin', 'admin')}</Badge>
+                    ) : (
+                      t('admin.adminPage.user', 'user')
+                    )}
+                  </td>
                   <td>{u.createdAt ? fmt.dateTime(u.createdAt) : ''}</td>
                   <td className="text-right whitespace-nowrap">
                     {u.id && u.id !== me?.id && (
@@ -230,10 +236,10 @@ function ServerSettings() {
                   t('admin.mcp', 'MCP endpoint'),
                   s.mcpEnabled ? (
                     <Badge key="m" tone="pos">
-                      enabled
+                      {t('admin.adminPage.enabled', 'enabled')}
                     </Badge>
                   ) : (
-                    <Badge key="m">disabled</Badge>
+                    <Badge key="m">{t('admin.adminPage.disabled', 'disabled')}</Badge>
                   ),
                 ],
                 [t('admin.fx', 'Exchange-rate providers'), (s.fxProviders ?? []).join(', ') || '—'],

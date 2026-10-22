@@ -6,6 +6,7 @@ import { convert } from '@finplat/finance-engine';
 import { BookmarkPlus, Zap } from 'lucide-react';
 import { type FormEvent, useMemo, useState } from 'react';
 import { useApp } from '../../app/store.ts';
+import { useT } from '../../lib/i18n.ts';
 import { describeError, type Refs, useEntities, useLedgerEnv, useWrite } from './data.ts';
 import { Button, ErrorText, Field, inputCls, MoneyText, today, toMoney } from './ui.tsx';
 
@@ -41,6 +42,7 @@ export function EntryForm({
   onDone: (t: D.Transaction) => void;
   initialKind?: Kind;
 }) {
+  const t = useT();
   const { locale } = useLedgerEnv();
   const recent = useApp((s) => s.recent);
   const setApp = useApp((s) => s.set);
@@ -180,7 +182,10 @@ export function EntryForm({
   if (accounts.length === 0)
     return (
       <p className="text-sm">
-        Create an account first (Accounts page), then record transactions on it.
+        {t(
+          'transactions.entryForm.createAnAccountFirst',
+          'Create an account first (Accounts page), then record transactions on it.',
+        )}
       </p>
     );
 
@@ -188,7 +193,9 @@ export function EntryForm({
     <form onSubmit={submit} className="flex flex-col gap-3">
       {(templates.data?.length ?? 0) > 0 && (
         <div>
-          <p className="mb-1 text-xs font-medium text-muted">Templates</p>
+          <p className="mb-1 text-xs font-medium text-muted">
+            {t('transactions.entryForm.templates', 'Templates')}
+          </p>
           <div className="flex flex-wrap gap-1">
             {templates.data
               ?.slice()
@@ -201,7 +208,7 @@ export function EntryForm({
           </div>
         </div>
       )}
-      <fieldset className="flex gap-1" aria-label="Type">
+      <fieldset className="flex gap-1" aria-label={t('account.type', 'Type')}>
         {(['expense', 'income', 'transfer'] as const).map((k) => (
           <label
             key={k}
@@ -220,7 +227,11 @@ export function EntryForm({
         ))}
       </fieldset>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <Field label={d.kind === 'transfer' ? 'From account' : 'Account'}>
+        <Field
+          label={
+            d.kind === 'transfer' ? t('quick.from', 'From account') : t('quick.account', 'Account')
+          }
+        >
           {(id) => (
             <select
               id={id}
@@ -242,7 +253,7 @@ export function EntryForm({
           )}
         </Field>
         {d.kind === 'transfer' ? (
-          <Field label="To account">
+          <Field label={t('quick.to', 'To account')}>
             {(id) => (
               <select
                 id={id}
@@ -251,7 +262,7 @@ export function EntryForm({
                 onChange={(e) => up({ toAccountId: e.target.value })}
                 required
               >
-                <option value="">Choose…</option>
+                <option value="">{t('quick.choose', 'Choose…')}</option>
                 {accounts
                   .filter((a) => a.id !== d.accountId)
                   .map((a) => (
@@ -263,7 +274,7 @@ export function EntryForm({
             )}
           </Field>
         ) : (
-          <Field label="Category">
+          <Field label={t('transaction.category', 'Category')}>
             {(id) => (
               <select
                 id={id}
@@ -271,7 +282,7 @@ export function EntryForm({
                 value={d.categoryId}
                 onChange={(e) => up({ categoryId: e.target.value })}
               >
-                <option value="">Uncategorized</option>
+                <option value="">{t('transaction.uncategorized', 'Uncategorized')}</option>
                 {catOpts.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.label}
@@ -281,7 +292,7 @@ export function EntryForm({
             )}
           </Field>
         )}
-        <Field label="Amount">
+        <Field label={t('transaction.amount', 'Amount')}>
           {(id) => (
             <div className="flex gap-1">
               <input
@@ -296,7 +307,7 @@ export function EntryForm({
               />
               {src?.isMultiCurrency ? (
                 <input
-                  aria-label="Currency"
+                  aria-label={t('account.currency', 'Currency')}
                   className={`${inputCls} w-20 uppercase`}
                   maxLength={3}
                   value={d.currency}
@@ -308,7 +319,7 @@ export function EntryForm({
             </div>
           )}
         </Field>
-        <Field label="Date">
+        <Field label={t('transaction.date', 'Date')}>
           {(id) => (
             <input
               id={id}
@@ -325,7 +336,11 @@ export function EntryForm({
       {crossCurrency && dst && (
         <fieldset className="rounded-md border border-line p-3">
           <legend className="px-1 text-xs font-medium">
-            Currency exchange {d.currency} → {dst.currency}
+            {t(
+              'transactions.entryForm.currencyExchangeCurrencyCurrency2',
+              'Currency exchange {{currency}} → {{currency2}}',
+              { currency: d.currency, currency2: dst.currency },
+            )}
           </legend>
           <div className="flex flex-wrap gap-3 text-sm">
             {(
@@ -375,13 +390,16 @@ export function EntryForm({
             )}
             {toAmount && (
               <p className="self-end text-sm">
-                Receives <MoneyText value={toAmount} locale={locale} />
+                {t('transactions.entryForm.receives', 'Receives')}{' '}
+                <MoneyText value={toAmount} locale={locale} />
               </p>
             )}
             {d.settle === 'auto' && (
               <p className="text-xs text-muted">
-                The rate for the booking date from your exchange rates is used; the save fails if
-                none exists.
+                {t(
+                  'transactions.entryForm.theRateForThe',
+                  'The rate for the booking date from your exchange rates is used; the save fails if none exists.',
+                )}
               </p>
             )}
           </div>
@@ -392,7 +410,10 @@ export function EntryForm({
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Field
             label={`Fee (${d.currency}, optional)`}
-            hint="Recorded as a linked expense on the source account"
+            hint={t(
+              'transactions.entryForm.recordedAsALinked',
+              'Recorded as a linked expense on the source account',
+            )}
           >
             {(id, desc) => (
               <input
@@ -406,7 +427,7 @@ export function EntryForm({
             )}
           </Field>
           {d.fee && (
-            <Field label="Fee category">
+            <Field label={t('transactions.entryForm.feeCategory', 'Fee category')}>
               {(id) => (
                 <select
                   id={id}
@@ -414,7 +435,7 @@ export function EntryForm({
                   value={d.feeCategoryId}
                   onChange={(e) => up({ feeCategoryId: e.target.value })}
                 >
-                  <option value="">Uncategorized</option>
+                  <option value="">{t('transaction.uncategorized', 'Uncategorized')}</option>
                   {refs.categoryOptions
                     .filter((c) => c.kind === 'expense')
                     .map((c) => (
@@ -430,7 +451,7 @@ export function EntryForm({
       )}
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <Field label="Description">
+        <Field label={t('transaction.description', 'Description')}>
           {(id) => (
             <input
               id={id}
@@ -440,7 +461,7 @@ export function EntryForm({
             />
           )}
         </Field>
-        <Field label="Payee">
+        <Field label={t('transactions.detailDrawer.payee', 'Payee')}>
           {(id) => (
             <input
               id={id}
@@ -450,7 +471,7 @@ export function EntryForm({
             />
           )}
         </Field>
-        <Field label="Merchant">
+        <Field label={t('transaction.merchant', 'Merchant')}>
           {(id) => (
             <select
               id={id}
@@ -458,7 +479,7 @@ export function EntryForm({
               value={d.merchantId}
               onChange={(e) => up({ merchantId: e.target.value })}
             >
-              <option value="">None</option>
+              <option value="">{t('common.none', 'None')}</option>
               {refs.merchants.map((m) => (
                 <option key={m.id} value={m.id}>
                   {m.name}
@@ -467,7 +488,7 @@ export function EntryForm({
             </select>
           )}
         </Field>
-        <Field label="Status">
+        <Field label={t('sync.status', 'Status')}>
           {(id) => (
             <select
               id={id}
@@ -475,15 +496,17 @@ export function EntryForm({
               value={d.status}
               onChange={(e) => up({ status: e.target.value as Draft['status'] })}
             >
-              <option value="cleared">Cleared</option>
-              <option value="pending">Pending</option>
+              <option value="cleared">{t('transactions.detailDrawer.cleared', 'Cleared')}</option>
+              <option value="pending">{t('transactions.detailDrawer.pending', 'Pending')}</option>
             </select>
           )}
         </Field>
       </div>
       {refs.tags.length > 0 && (
         <fieldset>
-          <legend className="mb-1 text-xs font-medium text-muted">Tags</legend>
+          <legend className="mb-1 text-xs font-medium text-muted">
+            {t('transaction.tags', 'Tags')}
+          </legend>
           <div className="flex flex-wrap gap-2">
             {refs.tags.map((t) => (
               <label key={t.id} className="flex items-center gap-1 text-sm">
@@ -504,7 +527,7 @@ export function EntryForm({
           </div>
         </fieldset>
       )}
-      <Field label="Notes">
+      <Field label={t('transaction.notes', 'Notes')}>
         {(id) => (
           <textarea
             id={id}
@@ -518,10 +541,11 @@ export function EntryForm({
       <ErrorText error={err} />
       <div className="flex justify-between gap-2">
         <Button onClick={saveAsTemplate} disabled={saveTpl.isPending}>
-          <BookmarkPlus size={14} aria-hidden /> Save as template
+          <BookmarkPlus size={14} aria-hidden />{' '}
+          {t('transactions.entryForm.saveAsTemplate', 'Save as template')}
         </Button>
         <Button type="submit" variant="primary" disabled={create.isPending}>
-          {create.isPending ? 'Saving…' : `Add ${d.kind}`}
+          {create.isPending ? t('transactions.entryForm.saving', 'Saving…') : `Add ${d.kind}`}
         </Button>
       </div>
     </form>

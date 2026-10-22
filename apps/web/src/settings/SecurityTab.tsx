@@ -200,7 +200,8 @@ function AccountCard() {
         }
       >
         <p className="text-sm">
-          {user?.email} {user?.isAdmin && <Badge tone="accent">admin</Badge>}
+          {user?.email}{' '}
+          {user?.isAdmin && <Badge tone="accent">{t('settings.securityTab.admin', 'admin')}</Badge>}
         </p>
         <p className="mt-1 text-xs text-muted">
           {t(

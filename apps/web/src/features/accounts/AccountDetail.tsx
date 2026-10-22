@@ -22,6 +22,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
+import { useT } from '../../lib/i18n.ts';
 import { describeError, useLedgerEnv, useTransactions, useWrite } from '../transactions/data.ts';
 import {
   Button,
@@ -51,6 +52,7 @@ export function AccountDetail({
   onEdit: () => void;
   onClose: () => void;
 }) {
+  const t = useT();
   const { locale } = useLedgerEnv();
   const txs = useTransactions();
   const currencies = account.balances.length
@@ -113,15 +115,17 @@ export function AccountDetail({
             className="inline-flex h-9 items-center rounded-md border border-line px-3 text-sm"
             to={`/transactions?accountId=${account.id}`}
           >
-            Transactions
+            {t('nav.transactions', 'Transactions')}
           </Link>
-          <Button onClick={onEdit}>Edit</Button>
+          <Button onClick={onEdit}>{t('common.edit', 'Edit')}</Button>
           <Button
             onClick={() =>
               archive.mutateAsync(!account.isArchived).catch((e) => setErr(describeError(e)))
             }
           >
-            {account.isArchived ? 'Unarchive' : 'Archive'}
+            {account.isArchived
+              ? t('accounts.accountDetail.unarchive', 'Unarchive')
+              : t('accounts.accountDetail.archive', 'Archive')}
           </Button>
           <Button
             variant="danger"
@@ -135,19 +139,21 @@ export function AccountDetail({
                 .catch((e) => setErr(describeError(e)))
             }
           >
-            Delete
+            {t('common.delete', 'Delete')}
           </Button>
         </div>
       </div>
       <ErrorText error={err} />
 
-      <section aria-label="Balance history">
+      <section aria-label={t('accounts.accountDetail.balanceHistory', 'Balance history')}>
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-          <h3 className="text-sm font-semibold">Balance history</h3>
+          <h3 className="text-sm font-semibold">
+            {t('accounts.accountDetail.balanceHistory', 'Balance history')}
+          </h3>
           <div className="flex gap-1">
             {currencies.length > 1 && (
               <select
-                aria-label="Currency"
+                aria-label={t('account.currency', 'Currency')}
                 className={`${inputCls} h-7 w-auto text-xs`}
                 value={currency}
                 onChange={(e) => setCurrency(e.target.value)}
@@ -173,7 +179,7 @@ export function AccountDetail({
         <div className="h-56">
           {txs.isLoading ? (
             <p role="status" className="text-sm text-muted">
-              Loading…
+              {t('common.loading', 'Loading…')}
             </p>
           ) : (
             <ResponsiveContainer width="100%" height="100%">
@@ -215,7 +221,9 @@ export function AccountDetail({
           )}
         </div>
         <p className="sr-only">
-          Balance on {from}: {points[0] && formatMoney(points[0].label, locale)}; on {to}:{' '}
+          {t('accounts.accountDetail.balanceOnFrom', 'Balance on {{from}}:', { from: from })}{' '}
+          {points[0] && formatMoney(points[0].label, locale)}
+          {t('accounts.accountDetail.onTo', '; on {{to}}:', { to: to })}{' '}
           {points.at(-1) && formatMoney((points.at(-1) as { label: D.Money }).label, locale)}.
         </p>
       </section>
@@ -226,6 +234,7 @@ export function AccountDetail({
 }
 
 function Reconcile({ account, txs }: { account: D.Account; txs: D.Transaction[] }) {
+  const t = useT();
   const { locale } = useLedgerEnv();
   const [date, setDate] = useState(today());
   const [currency, setCurrency] = useState(account.currency);
@@ -298,10 +307,15 @@ function Reconcile({ account, txs }: { account: D.Account; txs: D.Transaction[] 
   };
 
   return (
-    <section aria-label="Reconcile" className="rounded-md border border-line p-3">
-      <h3 className="mb-2 text-sm font-semibold">Reconcile with a statement</h3>
+    <section
+      aria-label={t('accounts.accountDetail.reconcile', 'Reconcile')}
+      className="rounded-md border border-line p-3"
+    >
+      <h3 className="mb-2 text-sm font-semibold">
+        {t('accounts.accountDetail.reconcileWithAStatement', 'Reconcile with a statement')}
+      </h3>
       <div className="flex flex-wrap items-end gap-2">
-        <Field label="Statement date">
+        <Field label={t('accounts.accountDetail.statementDate', 'Statement date')}>
           {(id) => (
             <input
               id={id}
@@ -313,7 +327,7 @@ function Reconcile({ account, txs }: { account: D.Account; txs: D.Transaction[] 
           )}
         </Field>
         {account.isMultiCurrency && (
-          <Field label="Currency">
+          <Field label={t('account.currency', 'Currency')}>
             {(id) => (
               <input
                 id={id}
@@ -337,17 +351,19 @@ function Reconcile({ account, txs }: { account: D.Account; txs: D.Transaction[] 
           )}
         </Field>
         <Button onClick={submit} disabled={book.isPending}>
-          Reconcile
+          {t('accounts.accountDetail.reconcile', 'Reconcile')}
         </Button>
       </div>
       <dl className="mt-2 grid grid-cols-[max-content_1fr] gap-x-3 text-sm">
-        <dt className="text-muted">Ledger balance</dt>
+        <dt className="text-muted">
+          {t('accounts.accountDetail.ledgerBalance', 'Ledger balance')}
+        </dt>
         <dd>
           <MoneyText value={ledgerBal} locale={locale} />
         </dd>
         {diff && (
           <>
-            <dt className="text-muted">Difference</dt>
+            <dt className="text-muted">{t('accounts.accountDetail.difference', 'Difference')}</dt>
             <dd>
               <MoneyText value={diff} locale={locale} signed />
             </dd>

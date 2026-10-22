@@ -1,6 +1,7 @@
 import type * as D from '@finplat/domain';
 import { TRANSACTION_KINDS, TRANSACTION_SOURCES, TRANSACTION_STATUSES } from '@finplat/domain';
 import { Search } from 'lucide-react';
+import { useT } from '../../lib/i18n.ts';
 import type { Refs } from './data.ts';
 import type { TxFilter } from './model.ts';
 import { Button, inputCls } from './ui.tsx';
@@ -18,6 +19,7 @@ export function Filters({
   currencies: string[];
   batches: D.ImportBatch[];
 }) {
+  const t = useT();
   const set = (k: keyof TxFilter, v: string) => {
     const next = { ...value };
     if (k === 'accountIds') next.accountIds = v ? [v] : undefined;
@@ -49,10 +51,13 @@ export function Filters({
   );
   const active = Object.keys(value).length;
   return (
-    <search className="mb-3 flex flex-col gap-2" aria-label="Transaction filters">
+    <search
+      className="mb-3 flex flex-col gap-2"
+      aria-label={t('transactions.filters.transactionFilters', 'Transaction filters')}
+    >
       <div className="flex flex-wrap items-end gap-2">
         <label className="flex min-w-56 flex-[2] flex-col gap-1 text-xs text-muted">
-          Search
+          {t('common.search', 'Search')}
           <span className="relative">
             <Search
               size={14}
@@ -62,14 +67,17 @@ export function Filters({
             <input
               type="search"
               className={`${inputCls} w-full pl-7`}
-              placeholder="Description, payee, notes, reference, merchant"
+              placeholder={t(
+                'transactions.filters.descriptionPayeeNotesReference',
+                'Description, payee, notes, reference, merchant',
+              )}
               value={value.q ?? ''}
               onChange={(e) => set('q', e.target.value)}
             />
           </span>
         </label>
         <label className="flex flex-col gap-1 text-xs text-muted">
-          From
+          {t('reports.page.from', 'From')}
           <input
             type="date"
             className={inputCls}
@@ -78,7 +86,7 @@ export function Filters({
           />
         </label>
         <label className="flex flex-col gap-1 text-xs text-muted">
-          To
+          {t('reports.page.to', 'To')}
           <input
             type="date"
             className={inputCls}
@@ -100,12 +108,16 @@ export function Filters({
         ])}
         {active > 0 && (
           <Button variant="ghost" onClick={() => onChange({})}>
-            Clear filters ({active})
+            {t('transactions.filters.clearFiltersActive', 'Clear filters ({{active}})', {
+              active: active,
+            })}
           </Button>
         )}
       </div>
       <details className="group">
-        <summary className="cursor-pointer text-xs text-muted select-none">More filters</summary>
+        <summary className="cursor-pointer text-xs text-muted select-none">
+          {t('transactions.filters.moreFilters', 'More filters')}
+        </summary>
         <div className="mt-2 flex flex-wrap items-end gap-2">
           {sel(
             'merchantId',
@@ -146,7 +158,7 @@ export function Filters({
             })),
           )}
           <label className="flex w-28 flex-col gap-1 text-xs text-muted">
-            Min amount
+            {t('transactions.filters.minAmount', 'Min amount')}
             <input
               inputMode="decimal"
               className={inputCls}
@@ -155,7 +167,7 @@ export function Filters({
             />
           </label>
           <label className="flex w-28 flex-col gap-1 text-xs text-muted">
-            Max amount
+            {t('transactions.filters.maxAmount', 'Max amount')}
             <input
               inputMode="decimal"
               className={inputCls}

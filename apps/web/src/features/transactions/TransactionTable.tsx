@@ -14,6 +14,7 @@ import {
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { ArrowDown, ArrowUp, FileInput, Paperclip, Repeat } from 'lucide-react';
 import { useMemo, useRef, useState } from 'react';
+import { useT } from '../../lib/i18n.ts';
 import type { Refs } from './data.ts';
 import { primaryAmount } from './model.ts';
 import { Badge, MoneyText } from './ui.tsx';
@@ -35,6 +36,7 @@ export function TransactionTable({
   onSelectionChange: (s: RowSelectionState) => void;
   onOpen: (t: D.Transaction) => void;
 }) {
+  const t = useT();
   const [sorting, setSorting] = useState<SortingState>([{ id: 'date', desc: true }]);
 
   const columns = useMemo<ColumnDef<D.Transaction>[]>(
@@ -46,7 +48,10 @@ export function TransactionTable({
         header: ({ table }) => (
           <input
             type="checkbox"
-            aria-label="Select all shown transactions"
+            aria-label={t(
+              'transactions.transactionTable.selectAllShownTransactions',
+              'Select all shown transactions',
+            )}
             checked={table.getIsAllRowsSelected()}
             ref={(el) => {
               if (el) el.indeterminate = table.getIsSomeRowsSelected();
@@ -57,7 +62,11 @@ export function TransactionTable({
         cell: ({ row }) => (
           <input
             type="checkbox"
-            aria-label={`Select ${row.original.description || 'transaction'}`}
+            aria-label={t('transactions.transactionTable.selectRow', 'Select {{name}}', {
+              name:
+                row.original.description ||
+                t('transactions.transactionTable.transaction', 'transaction'),
+            })}
             checked={row.getIsSelected()}
             onChange={row.getToggleSelectedHandler()}
             onClick={(e) => e.stopPropagation()}
@@ -66,67 +75,89 @@ export function TransactionTable({
       },
       {
         id: 'date',
-        header: 'Date',
+        header: t('transaction.date', 'Date'),
         size: 110,
         accessorFn: (t) => `${t.bookingDate}|${t.createdAt}`,
         cell: ({ row }) => <span className="tabular-nums">{row.original.bookingDate}</span>,
       },
       {
         id: 'description',
-        header: 'Description',
+        header: t('transactions.transactionTable.description', 'Description'),
         size: 360,
         accessorFn: (t) =>
           (t.description || t.payee || refs.merchantName(t.merchantId)).toLowerCase(),
         cell: ({ row }) => {
-          const t = row.original;
-          const merchant = refs.merchantName(t.merchantId);
+          const tx = row.original;
+          const merchant = refs.merchantName(tx.merchantId);
           return (
             <div className="flex min-w-0 items-center gap-1.5">
-              {t.source === 'import' && (
-                <FileInput size={14} aria-label="Imported" className="shrink-0 text-muted" />
+              {tx.source === 'import' && (
+                <FileInput
+                  size={14}
+                  aria-label={t('transactions.transactionTable.imported', 'Imported')}
+                  className="shrink-0 text-muted"
+                />
               )}
-              {(t.kind === 'transfer' || t.kind === 'fx') && (
-                <Repeat size={14} aria-label="Transfer" className="shrink-0 text-muted" />
+              {(tx.kind === 'transfer' || tx.kind === 'fx') && (
+                <Repeat
+                  size={14}
+                  aria-label={t('transaction.kind.transfer', 'Transfer')}
+                  className="shrink-0 text-muted"
+                />
               )}
-              {t.attachmentIds.length > 0 && (
-                <Paperclip size={14} aria-label="Has attachments" className="shrink-0 text-muted" />
+              {tx.attachmentIds.length > 0 && (
+                <Paperclip
+                  size={14}
+                  aria-label={t('transactions.transactionTable.hasAttachments', 'Has attachments')}
+                  className="shrink-0 text-muted"
+                />
               )}
               <span className="truncate">
-                {t.description || t.payee || merchant || (
-                  <em className="text-muted">No description</em>
+                {tx.description || tx.payee || merchant || (
+                  <em className="text-muted">
+                    {t('transactions.transactionTable.noDescription', 'No description')}
+                  </em>
                 )}
               </span>
-              {merchant && t.description && (
+              {merchant && tx.description && (
                 <span className="hidden truncate text-xs text-muted lg:inline">· {merchant}</span>
               )}
-              {t.status === 'pending' && <Badge tone="amber">pending</Badge>}
-              {t.status === 'void' && <Badge tone="red">void</Badge>}
-              {t.excludeFromReports && <Badge>excluded</Badge>}
+              {tx.status === 'pending' && (
+                <Badge tone="amber">{t('transactions.transactionTable.pending', 'pending')}</Badge>
+              )}
+              {tx.status === 'void' && (
+                <Badge tone="red">{t('transactions.transactionTable.void', 'void')}</Badge>
+              )}
+              {tx.excludeFromReports && (
+                <Badge>{t('transactions.transactionTable.excluded', 'excluded')}</Badge>
+              )}
             </div>
           );
         },
       },
       {
         id: 'account',
-        header: 'Account',
+        header: t('transactions.transactionTable.account', 'Account'),
         size: 160,
         accessorFn: (t) => t.postings.map((p) => refs.accountName(p.accountId)).join(' → '),
         cell: ({ getValue }) => <span className="truncate">{getValue() as string}</span>,
       },
       {
         id: 'category',
-        header: 'Category',
+        header: t('transaction.category', 'Category'),
         size: 180,
-        accessorFn: (t) =>
-          t.kind === 'transfer' || t.kind === 'fx'
-            ? 'Transfer'
-            : t.kind === 'opening_balance'
-              ? 'Opening balance'
-              : t.kind === 'adjustment'
-                ? 'Adjustment'
-                : t.splits.length > 1
-                  ? `Split (${t.splits.length})`
-                  : refs.categoryLabel(t.splits[0]?.categoryId ?? null),
+        accessorFn: (tx) =>
+          tx.kind === 'transfer' || tx.kind === 'fx'
+            ? t('transaction.kind.transfer', 'Transfer')
+            : tx.kind === 'opening_balance'
+              ? t('transactions.transactionTable.openingBalance', 'Opening balance')
+              : tx.kind === 'adjustment'
+                ? t('transactions.transactionTable.adjustment', 'Adjustment')
+                : tx.splits.length > 1
+                  ? t('transactions.transactionTable.splitN', 'Split ({{n}})', {
+                      n: tx.splits.length,
+                    })
+                  : refs.categoryLabel(tx.splits[0]?.categoryId ?? null),
         cell: ({ getValue, row }) => {
           const v = getValue() as string;
           const unc = v === 'Uncategorized' && row.original.kind !== 'adjustment';
@@ -135,7 +166,7 @@ export function TransactionTable({
       },
       {
         id: 'amount',
-        header: () => <span className="block text-right">Amount</span>,
+        header: () => <span className="block text-right">{t('transaction.amount', 'Amount')}</span>,
         size: 140,
         accessorFn: (t) => primaryAmount(t)?.amount ?? '0',
         sortingFn: (a, b) =>
@@ -160,7 +191,7 @@ export function TransactionTable({
         },
       },
     ],
-    [refs, locale],
+    [refs, locale, t],
   );
 
   const table = useReactTable({

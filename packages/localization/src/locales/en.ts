@@ -1,4 +1,4 @@
-// English source catalog. Keys are stable; every other locale is a partial copy of this shape.
+// English source catalog. Keys are stable; every other locale is a copy of this shape.
 // Interpolation: {{name}}; plurals: key_one / key_other (i18next).
 export const en = {
   'app.name': 'Finance Platform',
@@ -149,4 +149,6 @@ export const en = {
 } as const;
 
 export type MessageKey = keyof typeof en;
-export type Catalog = Partial<Record<MessageKey, string>>;
+type PluralBase = MessageKey extends infer K ? (K extends `${infer B}_one` ? B : never) : never;
+/** Languages with a "few" plural form (bs: 2–4) add `<base>_few` keys. */
+export type Catalog = Partial<Record<MessageKey | `${PluralBase}_few`, string>>;

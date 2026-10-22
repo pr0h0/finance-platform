@@ -4,6 +4,7 @@ import type * as D from '@finplat/domain';
 import { evaluateRules } from '@finplat/finance-engine';
 import { Plus, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { useT } from '../../lib/i18n.ts';
 import {
   describeError,
   type Refs,
@@ -87,6 +88,7 @@ export function RuleEditor({
   refs: Refs;
   onDone: (msg?: string) => void;
 }) {
+  const t = useT();
   const { locale } = useLedgerEnv();
   const txs = useTransactions();
   const splitTemplates = useEntities('split_templates');
@@ -173,7 +175,7 @@ export function RuleEditor({
       value={value}
       onChange={(e) => on(e.target.value)}
     >
-      <option value="">Choose…</option>
+      <option value="">{t('quick.choose', 'Choose…')}</option>
       {opts.map((o) => (
         <option key={o.id} value={o.id}>
           {o.label}
@@ -185,7 +187,7 @@ export function RuleEditor({
   return (
     <div className="flex flex-col gap-4">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_8rem]">
-        <Field label="Rule name">
+        <Field label={t('rules.ruleEditor.ruleName', 'Rule name')}>
           {(id) => (
             <input
               id={id}
@@ -196,7 +198,10 @@ export function RuleEditor({
             />
           )}
         </Field>
-        <Field label="Priority" hint="Lower runs first">
+        <Field
+          label={t('goals.page.priority', 'Priority')}
+          hint={t('rules.ruleEditor.lowerRunsFirst', 'Lower runs first')}
+        >
           {(id, d) => (
             <input
               id={id}
@@ -212,21 +217,23 @@ export function RuleEditor({
       <div className="flex flex-wrap gap-4 text-sm">
         <label className="flex items-center gap-2">
           <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />{' '}
-          Enabled
+          {t('mcp.enabled', 'Enabled')}
         </label>
         <label className="flex items-center gap-2">
-          <input type="checkbox" checked={stop} onChange={(e) => setStop(e.target.checked)} /> Stop
-          processing later rules
+          <input type="checkbox" checked={stop} onChange={(e) => setStop(e.target.checked)} />{' '}
+          {t('rules.ruleEditor.stopProcessingLaterRules', 'Stop processing later rules')}
         </label>
       </div>
 
       <fieldset className="flex flex-col gap-2">
-        <legend className="mb-1 text-sm font-semibold">When all of these match</legend>
+        <legend className="mb-1 text-sm font-semibold">
+          {t('rules.ruleEditor.whenAllOfThese', 'When all of these match')}
+        </legend>
         {conds.map((c, i) => (
           // biome-ignore lint/suspicious/noArrayIndexKey: rows have no identity of their own
           <div key={i} className="flex flex-wrap items-center gap-1">
             <select
-              aria-label="Field"
+              aria-label={t('sync.field', 'Field')}
               className={`${inputCls} w-40`}
               value={c.field}
               onChange={(e) => setC(i, newCond(e.target.value as (typeof FIELDS)[number]))}
@@ -240,7 +247,7 @@ export function RuleEditor({
             {(c.field === 'description' || c.field === 'payee' || c.field === 'counterparty') && (
               <>
                 <select
-                  aria-label="Operator"
+                  aria-label={t('rules.ruleEditor.operator', 'Operator')}
                   className={`${inputCls} w-32`}
                   value={c.op}
                   onChange={(e) =>
@@ -254,7 +261,7 @@ export function RuleEditor({
                   ))}
                 </select>
                 <input
-                  aria-label="Value"
+                  aria-label={t('rules.ruleEditor.value', 'Value')}
                   className={`${inputCls} min-w-40 flex-1`}
                   maxLength={256}
                   value={c.value}
@@ -273,7 +280,7 @@ export function RuleEditor({
             {c.field === 'amount' && (
               <>
                 <select
-                  aria-label="Operator"
+                  aria-label={t('rules.ruleEditor.operator', 'Operator')}
                   className={`${inputCls} w-24`}
                   value={c.op}
                   onChange={(e) =>
@@ -287,7 +294,7 @@ export function RuleEditor({
                   ))}
                 </select>
                 <input
-                  aria-label="Amount"
+                  aria-label={t('transaction.amount', 'Amount')}
                   inputMode="decimal"
                   className={`${inputCls} w-32`}
                   value={c.value}
@@ -297,13 +304,17 @@ export function RuleEditor({
             )}
             {c.field === 'direction' && (
               <select
-                aria-label="Direction"
+                aria-label={t('rules.ruleEditor.direction', 'Direction')}
                 className={`${inputCls} w-40`}
                 value={c.value}
                 onChange={(e) => setC(i, { ...c, value: e.target.value as 'debit' | 'credit' })}
               >
-                <option value="debit">Money out (debit)</option>
-                <option value="credit">Money in (credit)</option>
+                <option value="debit">
+                  {t('rules.ruleEditor.moneyOutDebit', 'Money out (debit)')}
+                </option>
+                <option value="credit">
+                  {t('rules.ruleEditor.moneyInCredit', 'Money in (credit)')}
+                </option>
               </select>
             )}
             {c.field === 'accountId' &&
@@ -323,7 +334,7 @@ export function RuleEditor({
             <Button
               size="sm"
               variant="ghost"
-              aria-label="Remove condition"
+              aria-label={t('rules.ruleEditor.removeCondition', 'Remove condition')}
               disabled={conds.length === 1}
               onClick={() => setConds((cs) => cs.filter((_, j) => j !== i))}
             >
@@ -337,18 +348,18 @@ export function RuleEditor({
             onClick={() => setConds((cs) => [...cs, newCond('description')])}
             disabled={conds.length >= 20}
           >
-            <Plus size={12} aria-hidden /> Condition
+            <Plus size={12} aria-hidden /> {t('rules.ruleEditor.condition', 'Condition')}
           </Button>
         </div>
       </fieldset>
 
       <fieldset className="flex flex-col gap-2">
-        <legend className="mb-1 text-sm font-semibold">Then</legend>
+        <legend className="mb-1 text-sm font-semibold">{t('rules.ruleEditor.then', 'Then')}</legend>
         {acts.map((a, i) => (
           // biome-ignore lint/suspicious/noArrayIndexKey: rows have no identity of their own
           <div key={i} className="flex flex-wrap items-center gap-1">
             <select
-              aria-label="Action"
+              aria-label={t('mcp.action', 'Action')}
               className={`${inputCls} w-48`}
               value={a.type}
               onChange={(e) => setA(i, newAct(e.target.value as (typeof ACTIONS)[number]))}
@@ -389,7 +400,7 @@ export function RuleEditor({
               )}
             {a.type === 'set_description' && (
               <input
-                aria-label="New description"
+                aria-label={t('rules.ruleEditor.newDescription', 'New description')}
                 className={`${inputCls} min-w-40 flex-1`}
                 value={a.value}
                 onChange={(e) => setA(i, { ...a, value: e.target.value })}
@@ -398,7 +409,7 @@ export function RuleEditor({
             <Button
               size="sm"
               variant="ghost"
-              aria-label="Remove action"
+              aria-label={t('rules.ruleEditor.removeAction', 'Remove action')}
               disabled={acts.length === 1}
               onClick={() => setActs((as) => as.filter((_, j) => j !== i))}
             >
@@ -412,16 +423,24 @@ export function RuleEditor({
             onClick={() => setActs((as) => [...as, newAct('add_tag')])}
             disabled={acts.length >= 20}
           >
-            <Plus size={12} aria-hidden /> Action
+            <Plus size={12} aria-hidden /> {t('mcp.action', 'Action')}
           </Button>
         </div>
       </fieldset>
 
-      <section aria-label="Test" className="rounded-md border border-line p-3">
-        <h3 className="mb-1 text-sm font-semibold">Test against existing transactions</h3>
+      <section
+        aria-label={t('rules.ruleEditor.test', 'Test')}
+        className="rounded-md border border-line p-3"
+      >
+        <h3 className="mb-1 text-sm font-semibold">
+          {t(
+            'rules.ruleEditor.testAgainstExistingTransactions',
+            'Test against existing transactions',
+          )}
+        </h3>
         <p className="text-sm" role="status">
           {txs.isLoading
-            ? 'Loading transactions…'
+            ? t('rules.ruleEditor.loadingTransactions', 'Loading transactions…')
             : `Matches ${matches.length} transactions (${matches.filter(isUncategorized).length} uncategorized).`}
         </p>
         <ul className="mt-2 max-h-48 overflow-auto text-sm">
@@ -443,8 +462,10 @@ export function RuleEditor({
             checked={onlyUncat}
             onChange={(e) => setOnlyUncat(e.target.checked)}
           />{' '}
-          When applying, change only uncategorized transactions (otherwise existing categories are
-          overwritten)
+          {t(
+            'rules.ruleEditor.whenApplyingChangeOnly',
+            'When applying, change only uncategorized transactions (otherwise existing categories are overwritten)',
+          )}
         </label>
       </section>
       {msg && (
@@ -455,19 +476,23 @@ export function RuleEditor({
       <ErrorText error={err} />
       <div className="flex flex-wrap justify-end gap-2">
         <Button onClick={() => submit(false)} disabled={save.isPending}>
-          Save rule
+          {t('rules.ruleEditor.saveRule', 'Save rule')}
         </Button>
         <Button
           variant="primary"
           onClick={() => submit(true)}
           disabled={save.isPending || apply.isPending || target.length === 0}
         >
-          Save and apply to {target.length}
+          {t('rules.ruleEditor.saveAndApplyTo', 'Save and apply to {{length}}', {
+            length: target.length,
+          })}
         </Button>
       </div>
       <p className="text-xs text-muted">
-        Applying runs all enabled rules (by priority) on the chosen transactions, so the result
-        matches what new transactions get.
+        {t(
+          'rules.ruleEditor.applyingRunsAllEnabled',
+          'Applying runs all enabled rules (by priority) on the chosen transactions, so the result matches what new transactions get.',
+        )}
       </p>
     </div>
   );

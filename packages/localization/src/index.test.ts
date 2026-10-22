@@ -12,18 +12,31 @@ import {
   t,
 } from './index.ts';
 
-test('translations: bs skeleton falls back to English; plurals and interpolation', () => {
+test('translations: bs, plurals and interpolation', () => {
   expect(t('mode.local', 'bs-BA')).toBe('Samo lokalno');
-  expect(t('mode.connect.description', 'bs').startsWith('Sign in')).toBe(true);
+  expect(t('mode.connect.description', 'bs').startsWith('Prijavite se')).toBe(true);
   expect(t('sync.pending', 'en', { count: 1 })).toBe('1 change waiting to upload');
   expect(t('sync.pending', 'en', { count: 3 })).toBe('3 changes waiting to upload');
+  expect(t('sync.pending', 'bs', { count: 1 })).toBe('1 promjena čeka slanje');
+  expect(t('sync.pending', 'bs', { count: 3 })).toBe('3 promjene čekaju slanje');
+  expect(t('sync.pending', 'bs', { count: 5 })).toBe('5 promjena čeka slanje');
+  expect(t('sync.pending', 'bs', { count: 21 })).toBe('21 promjena čeka slanje');
   expect(resolveLanguage('de-DE')).toBe('en');
   expect(errorMessage('conflict')).toContain('changed elsewhere');
+  expect(errorMessage('conflict', 'bs')).toContain('promijenjen');
   expect(errorMessage('weird_code')).toBe('Something went wrong.');
 });
 
-test('bs keys are a subset of en keys', () => {
-  for (const k of Object.keys(bs)) expect(k in en).toBe(true);
+test('bs has every en key, translated, with the same {{placeholders}} (no English fallback)', () => {
+  const vars = (s: string) => (s.match(/\{\{\w+\}\}/g) ?? []).sort().join();
+  const same = new Set(['sync.status']); // "Status" is the Bosnian word too
+  const b = bs as Record<string, string>;
+  for (const [k, v] of Object.entries(en)) {
+    expect(b[k], k).toBeString();
+    expect(vars(b[k] as string), k).toBe(vars(v));
+    if (!same.has(k)) expect(b[k], k).not.toBe(v);
+  }
+  for (const k of Object.keys(bs)) expect(k in en || k.endsWith('_few'), k).toBe(true);
 });
 
 // For values a double represents exactly, Intl's own output is the reference.
@@ -53,11 +66,16 @@ test('money formatting is exact and locale aware', () => {
   );
   expect(formatMoney({ amount: '-0.00', currency: 'EUR' }, 'en-US')).toBe('€0.00');
   expect(formatDecimal('1234.5678', 'de-DE')).toBe('1.234,5678');
+  expect(formatDecimal('1234.56', 'bs-BA')).toBe('1.234,56');
+  expect(formatMoney({ amount: '-0.50', currency: 'BAM' }, 'bs-BA').replace(/\s/g, ' ')).toBe(
+    '-0,50 KM',
+  );
 });
 
 test('dates never shift with the timezone', () => {
   expect(formatDate('2026-01-01', 'en-US')).toBe('Jan 1, 2026');
-  expect(formatDate('2026-12-31', 'bs-BA', 'short')).toMatch(/31/);
+  expect(formatDate('2026-12-31', 'bs-BA', 'short')).toBe('31.12.2026');
+  expect(formatDate('2026-03-05', 'bs', 'short')).toBe('05.03.2026');
   expect(formatMonth('2026-03', 'en-US')).toBe('Mar 2026');
 });
 

@@ -2,6 +2,7 @@
 // Amounts never change; a category set replaces the splits with one line of the full amount.
 import type * as D from '@finplat/domain';
 import { useState } from 'react';
+import { useT } from '../../lib/i18n.ts';
 import { describeError, type Refs, useLedgerEnv, useWrite } from './data.ts';
 import { totalsByCurrency } from './model.ts';
 import { Button, ErrorText, Field, inputCls, MoneyText } from './ui.tsx';
@@ -15,6 +16,7 @@ export function BulkEdit({
   refs: Refs;
   onDone: () => void;
 }) {
+  const t = useT();
   const { locale } = useLedgerEnv();
   const [category, setCategory] = useState('');
   const [merchant, setMerchant] = useState('');
@@ -66,7 +68,7 @@ export function BulkEdit({
     <Field label={label}>
       {(id) => (
         <select id={id} className={inputCls} value={v} onChange={(e) => on(e.target.value)}>
-          <option value="">No change</option>
+          <option value="">{t('transactions.bulkEdit.noChange', 'No change')}</option>
           {extra && <option value={extra.id}>{extra.label}</option>}
           {opts.map((o) => (
             <option key={o.id} value={o.id}>
@@ -81,11 +83,15 @@ export function BulkEdit({
   return (
     <div className="flex flex-col gap-3">
       <p className="text-sm">
-        {rows.length} transactions selected, totals{' '}
+        {t(
+          'transactions.bulkEdit.lengthTransactionsSelectedTotals',
+          '{{length}} transactions selected, totals',
+          { length: rows.length },
+        )}{' '}
         {totalsByCurrency(rows).map((m) => (
           <MoneyText key={m.currency} value={m} locale={locale} className="mr-2" />
         ))}
-        stay unchanged.
+        {t('transactions.bulkEdit.stayUnchanged', 'stay unchanged.')}
       </p>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {sel('Category', category, setCategory, refs.categoryOptions, {
@@ -122,8 +128,10 @@ export function BulkEdit({
         ])}
       </div>
       <p className="text-xs text-muted">
-        Transfers, opening balances and adjustments have no category and are skipped for category
-        changes.
+        {t(
+          'transactions.bulkEdit.transfersOpeningBalancesAnd',
+          'Transfers, opening balances and adjustments have no category and are skipped for category changes.',
+        )}
       </p>
       {result && (
         <p role="status" className="text-sm">
@@ -133,7 +141,7 @@ export function BulkEdit({
       <ErrorText error={err} />
       <div className="flex justify-end">
         <Button variant="primary" onClick={submit} disabled={bulk.isPending}>
-          Apply to {rows.length}
+          {t('transactions.bulkEdit.applyToLength', 'Apply to {{length}}', { length: rows.length })}
         </Button>
       </div>
     </div>

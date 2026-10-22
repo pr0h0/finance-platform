@@ -5,6 +5,7 @@ import { fromMinor, toMinor } from '@finplat/finance-engine';
 import { ArrowDown, ArrowUp, Plus, Save, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from '../../components/ui/toast.tsx';
+import { useT } from '../../lib/i18n.ts';
 import { describeError, type Refs, useEntities, useLedgerEnv, useWrite } from './data.ts';
 import { absMoney, type SplitDraft, splitRemainder } from './model.ts';
 import { Button, ErrorText, inputCls, MoneyText } from './ui.tsx';
@@ -13,6 +14,7 @@ let seq = 0;
 const key = () => `l${++seq}`;
 
 export function SplitEditor({ tx, refs }: { tx: D.Transaction; refs: Refs }) {
+  const t = useT();
   const { locale } = useLedgerEnv();
   const total = absMoney(tx.postings[0]?.amount ?? { amount: '0', currency: 'XXX' });
   const init = (): SplitDraft[] =>
@@ -119,7 +121,7 @@ export function SplitEditor({ tx, refs }: { tx: D.Transaction; refs: Refs }) {
               value={l.categoryId ?? ''}
               onChange={(e) => set(i, { categoryId: e.target.value || null })}
             >
-              <option value="">Uncategorized</option>
+              <option value="">{t('transaction.uncategorized', 'Uncategorized')}</option>
               {opts.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.label}
@@ -135,7 +137,7 @@ export function SplitEditor({ tx, refs }: { tx: D.Transaction; refs: Refs }) {
             />
             <input
               aria-label={`Note of line ${i + 1}`}
-              placeholder="Note"
+              placeholder={t('transactions.splitEditor.note', 'Note')}
               className={`${inputCls} min-w-24 flex-1`}
               value={l.description}
               onChange={(e) => set(i, { description: e.target.value })}
@@ -143,7 +145,7 @@ export function SplitEditor({ tx, refs }: { tx: D.Transaction; refs: Refs }) {
             <Button
               size="sm"
               variant="ghost"
-              aria-label="Move up"
+              aria-label={t('transactions.splitEditor.moveUp', 'Move up')}
               disabled={i === 0}
               onClick={() => move(i, -1)}
             >
@@ -152,7 +154,7 @@ export function SplitEditor({ tx, refs }: { tx: D.Transaction; refs: Refs }) {
             <Button
               size="sm"
               variant="ghost"
-              aria-label="Move down"
+              aria-label={t('transactions.splitEditor.moveDown', 'Move down')}
               disabled={i === lines.length - 1}
               onClick={() => move(i, 1)}
             >
@@ -161,7 +163,7 @@ export function SplitEditor({ tx, refs }: { tx: D.Transaction; refs: Refs }) {
             <Button
               size="sm"
               variant="ghost"
-              aria-label="Remove line"
+              aria-label={t('transactions.splitEditor.removeLine', 'Remove line')}
               disabled={lines.length === 1}
               onClick={() => setLines((ls) => ls.filter((_, j) => j !== i))}
             >
@@ -185,16 +187,20 @@ export function SplitEditor({ tx, refs }: { tx: D.Transaction; refs: Refs }) {
             ])
           }
         >
-          <Plus size={14} aria-hidden /> Add line
+          <Plus size={14} aria-hidden /> {t('transactions.splitEditor.addLine', 'Add line')}
         </Button>
         <p aria-live="polite" className={balanced ? 'text-pos' : 'text-warn'}>
           {remainder === null ? (
-            'Each line needs a positive amount with at most the currency decimals'
+            t(
+              'transactions.splitEditor.eachLineNeedsA',
+              'Each line needs a positive amount with at most the currency decimals',
+            )
           ) : balanced ? (
-            'Lines match the total'
+            t('transactions.splitEditor.linesMatchTheTotal', 'Lines match the total')
           ) : (
             <>
-              Remaining <MoneyText value={remainder} locale={locale} /> of{' '}
+              {t('goals.page.remaining', 'Remaining')}{' '}
+              <MoneyText value={remainder} locale={locale} /> {t('goals.page.of', 'of')}{' '}
               <MoneyText value={total} locale={locale} />
             </>
           )}
@@ -203,7 +209,7 @@ export function SplitEditor({ tx, refs }: { tx: D.Transaction; refs: Refs }) {
       <ErrorText error={err} />
       <div className="flex flex-wrap gap-2">
         <Button variant="primary" size="sm" disabled={!balanced || save.isPending} onClick={submit}>
-          <Save size={14} aria-hidden /> Save splits
+          <Save size={14} aria-hidden /> {t('transactions.splitEditor.saveSplits', 'Save splits')}
         </Button>
         {lines.length > 1 && (
           <Button
@@ -219,20 +225,24 @@ export function SplitEditor({ tx, refs }: { tx: D.Transaction; refs: Refs }) {
               ])
             }
           >
-            Merge into one
+            {t('transactions.splitEditor.mergeIntoOne', 'Merge into one')}
           </Button>
         )}
         <Button size="sm" disabled={!balanced || saveTpl.isPending} onClick={asTemplate}>
-          Save as {tx.merchantId ? 'merchant ' : ''}split template
+          {t('transactions.splitEditor.saveAs', 'Save as')}{' '}
+          {tx.merchantId ? t('transactions.splitEditor.merchant', 'merchant') : ''}
+          {t('transactions.splitEditor.splitTemplate', 'split template')}
         </Button>
         {merchantTemplates.length > 0 && (
           <select
-            aria-label="Apply split template"
+            aria-label={t('transactions.splitEditor.applySplitTemplate', 'Apply split template')}
             className={`${inputCls} h-7 w-auto text-xs`}
             value=""
             onChange={(e) => e.target.value && applyTemplate(e.target.value)}
           >
-            <option value="">Apply template…</option>
+            <option value="">
+              {t('transactions.splitEditor.applyTemplate', 'Apply template…')}
+            </option>
             {merchantTemplates.map((t) => (
               <option key={t.id} value={t.id}>
                 {t.name}
@@ -240,11 +250,11 @@ export function SplitEditor({ tx, refs }: { tx: D.Transaction; refs: Refs }) {
             ))}
           </select>
         )}
-        {saved && <span className="text-xs text-pos">Saved</span>}
+        {saved && <span className="text-xs text-pos">{t('settings.saved', 'Saved')}</span>}
       </div>
       {remainder && toMinor(remainder) < 0n && (
         <p className="text-xs text-neg">
-          Lines exceed the total by{' '}
+          {t('transactions.splitEditor.linesExceedTheTotal', 'Lines exceed the total by')}{' '}
           <MoneyText value={fromMinor(-toMinor(remainder), total.currency)} locale={locale} />.
         </p>
       )}

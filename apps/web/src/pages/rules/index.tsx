@@ -12,6 +12,7 @@ import {
   ErrorText,
   PageHeader,
 } from '../../features/transactions/ui.tsx';
+import { useT } from '../../lib/i18n.ts';
 
 function summary(r: D.CategorizationRule, refs: ReturnType<typeof useRefs>) {
   const c = r.conditions
@@ -43,6 +44,7 @@ function summary(r: D.CategorizationRule, refs: ReturnType<typeof useRefs>) {
 }
 
 export default function RulesPage() {
+  const t = useT();
   const refs = useRefs();
   const rules = useEntities('categorization_rules');
   const [editing, setEditing] = useState<D.CategorizationRule | 'new' | null>(null);
@@ -62,7 +64,7 @@ export default function RulesPage() {
   return (
     <div>
       <PageHeader
-        title="Automation rules"
+        title={t('rules.page.automationRules', 'Automation rules')}
         actions={
           <>
             <Button
@@ -78,17 +80,19 @@ export default function RulesPage() {
                   .catch((e) => setErr(describeError(e)))
               }
             >
-              <Play size={14} aria-hidden /> Run on uncategorized
+              <Play size={14} aria-hidden />{' '}
+              {t('rules.page.runOnUncategorized', 'Run on uncategorized')}
             </Button>
             <Button variant="primary" onClick={() => setEditing('new')}>
-              <Plus size={14} aria-hidden /> New rule
+              <Plus size={14} aria-hidden /> {t('rules.page.newRule', 'New rule')}
             </Button>
           </>
         }
       >
-        Rules run automatically on new uncategorized transactions and imports (on this device and on
-        the server), and on demand, in priority order. User-chosen categories are never changed
-        automatically.
+        {t(
+          'rules.page.rulesRunAutomaticallyOn',
+          'Rules run automatically on new uncategorized transactions and imports (on this device and on the server), and on demand, in priority order. User-chosen categories are never changed automatically.',
+        )}
       </PageHeader>
       {msg && (
         <p role="status" className="mb-2 text-sm">
@@ -97,8 +101,11 @@ export default function RulesPage() {
       )}
       <ErrorText error={err} />
       {list.length === 0 && !rules.isLoading && (
-        <Empty title="No rules yet">
-          Create a rule, e.g. “description contains KONZUM → Groceries”.
+        <Empty title={t('rules.page.noRulesYet', 'No rules yet')}>
+          {t(
+            'rules.page.createARuleE',
+            'Create a rule, e.g. “description contains KONZUM → Groceries”.',
+          )}
         </Empty>
       )}
       <ul className="divide-y divide-line rounded-lg border border-line bg-surface">
@@ -107,12 +114,17 @@ export default function RulesPage() {
             <div className="min-w-0 flex-1">
               <p className="flex items-center gap-2 font-medium">
                 {r.name} <Badge>#{r.priority}</Badge>{' '}
-                {!r.enabled && <Badge tone="amber">disabled</Badge>}{' '}
-                {r.stopProcessing && <Badge>stops</Badge>}
+                {!r.enabled && (
+                  <Badge tone="amber">{t('admin.adminPage.disabled', 'disabled')}</Badge>
+                )}{' '}
+                {r.stopProcessing && <Badge>{t('rules.page.stops', 'stops')}</Badge>}
               </p>
               <p className="truncate text-xs text-muted">{summary(r, refs)}</p>
               <p className="text-xs text-muted">
-                {r.matchCount} matches{r.lastMatchedAt && `, last ${r.lastMatchedAt.slice(0, 10)}`}
+                {t('rules.page.matchcountMatches', '{{matchCount}} matches', {
+                  matchCount: r.matchCount,
+                })}
+                {r.lastMatchedAt && `, last ${r.lastMatchedAt.slice(0, 10)}`}
               </p>
             </div>
             <div className="flex gap-1">
@@ -120,10 +132,10 @@ export default function RulesPage() {
                 size="sm"
                 onClick={() => toggle.mutateAsync(r).catch((e) => setErr(describeError(e)))}
               >
-                {r.enabled ? 'Disable' : 'Enable'}
+                {r.enabled ? t('admin.disable', 'Disable') : t('admin.enable', 'Enable')}
               </Button>
               <Button size="sm" onClick={() => setEditing(r)}>
-                Edit
+                {t('common.edit', 'Edit')}
               </Button>
               <Button
                 size="sm"
@@ -133,7 +145,7 @@ export default function RulesPage() {
                   del.mutateAsync(r).catch((e) => setErr(describeError(e)))
                 }
               >
-                Delete
+                {t('common.delete', 'Delete')}
               </Button>
             </div>
           </li>
@@ -142,7 +154,11 @@ export default function RulesPage() {
       <Dialog
         open={!!editing}
         onClose={() => setEditing(null)}
-        title={editing === 'new' ? 'New rule' : 'Edit rule'}
+        title={
+          editing === 'new'
+            ? t('rules.page.newRule', 'New rule')
+            : t('rules.page.editRule', 'Edit rule')
+        }
         wide
       >
         {editing && (

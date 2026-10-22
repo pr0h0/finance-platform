@@ -78,7 +78,7 @@ export function formatPercent(fraction: string, locale = 'en', fractionDigits = 
   }).format(Number(fraction));
 }
 
-/** Local calendar date "YYYY-MM-DD" rendered without any timezone shift. */
+/** Local calendar date "YYYY-MM-DD" rendered without any timezone shift (bs short: dd.MM.yyyy). */
 export function formatDate(
   isoDate: string,
   locale = 'en',
@@ -86,6 +86,8 @@ export function formatDate(
 ): string {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate);
   if (!m) throw new Error(`not an ISO date: ${isoDate}`);
+  // BiH convention dd.MM.yyyy (ICU gives "31. 12. 2026." for bs)
+  if (style === 'short' && /^bs\b/i.test(locale)) return `${m[3]}.${m[2]}.${m[1]}`;
   return new Intl.DateTimeFormat(locale, { dateStyle: style, timeZone: 'UTC' }).format(
     Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])),
   );

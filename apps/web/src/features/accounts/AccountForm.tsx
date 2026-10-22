@@ -3,6 +3,7 @@
 import type * as D from '@finplat/domain';
 import { ACCOUNT_TYPES, LIABILITY_ACCOUNT_TYPES } from '@finplat/domain';
 import { type FormEvent, useState } from 'react';
+import { useT } from '../../lib/i18n.ts';
 import { describeError, useLedgerEnv, useWrite } from '../transactions/data.ts';
 import { Button, ErrorText, Field, inputCls, toMoney } from '../transactions/ui.tsx';
 
@@ -27,6 +28,7 @@ export function AccountForm({
   account?: D.Account;
   onDone: (a: D.Account) => void;
 }) {
+  const t = useT();
   const { profile, locale } = useLedgerEnv();
   const [f, setF] = useState({
     name: account?.name ?? '',
@@ -92,7 +94,7 @@ export function AccountForm({
   return (
     <form onSubmit={submit} className="flex flex-col gap-3">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <Field label="Name">
+        <Field label={t('account.name', 'Name')}>
           {(id) => (
             <input
               id={id}
@@ -103,7 +105,7 @@ export function AccountForm({
             />
           )}
         </Field>
-        <Field label="Type">
+        <Field label={t('account.type', 'Type')}>
           {(id) => (
             <select
               id={id}
@@ -120,8 +122,12 @@ export function AccountForm({
           )}
         </Field>
         <Field
-          label="Currency"
-          hint={account ? 'Cannot change after creation' : 'ISO code, e.g. BAM, EUR, USD'}
+          label={t('account.currency', 'Currency')}
+          hint={
+            account
+              ? t('accounts.accountForm.cannotChangeAfterCreation', 'Cannot change after creation')
+              : t('accounts.accountForm.isoCodeEG', 'ISO code, e.g. BAM, EUR, USD')
+          }
         >
           {(id, d) => (
             <input
@@ -137,7 +143,7 @@ export function AccountForm({
             />
           )}
         </Field>
-        <Field label="Institution">
+        <Field label={t('accounts.accountForm.institution', 'Institution')}>
           {(id) => (
             <input
               id={id}
@@ -147,7 +153,10 @@ export function AccountForm({
             />
           )}
         </Field>
-        <Field label="Account number (masked)" hint="Store only the last digits">
+        <Field
+          label={t('accounts.accountForm.accountNumberMasked', 'Account number (masked)')}
+          hint={t('accounts.accountForm.storeOnlyTheLast', 'Store only the last digits')}
+        >
           {(id, d) => (
             <input
               id={id}
@@ -159,7 +168,7 @@ export function AccountForm({
             />
           )}
         </Field>
-        <Field label="Opening date">
+        <Field label={t('accounts.accountForm.openingDate', 'Opening date')}>
           {(id) => (
             <input
               id={id}
@@ -175,8 +184,11 @@ export function AccountForm({
             label={`Opening balance (${f.currency || '…'})`}
             hint={
               liability
-                ? 'Amount owed as a negative number, e.g. -250.00'
-                : 'Balance on the opening date'
+                ? t(
+                    'accounts.accountForm.amountOwedAsA',
+                    'Amount owed as a negative number, e.g. -250.00',
+                  )
+                : t('accounts.accountForm.balanceOnTheOpening', 'Balance on the opening date')
             }
           >
             {(id, d) => (
@@ -192,7 +204,7 @@ export function AccountForm({
           </Field>
         )}
         {liability && (
-          <Field label="Credit limit">
+          <Field label={t('accounts.accountForm.creditLimit', 'Credit limit')}>
             {(id) => (
               <input
                 id={id}
@@ -212,7 +224,10 @@ export function AccountForm({
             checked={f.isMultiCurrency}
             onChange={(e) => up({ isMultiCurrency: e.target.checked })}
           />{' '}
-          Holds several currencies (multi-currency account)
+          {t(
+            'accounts.accountForm.holdsSeveralCurrenciesMulti',
+            'Holds several currencies (multi-currency account)',
+          )}
         </label>
         <label className="flex items-center gap-2">
           <input
@@ -220,7 +235,7 @@ export function AccountForm({
             checked={f.includeInNetWorth}
             onChange={(e) => up({ includeInNetWorth: e.target.checked })}
           />{' '}
-          Include in net worth
+          {t('accounts.accountForm.includeInNetWorth', 'Include in net worth')}
         </label>
         <label className="flex items-center gap-2">
           <input
@@ -228,10 +243,10 @@ export function AccountForm({
             checked={f.includeInSafeToSpend}
             onChange={(e) => up({ includeInSafeToSpend: e.target.checked })}
           />{' '}
-          Include in safe-to-spend
+          {t('accounts.accountForm.includeInSafeTo', 'Include in safe-to-spend')}
         </label>
       </div>
-      <Field label="Notes">
+      <Field label={t('transaction.notes', 'Notes')}>
         {(id) => (
           <textarea
             id={id}
@@ -245,7 +260,9 @@ export function AccountForm({
       <ErrorText error={err} />
       <div className="flex justify-end">
         <Button type="submit" variant="primary" disabled={save.isPending}>
-          {account ? 'Save account' : 'Create account'}
+          {account
+            ? t('accounts.accountForm.saveAccount', 'Save account')
+            : t('admin.createUser', 'Create account')}
         </Button>
       </div>
     </form>

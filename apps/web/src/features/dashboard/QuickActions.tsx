@@ -3,6 +3,7 @@ import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, CalendarPlus } from 'lucid
 import { type FormEvent, useState } from 'react';
 import { useApp } from '../../app/store.ts';
 import { useFormat } from '../../lib/format.ts';
+import { useT } from '../../lib/i18n.ts';
 import { useOpsMutation } from '../analytics/hooks.ts';
 import { type Snapshot, todayIso } from '../analytics/snapshot.ts';
 import {
@@ -19,6 +20,7 @@ import { PlanEditor } from '../planning/PlanEditor.tsx';
 type Kind = 'expense' | 'income' | 'transfer';
 
 export function QuickActions({ snap }: { snap: Snapshot }) {
+  const t = useT();
   const [open, setOpen] = useState<Kind | 'planned' | null>(null);
   const items = [
     { k: 'expense', label: 'Expense', Icon: ArrowUpRight },
@@ -41,7 +43,7 @@ export function QuickActions({ snap }: { snap: Snapshot }) {
       <Dialog
         open={open === 'planned'}
         onClose={() => setOpen(null)}
-        title="New planned transaction"
+        title={t('cmd.newPlanned', 'New planned transaction')}
       >
         <PlanEditor snap={snap} onDone={() => setOpen(null)} />
       </Dialog>
@@ -55,6 +57,7 @@ export function QuickActions({ snap }: { snap: Snapshot }) {
 }
 
 function EntryForm({ snap, kind, onDone }: { snap: Snapshot; kind: Kind; onDone: () => void }) {
+  const t = useT();
   const f = useFormat();
   const recent = useApp((s) => s.recent);
   const setApp = useApp((s) => s.set);
@@ -111,7 +114,11 @@ function EntryForm({ snap, kind, onDone }: { snap: Snapshot; kind: Kind; onDone:
   );
   return (
     <form onSubmit={submit} className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-      <Field label={kind === 'transfer' ? 'From account' : 'Account'}>
+      <Field
+        label={
+          kind === 'transfer' ? t('quick.from', 'From account') : t('quick.account', 'Account')
+        }
+      >
         <Select value={accountId} onChange={(e) => setAccountId(e.target.value)}>
           {accounts.map((a) => (
             <option key={a.id} value={a.id}>
@@ -121,9 +128,9 @@ function EntryForm({ snap, kind, onDone }: { snap: Snapshot; kind: Kind; onDone:
         </Select>
       </Field>
       {kind === 'transfer' ? (
-        <Field label="To account">
+        <Field label={t('quick.to', 'To account')}>
           <Select required value={toAccountId} onChange={(e) => setToAccountId(e.target.value)}>
-            <option value="">Choose…</option>
+            <option value="">{t('quick.choose', 'Choose…')}</option>
             {accounts
               .filter((a) => a.id !== accountId)
               .map((a) => (
@@ -134,9 +141,9 @@ function EntryForm({ snap, kind, onDone }: { snap: Snapshot; kind: Kind; onDone:
           </Select>
         </Field>
       ) : (
-        <Field label="Category">
+        <Field label={t('transaction.category', 'Category')}>
           <Select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
-            <option value="">Uncategorized</option>
+            <option value="">{t('transaction.uncategorized', 'Uncategorized')}</option>
             {cats.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
@@ -164,19 +171,19 @@ function EntryForm({ snap, kind, onDone }: { snap: Snapshot; kind: Kind; onDone:
           />
         </Field>
       )}
-      <Field label="Date">
+      <Field label={t('transaction.date', 'Date')}>
         <Input type="date" required value={date} onChange={(e) => setDate(e.target.value)} />
       </Field>
-      <Field label="Description">
+      <Field label={t('transaction.description', 'Description')}>
         <Input value={description} onChange={(e) => setDescription(e.target.value)} />
       </Field>
       <div className="col-span-full">
         <ErrorText error={err} />
       </div>
       <div className="col-span-full flex justify-end gap-2">
-        <Button onClick={onDone}>Cancel</Button>
+        <Button onClick={onDone}>{t('common.cancel', 'Cancel')}</Button>
         <Button type="submit" variant="primary" disabled={save.isPending}>
-          Save
+          {t('common.save', 'Save')}
         </Button>
       </div>
     </form>

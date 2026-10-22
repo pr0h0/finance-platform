@@ -25,6 +25,7 @@ import {
 import { subscriptionCosts } from '../../features/dashboard/compute.ts';
 import { describeRRule } from '../../features/planning/rrule.ts';
 import { useFormat } from '../../lib/format.ts';
+import { useT } from '../../lib/i18n.ts';
 
 const FREQS = [
   ['FREQ=WEEKLY', 'Weekly'],
@@ -37,13 +38,14 @@ const FREQS = [
 type Draft = { sub?: Subscription; candidate?: RecurringCandidate };
 
 export default function SubscriptionsPage() {
+  const t = useT();
   const snap = useSnapshot();
   const f = useFormat();
   const [edit, setEdit] = useState<Draft | null>(null);
   const [dismissed, setDismissed] = useState<string[]>([]);
   if (snap.error)
     return (
-      <Page title="Subscriptions">
+      <Page title={t('subscriptions.page.subscriptions', 'Subscriptions')}>
         <ErrorText error={snap.error} />
       </Page>
     );
@@ -65,28 +67,38 @@ export default function SubscriptionsPage() {
   );
   return (
     <Page
-      title="Subscriptions"
+      title={t('subscriptions.page.subscriptions', 'Subscriptions')}
       actions={
         <Button variant="primary" onClick={() => setEdit({})}>
-          <Plus aria-hidden className="size-4" /> Add subscription
+          <Plus aria-hidden className="size-4" />{' '}
+          {t('subscriptions.page.addSubscription', 'Add subscription')}
         </Button>
       }
     >
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <Card>
-          <Stat label="Monthly equivalent" value={<Amount value={c.monthly} />} />
-        </Card>
-        <Card>
-          <Stat label="Annual cost" value={<Amount value={c.annual} />} />
+          <Stat
+            label={t('subscriptions.page.monthlyEquivalent', 'Monthly equivalent')}
+            value={<Amount value={c.monthly} />}
+          />
         </Card>
         <Card>
           <Stat
-            label="Active"
+            label={t('subscriptions.page.annualCost', 'Annual cost')}
+            value={<Amount value={c.annual} />}
+          />
+        </Card>
+        <Card>
+          <Stat
+            label={t('subscriptions.page.active', 'Active')}
             value={rows.filter((r) => r.sub.status === 'active' || r.sub.status === 'trial').length}
           />
         </Card>
         <Card>
-          <Stat label="Cancelled" value={rows.filter((r) => r.sub.status === 'cancelled').length} />
+          <Stat
+            label={t('subscriptions.page.cancelled', 'Cancelled')}
+            value={rows.filter((r) => r.sub.status === 'cancelled').length}
+          />
         </Card>
       </div>
       {!c.complete && (
@@ -96,19 +108,19 @@ export default function SubscriptionsPage() {
           ]}
         />
       )}
-      <Card title="Tracked subscriptions">
+      <Card title={t('subscriptions.page.trackedSubscriptions', 'Tracked subscriptions')}>
         {rows.length ? (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-line text-left text-xs text-muted">
-                  <th className="py-1">Name</th>
-                  <th>Price</th>
-                  <th>Billing</th>
-                  <th>Next payment</th>
-                  <th>Status</th>
-                  <th className="text-right">Per month</th>
-                  <th className="text-right">Per year</th>
+                  <th className="py-1">{t('account.name', 'Name')}</th>
+                  <th>{t('subscriptions.page.price', 'Price')}</th>
+                  <th>{t('subscriptions.page.billing', 'Billing')}</th>
+                  <th>{t('subscriptions.page.nextPayment', 'Next payment')}</th>
+                  <th>{t('sync.status', 'Status')}</th>
+                  <th className="text-right">{t('subscriptions.page.perMonth', 'Per month')}</th>
+                  <th className="text-right">{t('subscriptions.page.perYear', 'Per year')}</th>
                   <th />
                 </tr>
               </thead>
@@ -145,11 +157,17 @@ export default function SubscriptionsPage() {
                       </span>
                       {r.sub.status === 'trial' && r.sub.trialEndsAt && (
                         <span className="block text-[10px] text-warn">
-                          trial ends {f.date(r.sub.trialEndsAt)}
+                          {t('subscriptions.page.trialEndsDate', 'trial ends {{date}}', {
+                            date: f.date(r.sub.trialEndsAt),
+                          })}
                         </span>
                       )}
                       {r.sub.status === 'cancelled' && r.sub.cancelledAt && (
-                        <span className="block text-[10px]">since {f.date(r.sub.cancelledAt)}</span>
+                        <span className="block text-[10px]">
+                          {t('subscriptions.page.sinceDate', 'since {{date}}', {
+                            date: f.date(r.sub.cancelledAt),
+                          })}
+                        </span>
                       )}
                     </td>
                     <td className="text-right">
@@ -173,10 +191,12 @@ export default function SubscriptionsPage() {
             </table>
           </div>
         ) : (
-          <Empty>No subscriptions tracked yet.</Empty>
+          <Empty>
+            {t('subscriptions.page.noSubscriptionsTrackedYet', 'No subscriptions tracked yet.')}
+          </Empty>
         )}
       </Card>
-      <Card title="Detected recurring charges">
+      <Card title={t('subscriptions.page.detectedRecurringCharges', 'Detected recurring charges')}>
         {candidates.length ? (
           <ul className="divide-y divide-line text-sm">
             {candidates.map((x) => (
@@ -185,22 +205,33 @@ export default function SubscriptionsPage() {
                 className="flex flex-wrap items-center justify-between gap-2 py-2"
               >
                 <span>
-                  <span className="font-medium">{x.description || 'Unknown merchant'}</span>{' '}
+                  <span className="font-medium">
+                    {x.description || t('subscriptions.page.unknownMerchant', 'Unknown merchant')}
+                  </span>{' '}
                   <span className="text-muted">
-                    <Amount value={x.amount} /> {x.cadence} · {x.transactionIds.length} payments,
-                    last {f.date(x.lastDate)} · confidence {f.percent(x.confidence, 0)}
+                    <Amount value={x.amount} />{' '}
+                    {t(
+                      'subscriptions.page.cadenceLengthPaymentsLast',
+                      '{{cadence}} · {{length}} payments, last {{date}} · confidence {{percent}}',
+                      {
+                        cadence: x.cadence,
+                        length: x.transactionIds.length,
+                        date: f.date(x.lastDate),
+                        percent: f.percent(x.confidence, 0),
+                      },
+                    )}
                   </span>
                 </span>
                 <span className="flex gap-1">
                   <Button className="text-xs" onClick={() => setEdit({ candidate: x })}>
-                    Track
+                    {t('subscriptions.page.track', 'Track')}
                   </Button>
                   <Button
                     variant="ghost"
                     className="text-xs"
                     onClick={() => setDismissed([...dismissed, x.transactionIds.join()])}
                   >
-                    Ignore
+                    {t('subscriptions.page.ignore', 'Ignore')}
                   </Button>
                 </span>
               </li>
@@ -208,15 +239,21 @@ export default function SubscriptionsPage() {
           </ul>
         ) : (
           <Empty>
-            No untracked recurring charges found (needs at least 3 regular payments to the same
-            merchant).
+            {t(
+              'subscriptions.page.noUntrackedRecurringCharges',
+              'No untracked recurring charges found (needs at least 3 regular payments to the same merchant).',
+            )}
           </Empty>
         )}
       </Card>
       <Dialog
         open={!!edit}
         onClose={() => setEdit(null)}
-        title={edit?.sub ? 'Edit subscription' : 'Track subscription'}
+        title={
+          edit?.sub
+            ? t('subscriptions.page.editSubscription', 'Edit subscription')
+            : t('subscriptions.page.trackSubscription', 'Track subscription')
+        }
       >
         {edit && <SubscriptionForm snap={s} draft={edit} onDone={() => setEdit(null)} />}
       </Dialog>
@@ -233,6 +270,7 @@ function SubscriptionForm({
   draft: Draft;
   onDone: () => void;
 }) {
+  const t = useT();
   const f = useFormat();
   const sub = draft.sub;
   const cand = draft.candidate;
@@ -320,10 +358,10 @@ function SubscriptionForm({
   const freqKnown = FREQS.some(([r]) => r === rrule);
   return (
     <form onSubmit={submit} className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-      <Field label="Name">
+      <Field label={t('account.name', 'Name')}>
         <Input required value={name} onChange={(e) => setName(e.target.value)} />
       </Field>
-      <Field label="Paid from">
+      <Field label={t('subscriptions.page.paidFrom', 'Paid from')}>
         <Select value={accountId} onChange={(e) => setAccountId(e.target.value)}>
           {accounts.map((a) => (
             <option key={a.id} value={a.id}>
@@ -334,7 +372,11 @@ function SubscriptionForm({
       </Field>
       <Field
         label={`Price (${currency})`}
-        hint={sub ? 'A new price applies to future payments' : undefined}
+        hint={
+          sub
+            ? t('subscriptions.page.aNewPriceApplies', 'A new price applies to future payments')
+            : undefined
+        }
       >
         <Input
           required
@@ -343,7 +385,7 @@ function SubscriptionForm({
           onChange={(e) => setAmount(e.target.value)}
         />
       </Field>
-      <Field label="Billing">
+      <Field label={t('subscriptions.page.billing', 'Billing')}>
         <Select value={rrule} onChange={(e) => setRrule(e.target.value)}>
           {!freqKnown && <option value={rrule}>{describeRRule(rrule)}</option>}
           {FREQS.map(([r, l]) => (
@@ -354,11 +396,11 @@ function SubscriptionForm({
         </Select>
       </Field>
       {!plan && (
-        <Field label="Next payment">
+        <Field label={t('subscriptions.page.nextPayment', 'Next payment')}>
           <Input type="date" required value={next} onChange={(e) => setNext(e.target.value)} />
         </Field>
       )}
-      <Field label="Status">
+      <Field label={t('sync.status', 'Status')}>
         <Select value={status} onChange={(e) => setStatus(e.target.value as typeof status)}>
           {SUBSCRIPTION_STATUSES.map((x) => (
             <option key={x}>{x}</option>
@@ -366,28 +408,31 @@ function SubscriptionForm({
         </Select>
       </Field>
       {status === 'trial' && (
-        <Field label="Trial ends">
+        <Field label={t('subscriptions.page.trialEnds', 'Trial ends')}>
           <Input type="date" value={trialEnds} onChange={(e) => setTrialEnds(e.target.value)} />
         </Field>
       )}
-      <Field label="Website (optional)">
+      <Field label={t('subscriptions.page.websiteOptional', 'Website (optional)')}>
         <Input type="url" value={url} onChange={(e) => setUrl(e.target.value)} />
       </Field>
-      <Field label="Notes">
+      <Field label={t('transaction.notes', 'Notes')}>
         <Input value={notes} onChange={(e) => setNotes(e.target.value)} />
       </Field>
       {status === 'cancelled' && (
         <p className="col-span-full text-xs text-muted">
-          Cancelling stops future planned payments; past payments stay in your history.
+          {t(
+            'subscriptions.page.cancellingStopsFuturePlanned',
+            'Cancelling stops future planned payments; past payments stay in your history.',
+          )}
         </p>
       )}
       <div className="col-span-full">
         <ErrorText error={err} />
       </div>
       <div className="col-span-full flex justify-end gap-2">
-        <Button onClick={onDone}>Cancel</Button>
+        <Button onClick={onDone}>{t('common.cancel', 'Cancel')}</Button>
         <Button type="submit" variant="primary" disabled={save.isPending}>
-          Save
+          {t('common.save', 'Save')}
         </Button>
       </div>
     </form>

@@ -36,10 +36,12 @@ import {
   PageHeader,
   Tabs,
 } from '../../features/transactions/ui.tsx';
+import { useT } from '../../lib/i18n.ts';
 
 type Kind = 'expense' | 'income' | 'transfer';
 
 export default function TransactionsPage() {
+  const t = useT();
   const { locale } = useLedgerEnv();
   const { store, profile } = useData();
   const [params, setParams] = useSearchParams();
@@ -125,12 +127,12 @@ export default function TransactionsPage() {
   return (
     <div>
       <PageHeader
-        title="Transactions"
+        title={t('nav.transactions', 'Transactions')}
         actions={
           <>
             <details className="relative">
               <summary className="inline-flex h-9 cursor-pointer list-none items-center gap-1.5 rounded-md border border-line bg-surface px-3 text-sm font-medium">
-                <Download size={14} aria-hidden /> Export
+                <Download size={14} aria-hidden /> {t('transactions.page.export', 'Export')}
                 {selected.length ? ` (${selected.length})` : ''}
               </summary>
               <div className="absolute right-0 z-20 mt-1 flex w-40 flex-col rounded-md border border-line bg-surface p-1 shadow-lg">
@@ -147,18 +149,19 @@ export default function TransactionsPage() {
               </div>
             </details>
             <Button variant="primary" onClick={() => setNewKind('expense')}>
-              <Plus size={14} aria-hidden /> New transaction
+              <Plus size={14} aria-hidden />{' '}
+              {t('transactions.page.newTransaction', 'New transaction')}
             </Button>
           </>
         }
       >
         {all.data
           ? `${rows.length.toLocaleString(locale)} of ${all.data.length.toLocaleString(locale)} shown`
-          : 'Loading…'}
+          : t('common.loading', 'Loading…')}
       </PageHeader>
       <ErrorText error={exportErr} />
       <Tabs
-        label="Transaction views"
+        label={t('transactions.page.transactionViews', 'Transaction views')}
         value={tab}
         onChange={setTab}
         tabs={[
@@ -182,28 +185,33 @@ export default function TransactionsPage() {
           />
           {selected.length > 0 && (
             <section
-              aria-label="Selection"
+              aria-label={t('transactions.page.selection', 'Selection')}
               className="mb-2 flex flex-wrap items-center gap-2 rounded-md border border-accent/40 bg-accent/10 px-3 py-2 text-sm"
             >
               <span>
-                {selected.length} selected ·{' '}
+                {t('transactions.page.lengthSelected', '{{length}} selected ·', {
+                  length: selected.length,
+                })}{' '}
                 {totalsByCurrency(selected).map((m) => (
                   <MoneyText key={m.currency} value={m} locale={locale} className="mr-2" />
                 ))}
               </span>
               <Button size="sm" onClick={() => setBulkOpen(true)}>
-                <Pencil size={12} aria-hidden /> Bulk edit
+                <Pencil size={12} aria-hidden /> {t('transactions.page.bulkEdit', 'Bulk edit')}
               </Button>
               <Button size="sm" variant="ghost" onClick={() => setSelection({})}>
-                Clear selection
+                {t('transactions.page.clearSelection', 'Clear selection')}
               </Button>
             </section>
           )}
           {all.error ? (
             <ErrorText error={String(all.error)} />
           ) : all.data && all.data.length === 0 ? (
-            <Empty title="No transactions yet">
-              Add one with “New transaction”, or import a bank statement in the Import center.
+            <Empty title={t('transactions.page.noTransactionsYet', 'No transactions yet')}>
+              {t(
+                'transactions.page.addOneWithNew',
+                'Add one with “New transaction”, or import a bank statement in the Import center.',
+              )}
             </Empty>
           ) : (
             <TransactionTable
@@ -218,10 +226,19 @@ export default function TransactionsPage() {
         </>
       )}
 
-      <Dialog open={!!openId} onClose={() => setOpenId(null)} title="Transaction" side>
+      <Dialog
+        open={!!openId}
+        onClose={() => setOpenId(null)}
+        title={t('transactions.page.transaction', 'Transaction')}
+        side
+      >
         {openId && <DetailDrawer txId={openId} refs={refs} onClose={() => setOpenId(null)} />}
       </Dialog>
-      <Dialog open={!!newKind} onClose={closeNew} title="New transaction">
+      <Dialog
+        open={!!newKind}
+        onClose={closeNew}
+        title={t('transactions.page.newTransaction', 'New transaction')}
+      >
         {newKind && !refs.loading && (
           <EntryForm
             refs={refs}
@@ -233,7 +250,11 @@ export default function TransactionsPage() {
           />
         )}
       </Dialog>
-      <Dialog open={bulkOpen} onClose={() => setBulkOpen(false)} title="Bulk edit">
+      <Dialog
+        open={bulkOpen}
+        onClose={() => setBulkOpen(false)}
+        title={t('transactions.page.bulkEdit', 'Bulk edit')}
+      >
         {bulkOpen && (
           <BulkEdit
             rows={selected}

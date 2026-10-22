@@ -8,6 +8,7 @@ import { createRateBook } from '@finplat/finance-engine';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeftRight } from 'lucide-react';
 import { useState } from 'react';
+import { useT } from '../../lib/i18n.ts';
 import { describeError, qk, useEntities, useLedgerEnv, useWrite } from '../transactions/data.ts';
 import {
   Button,
@@ -22,6 +23,7 @@ import {
 type Result = ConvertResult & { origin: 'local' | 'server' | 'manual'; stale?: boolean };
 
 export function Converter() {
+  const t = useT();
   const { ops, profile, profileId, locale, api } = useLedgerEnv();
   const rates = useQuery({ queryKey: qk(profileId, 'rates'), queryFn: () => ops.rateSnapshots() });
   const [amount, setAmount] = useState('100');
@@ -81,11 +83,11 @@ export function Converter() {
   return (
     <div className="grid gap-6 lg:grid-cols-2">
       <section
-        aria-label="Convert"
+        aria-label={t('currency.converter.convert', 'Convert')}
         className="flex flex-col gap-3 rounded-lg border border-line bg-surface p-4"
       >
         <div className="flex flex-wrap items-end gap-2">
-          <Field label="Amount">
+          <Field label={t('transaction.amount', 'Amount')}>
             {(id) => (
               <input
                 id={id}
@@ -96,7 +98,7 @@ export function Converter() {
               />
             )}
           </Field>
-          <Field label="From">
+          <Field label={t('reports.page.from', 'From')}>
             {(id) => (
               <input
                 id={id}
@@ -109,7 +111,7 @@ export function Converter() {
           </Field>
           <Button
             variant="ghost"
-            aria-label="Swap currencies"
+            aria-label={t('currency.converter.swapCurrencies', 'Swap currencies')}
             onClick={() => {
               setFrom(to);
               setTo(from);
@@ -117,7 +119,7 @@ export function Converter() {
           >
             <ArrowLeftRight size={16} aria-hidden />
           </Button>
-          <Field label="To">
+          <Field label={t('reports.page.to', 'To')}>
             {(id) => (
               <input
                 id={id}
@@ -128,7 +130,7 @@ export function Converter() {
               />
             )}
           </Field>
-          <Field label="Rate date">
+          <Field label={t('currency.converter.rateDate', 'Rate date')}>
             {(id) => (
               <input
                 id={id}
@@ -142,7 +144,7 @@ export function Converter() {
         </div>
         <Field
           label={`Manual rate (${to} per 1 ${from}, optional)`}
-          hint="e.g. the rate your bank actually applied"
+          hint={t('currency.converter.eGTheRate', 'e.g. the rate your bank actually applied')}
         >
           {(id, d) => (
             <input
@@ -157,7 +159,7 @@ export function Converter() {
         </Field>
         <div>
           <Button variant="primary" onClick={run} disabled={busy}>
-            Convert
+            {t('currency.converter.convert', 'Convert')}
           </Button>
         </div>
         <ErrorText error={err} />
@@ -167,11 +169,22 @@ export function Converter() {
               <MoneyText value={res.to} locale={locale} />
             </p>
             <p className="text-sm text-muted">
-              <MoneyText value={res.from} locale={locale} /> at {res.rate} {res.to.currency}/
-              {res.from.currency} ({res.source}
-              {res.inverse && ', inverse'}, {res.rateDate}
-              {res.origin === 'server' && ', from server'}
-              {res.stale && ', stale: provider unreachable'})
+              <MoneyText value={res.from} locale={locale} />{' '}
+              {t(
+                'currency.converter.atRateCurrencyCurrency2',
+                'at {{rate}} {{currency}}/{{currency2}} ({{source}}',
+                {
+                  rate: res.rate,
+                  currency: res.to.currency,
+                  currency2: res.from.currency,
+                  source: res.source,
+                },
+              )}
+              {res.inverse && t('currency.converter.inverse', ', inverse')}, {res.rateDate}
+              {res.origin === 'server' && t('currency.converter.fromServer', ', from server')}
+              {res.stale &&
+                t('currency.converter.staleProviderUnreachable', ', stale: provider unreachable')}
+              )
             </p>
             {res.origin === 'server' && (
               <Button
@@ -179,7 +192,7 @@ export function Converter() {
                 className="mt-2"
                 onClick={() => saveRate.mutateAsync(res).catch((e) => setErr(describeError(e)))}
               >
-                Save this rate on this profile
+                {t('currency.converter.saveThisRateOn', 'Save this rate on this profile')}
               </Button>
             )}
             <PlanFromResult result={res.to} />
@@ -192,6 +205,7 @@ export function Converter() {
 }
 
 function PlanFromResult({ result }: { result: D.Money }) {
+  const t = useT();
   const accounts = useEntities('accounts');
   const [open, setOpen] = useState(false);
   const [desc, setDesc] = useState('');
@@ -209,12 +223,12 @@ function PlanFromResult({ result }: { result: D.Money }) {
   if (!open)
     return (
       <Button size="sm" className="mt-2 ml-2" onClick={() => setOpen(true)}>
-        Create planned expense
+        {t('currency.converter.createPlannedExpense', 'Create planned expense')}
       </Button>
     );
   return (
     <div className="mt-3 flex flex-wrap items-end gap-2 border-t border-line pt-3">
-      <Field label="Description">
+      <Field label={t('transaction.description', 'Description')}>
         {(id) => (
           <input
             id={id}
@@ -224,7 +238,7 @@ function PlanFromResult({ result }: { result: D.Money }) {
           />
         )}
       </Field>
-      <Field label="Due date">
+      <Field label={t('currency.converter.dueDate', 'Due date')}>
         {(id) => (
           <input
             id={id}
@@ -235,7 +249,7 @@ function PlanFromResult({ result }: { result: D.Money }) {
           />
         )}
       </Field>
-      <Field label="Pay from">
+      <Field label={t('currency.converter.payFrom', 'Pay from')}>
         {(id) => (
           <select
             id={id}
@@ -243,7 +257,7 @@ function PlanFromResult({ result }: { result: D.Money }) {
             value={accountId}
             onChange={(e) => setAccountId(e.target.value)}
           >
-            <option value="">No account yet</option>
+            <option value="">{t('currency.converter.noAccountYet', 'No account yet')}</option>
             {usable.map((a) => (
               <option key={a.id} value={a.id}>
                 {a.name}
@@ -269,15 +283,20 @@ function PlanFromResult({ result }: { result: D.Money }) {
             .catch((e) => setErr(describeError(e)))
         }
       >
-        Save plan
+        {t('currency.converter.savePlan', 'Save plan')}
       </Button>
-      {done && <span className="text-sm text-pos">Planned expense saved (see Planning).</span>}
+      {done && (
+        <span className="text-sm text-pos">
+          {t('currency.converter.plannedExpenseSavedSee', 'Planned expense saved (see Planning).')}
+        </span>
+      )}
       <ErrorText error={err} />
     </div>
   );
 }
 
 function AddRate() {
+  const t = useT();
   const { ops, profileId } = useLedgerEnv();
   const rates = useQuery({ queryKey: qk(profileId, 'rates'), queryFn: () => ops.rateSnapshots() });
   const [base, setBase] = useState('EUR');
@@ -293,12 +312,14 @@ function AddRate() {
     .slice(0, 30);
   return (
     <section
-      aria-label="Exchange rates"
+      aria-label={t('currency.converter.exchangeRates', 'Exchange rates')}
       className="flex flex-col gap-3 rounded-lg border border-line bg-surface p-4"
     >
-      <h2 className="text-sm font-semibold">Exchange rates on this profile</h2>
+      <h2 className="text-sm font-semibold">
+        {t('currency.converter.exchangeRatesOnThis', 'Exchange rates on this profile')}
+      </h2>
       <div className="flex flex-wrap items-end gap-2">
-        <Field label="Base">
+        <Field label={t('currency.converter.base', 'Base')}>
           {(id) => (
             <input
               id={id}
@@ -309,7 +330,7 @@ function AddRate() {
             />
           )}
         </Field>
-        <Field label="Quote">
+        <Field label={t('currency.converter.quote', 'Quote')}>
           {(id) => (
             <input
               id={id}
@@ -331,7 +352,7 @@ function AddRate() {
             />
           )}
         </Field>
-        <Field label="Date">
+        <Field label={t('transaction.date', 'Date')}>
           {(id) => (
             <input
               id={id}
@@ -351,22 +372,24 @@ function AddRate() {
               .catch((e) => setErr(describeError(e)));
           }}
         >
-          Add rate
+          {t('currency.converter.addRate', 'Add rate')}
         </Button>
       </div>
       <ErrorText error={err} />
       <p className="text-xs text-muted">
-        EUR/BAM uses the fixed 1.95583 parity automatically. Manual rates win over provider rates on
-        the same day.
+        {t(
+          'currency.converter.eurBamUsesThe',
+          'EUR/BAM uses the fixed 1.95583 parity automatically. Manual rates win over provider rates on the same day.',
+        )}
       </p>
       {recent.length > 0 && (
         <table className="text-sm">
           <thead className="text-left text-xs text-muted">
             <tr>
-              <th className="py-1 font-medium">Date</th>
-              <th className="font-medium">Pair</th>
-              <th className="text-right font-medium">Rate</th>
-              <th className="font-medium">Source</th>
+              <th className="py-1 font-medium">{t('transaction.date', 'Date')}</th>
+              <th className="font-medium">{t('currency.converter.pair', 'Pair')}</th>
+              <th className="text-right font-medium">{t('currency.converter.rate', 'Rate')}</th>
+              <th className="font-medium">{t('currency.converter.source', 'Source')}</th>
             </tr>
           </thead>
           <tbody>

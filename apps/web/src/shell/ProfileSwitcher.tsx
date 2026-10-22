@@ -28,7 +28,9 @@ export function ProfileSwitcher() {
               <Check className={`size-4 ${p.id === profile?.id ? '' : 'invisible'}`} aria-hidden />
               <span className="flex-1 truncate">{p.name}</span>
               {p.privacyMode === 'e2ee' && (
-                <Badge tone="accent">E2EE{locked.has(p.id) ? ' · locked' : ''}</Badge>
+                <Badge tone="accent">
+                  E2EE{locked.has(p.id) ? t('shell.profileSwitcher.locked', '· locked') : ''}
+                </Badge>
               )}
               {p.role && p.role !== 'owner' && <Badge>{p.role}</Badge>}
             </Menu.Item>

@@ -696,7 +696,7 @@ function Accounts() {
           </Select>
         </Field>
         <Field
-          label={t('account.openingBalance', 'Opening balance (optional)')}
+          label={t('onb.openingBalance', 'Opening balance (optional)')}
           hint={
             liability
               ? t('onb.liabilityHint', 'For debt enter a negative amount, e.g. -1200.00.')

@@ -143,7 +143,9 @@
   of the server's rate (409). E2EE profiles keep settings and manual rates on the device.
 - (fixed) Merchant analytics: refunds without their own merchant net against the refunded transaction's merchant
   (Go and TS); Go counts transactions (not split lines) and labels name groups like the TS engine.
-- PDF reports are plain text (Helvetica/WinAnsi; characters outside Latin-1 print as `?`).
+- (fixed) PDF reports embed DejaVu Sans regular+bold (subset: Latin incl. č ć đ š ž, Cyrillic, currency symbols) with
+  ToUnicode maps. Still: the PDF is a single text column with English labels; characters outside the subset (emoji,
+  CJK, ₿) print as �. Report CSV has `?bom=true` for Excel.
 
 
 ## Imports API (apps/api/internal/imports)
@@ -194,7 +196,7 @@
   key generation but old envelopes are not re-encrypted (lazy re-encryption not implemented).
 - Recovery code is 52 Crockford-base32 characters instead of the "24 words" of ADR 0005 (same 256-bit entropy).
 - Encrypted backups hold the whole payload in memory (fine for typical personal data; streaming not done).
-- `bs` locale is a skeleton (≈35 keys); missing keys fall back to English.
+- (fixed) `bs` locale is complete (typechecked against `en`, plurals one/few/other); bs short dates are dd.MM.yyyy.
 
 ## Web insight pages (dashboard, planning, budgets, analytics, goals, subscriptions, reports, notifications)
 - All figures are computed client-side from the DataSource (`@finplat/finance-engine` / `@finplat/forecasting`) in both local and connected mode; the server's analytics/forecast endpoints are not called. Connected mode therefore shows what the local sync cache holds, and depends on server sync entities that are not registered yet (see the sync gaps above).
@@ -223,7 +225,7 @@
 - PDF attachments open in a new tab (gateway CSP `object-src 'none'` blocks inline embedding). OCR imports need
   tesseract language data from a CDN, which the strict CSP blocks unless self-hosted.
 - Template names and the per-row "save as template" use `window.prompt`.
-- Not yet translated: the ledger pages' strings are English only.
+- (fixed) Ledger pages' strings go through `t()` with Bosnian translations.
 
 
 ## Web shell (onboarding, settings, sync, households, devices, MCP, admin)
@@ -243,7 +245,11 @@
 - The app lock is an Argon2id verifier in localStorage that hides the UI; it does not encrypt IndexedDB. Clearing
   site data removes both the lock and the data. Biometric unlock is Phase 3/4.
 - The MCP management page is at `/agents` because `/mcp` is the MCP protocol endpoint (proxied by the gateway).
-- Bosnian covers the shell strings only; other text falls back to English.
+- Bosnian: every `t(key, english)` call has a translation (`apps/web/src/lib/i18n.test.ts`). Not yet converted to
+  `t()`: `features/{import,budgets,planning,analytics}`, `pages/{import,budgets,planning,analytics}` and `mcp/` (listed
+  as PENDING in that test). The hardcoded-text scan covers JSX text, text attributes and `?:`/`&&` literals in JSX;
+  strings built in `.ts` modules (toasts, option labels, notification texts, enum values such as the transaction
+  kind inside "Linked to …") can still be English.
 - No automated accessibility audit (axe) yet; keyboard flows were checked in the Playwright smoke run only.
 - `libsodium` (app lock, backups, E2EE) needs `'wasm-unsafe-eval'` in the gateway CSP `script-src` (added).
 

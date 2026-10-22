@@ -31,10 +31,12 @@ import {
 import { QuickActions } from '../../features/dashboard/QuickActions.tsx';
 import { WidgetBody } from '../../features/dashboard/Widgets.tsx';
 import { useNotificationGenerator } from '../../features/notifications/useNotifications.ts';
+import { useT } from '../../lib/i18n.ts';
 
 const meta = new Map(WIDGETS.map((w) => [w.id, w]));
 
 export default function DashboardPage() {
+  const t = useT();
   useNotificationGenerator();
   const snap = useSnapshot();
   const saved = useOpsQuery(['dashboard-layout'], (ops) => ops.getDashboardLayout());
@@ -62,7 +64,7 @@ export default function DashboardPage() {
 
   if (snap.error)
     return (
-      <Page title="Dashboard">
+      <Page title={t('nav.dashboard', 'Dashboard')}>
         <ErrorText error={snap.error} />
       </Page>
     );
@@ -70,22 +72,25 @@ export default function DashboardPage() {
   const visible = editing ? layout.order : layout.order.filter((id) => !layout.hidden.includes(id));
   return (
     <Page
-      title="Dashboard"
+      title={t('nav.dashboard', 'Dashboard')}
       actions={
         <>
           <QuickActions snap={snap.data} />
           <Button aria-pressed={editing} onClick={() => setEditing(!editing)}>
             <LayoutGrid aria-hidden className="size-4" />
-            {editing ? 'Done' : 'Customize'}
+            {editing
+              ? t('dashboard.page.done', 'Done')
+              : t('dashboard.page.customize', 'Customize')}
           </Button>
         </>
       }
     >
       {editing && (
         <p className="text-sm text-muted">
-          Drag widgets by the handle (or focus the handle and use Space + arrow keys), or use the
-          arrow buttons. Hidden widgets stay listed here while customizing. The layout is saved for
-          this profile.
+          {t(
+            'dashboard.page.dragWidgetsByThe',
+            'Drag widgets by the handle (or focus the handle and use Space + arrow keys), or use the arrow buttons. Hidden widgets stay listed here while customizing. The layout is saved for this profile.',
+          )}
         </p>
       )}
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
@@ -124,6 +129,7 @@ function SortableWidget({
   onToggle: () => void;
   onMove: (delta: number) => void;
 }) {
+  const t = useT();
   const s = useSortable({ id, disabled: !editing });
   const w = meta.get(id);
   const wide = w?.wide ? 'md:col-span-2' : '';
@@ -178,7 +184,11 @@ function SortableWidget({
           )
         }
       >
-        {hidden ? <p className="text-sm text-muted">Hidden</p> : <WidgetBody id={id} snap={snap} />}
+        {hidden ? (
+          <p className="text-sm text-muted">{t('dashboard.page.hidden', 'Hidden')}</p>
+        ) : (
+          <WidgetBody id={id} snap={snap} />
+        )}
       </Card>
     </div>
   );
