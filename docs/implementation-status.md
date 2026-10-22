@@ -23,7 +23,7 @@ Current target: backend + web (Phases 1–2). Mobile (3) and desktop (4) are def
 | Money engine TS + Go, conformance fixtures | TESTED | both runners pass packages/test-fixtures/conformance |
 | OpenAPI 3.1 contract | TESTED | `internal/server` TestOpenAPICoversEveryRoute (every mounted route documented, no stale ones); redocly 2.67.1 lint: no warnings; `bun run api:check` (generated `packages/api-client/src/schema.gen.ts` matches the spec) |
 | Docker (dev + prod-like), gateway on 127.0.0.1:3810 | TESTED | health/meta via gateway, Chromium render check |
-| CI workflow | IMPLEMENTED | `scripts/ci.sh` runs the same steps locally in docker and passes; there is no GitHub remote, so `.github/workflows/ci.yml` has never run on GitHub |
+| CI workflow | TESTED | `.github/workflows/ci.yml` passes on GitHub (private repo); `scripts/ci.sh` runs the same steps locally in docker |
 
 ## Shared TS engine (web local mode) — packages/finance-engine, forecasting, currency, charts
 

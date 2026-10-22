@@ -7,7 +7,9 @@ import (
 	"io"
 	"net/http"
 	"reflect"
+	"strings"
 
+	"github.com/pr0h0/finance-platform/apps/api/internal/authz"
 	"github.com/pr0h0/finance-platform/apps/api/internal/httpx"
 )
 
@@ -83,4 +85,23 @@ func OneOf(s string, allowed ...string) bool {
 		}
 	}
 	return false
+}
+
+// Lang is the language for server-generated texts: ?lang=, else the requesting user's locale;
+// "bs" or "en".
+func Lang(r *http.Request, db DB) (string, error) {
+	lang := r.URL.Query().Get("lang")
+	if lang == "" {
+		p, err := authz.Require(r.Context())
+		if err != nil {
+			return "", err
+		}
+		if err := db.QueryRow(r.Context(), `SELECT locale FROM users WHERE id = $1`, p.UserID).Scan(&lang); err != nil {
+			return "", err
+		}
+	}
+	if strings.HasPrefix(lang, "bs") {
+		return "bs", nil
+	}
+	return "en", nil
 }

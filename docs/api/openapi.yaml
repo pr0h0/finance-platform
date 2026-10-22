@@ -9672,6 +9672,9 @@ components:
         baseline:
           description: "Median the amount was compared with."
           $ref: "#/components/schemas/Money"
+        basisCount:
+          type: "integer"
+          description: "Number of earlier expenses the median was taken over."
         dismissed:
           type: "boolean"
       additionalProperties: false

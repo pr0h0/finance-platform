@@ -1,6 +1,7 @@
 package notifications
 
 import (
+	"github.com/pr0h0/finance-platform/apps/api/internal/money"
 	"net/http"
 	"testing"
 	"time"
@@ -94,7 +95,21 @@ func TestGenerateBosnian(t *testing.T) {
 	for _, x := range list.Items {
 		got[x.Title] = x.Body
 	}
-	if got["Kirija dospijeva sutra"] != "30.00 BAM je zakazano za sutra." || got["Kasni: Telefon"] == "" {
+	if got["Kirija dospijeva sutra"] != "30,00 KM je zakazano za sutra." || got["Kasni: Telefon"] == "" {
 		t.Fatalf("bs notifications: %+v", got)
+	}
+}
+
+func TestBosnianNumbers(t *testing.T) {
+	for in, want := range map[string]string{"0.5": "0,5", "1234.56": "1.234,56", "-1234567.00": "-1.234.567,00", "999": "999"} {
+		if got := bsDecimal(in); got != want {
+			t.Errorf("bsDecimal(%q) = %q, want %q", in, got, want)
+		}
+	}
+	if got := bsMoney(money.MustParse("1500.00", "BAM")); got != "1.500,00 KM" {
+		t.Errorf("bsMoney = %q", got)
+	}
+	if got := bsMoney(money.MustParse("-20.50", "EUR")); got != "-20,50 EUR" {
+		t.Errorf("bsMoney = %q", got)
 	}
 }

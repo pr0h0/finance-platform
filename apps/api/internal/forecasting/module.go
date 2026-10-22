@@ -330,6 +330,11 @@ func Register(r chi.Router, deps *app.Deps) {
 		if err != nil {
 			return err
 		}
+		lang, err := fin.Lang(r, db)
+		if err != nil {
+			return err
+		}
+		Localize(lang, &f)
 		httpx.WriteJSON(w, http.StatusOK, f)
 		return nil
 	}))
@@ -343,6 +348,11 @@ func Register(r chi.Router, deps *app.Deps) {
 		if err != nil {
 			return err
 		}
+		lang, err := fin.Lang(r, db)
+		if err != nil {
+			return err
+		}
+		Localize(lang, &f)
 		httpx.WriteJSON(w, http.StatusOK, map[string]any{"amount": f.SafeToSpend, "until": f.SafeToSpendUntil, "reserve": f.Reserve,
 			"lowest": f.LowestConservative, "assumptions": f.Assumptions, "warnings": f.Warnings, "complete": f.Complete})
 		return nil
@@ -362,6 +372,11 @@ func Register(r chi.Router, deps *app.Deps) {
 		if err != nil {
 			return err
 		}
+		lang, err := fin.Lang(r, db)
+		if err != nil {
+			return err
+		}
+		Localize(lang, &f)
 		httpx.WriteJSON(w, http.StatusOK, f)
 		return nil
 	}))
@@ -406,6 +421,11 @@ func Register(r chi.Router, deps *app.Deps) {
 		if err != nil {
 			return err
 		}
+		lang, err := fin.Lang(r, db)
+		if err != nil {
+			return err
+		}
+		Localize(lang, &f)
 		httpx.WriteJSON(w, http.StatusOK, f)
 		return nil
 	}))

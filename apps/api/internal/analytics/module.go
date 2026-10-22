@@ -183,20 +183,9 @@ func Register(r chi.Router, deps *app.Deps) {
 			return err
 		}
 		name := "report-" + kind + "-" + rep.From + "_" + rep.To
-		lang := r.URL.Query().Get("lang") // en|bs; default: the requesting user's locale
-		if lang == "" {
-			p, err := authz.Require(r.Context())
-			if err != nil {
-				return err
-			}
-			if err := db.QueryRow(r.Context(), `SELECT locale FROM users WHERE id = $1`, p.UserID).Scan(&lang); err != nil {
-				return err
-			}
-		}
-		if strings.HasPrefix(lang, "bs") {
-			lang = "bs"
-		} else {
-			lang = "en"
+		lang, err := fin.Lang(r, db)
+		if err != nil {
+			return err
 		}
 		switch strings.ToLower(r.URL.Query().Get("format")) {
 		case "", "json":

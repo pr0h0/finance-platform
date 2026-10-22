@@ -4112,6 +4112,8 @@ export interface components {
             explanation?: string;
             /** @description Median the amount was compared with. */
             baseline?: components["schemas"]["Money"];
+            /** @description Number of earlier expenses the median was taken over. */
+            basisCount?: number;
             dismissed?: boolean;
         };
         EmergencyFund: {

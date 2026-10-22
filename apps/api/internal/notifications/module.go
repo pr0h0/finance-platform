@@ -15,6 +15,7 @@ import (
 	"log/slog"
 	"math/big"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -30,6 +31,7 @@ import (
 	"github.com/pr0h0/finance-platform/apps/api/internal/config"
 	"github.com/pr0h0/finance-platform/apps/api/internal/forecasting"
 	"github.com/pr0h0/finance-platform/apps/api/internal/httpx"
+	"github.com/pr0h0/finance-platform/apps/api/internal/money"
 	"github.com/pr0h0/finance-platform/apps/api/internal/planning"
 )
 
@@ -212,6 +214,35 @@ func bsDate(d string) string {
 	return d
 }
 
+// bsMoney renders money the Bosnian way: "1.234,56 KM" (BAM is shown as KM).
+func bsMoney(m money.Money) string {
+	cur := m.Currency()
+	if cur == "BAM" {
+		cur = "KM"
+	}
+	return bsDecimal(m.Amount()) + " " + cur
+}
+
+// bsDecimal turns "-1234.5" into "-1.234,5".
+func bsDecimal(d string) string {
+	sign := ""
+	if strings.HasPrefix(d, "-") {
+		sign, d = "-", d[1:]
+	}
+	whole, frac, hasFrac := strings.Cut(d, ".")
+	var b strings.Builder
+	for i, c := range whole {
+		if i > 0 && (len(whole)-i)%3 == 0 {
+			b.WriteByte('.')
+		}
+		b.WriteRune(c)
+	}
+	if hasFrac {
+		b.WriteString("," + frac)
+	}
+	return sign + b.String()
+}
+
 // Generate derives reminders for one profile and delivers them to each member (deduplicated):
 //   - bill_due: pending planned expenses/transfers due within the plan's reminderDaysBefore (default 3);
 //   - bill_overdue: pending ones up to 7 days past due;
@@ -246,7 +277,7 @@ func Generate(ctx context.Context, db fin.DB, profileID uuid.UUID) (int, error) 
 			cands = append(cands, candidate{kind: "bill_overdue", severity: "warning", title: "Overdue: " + o.Description,
 				body:    fmt.Sprintf("%s was due on %s. Match the payment, mark it paid or skip it.", o.Amount, o.Date),
 				bsTitle: "Kasni: " + o.Description,
-				bsBody:  fmt.Sprintf("%s je dospjelo %s. Povežite uplatu, označite kao plaćeno ili preskočite.", o.Amount, bsDate(o.Date)),
+				bsBody:  fmt.Sprintf("%s je dospjelo %s. Povežite uplatu, označite kao plaćeno ili preskočite.", bsMoney(o.Amount), bsDate(o.Date)),
 				dedupe:  "bill_overdue:" + o.PlannedTransactionID.String() + ":" + o.NominalDate, data: data})
 		case left <= days:
 			when, bsWhen := "today", "danas"
@@ -258,7 +289,7 @@ func Generate(ctx context.Context, db fin.DB, profileID uuid.UUID) (int, error) 
 			cands = append(cands, candidate{kind: "bill_due", severity: "info", title: o.Description + " due " + when,
 				body:    fmt.Sprintf("%s is scheduled %s.", o.Amount, when),
 				bsTitle: o.Description + " dospijeva " + bsWhen,
-				bsBody:  fmt.Sprintf("%s je zakazano za %s.", o.Amount, bsWhen),
+				bsBody:  fmt.Sprintf("%s je zakazano za %s.", bsMoney(o.Amount), bsWhen),
 				dedupe:  "bill_due:" + o.PlannedTransactionID.String() + ":" + o.NominalDate, data: data})
 		}
 	}
@@ -278,7 +309,7 @@ func Generate(ctx context.Context, db fin.DB, profileID uuid.UUID) (int, error) 
 		cands = append(cands, candidate{kind: "budget_threshold", severity: sev, title: a.Budget.Name + ": budget threshold reached",
 			body:    fmt.Sprintf("Spent %s of %s (utilization %s, threshold %s).", a.Line.Actual, a.Line.Limit, *a.Line.Utilization, *a.Line.Alert),
 			bsTitle: a.Budget.Name + ": dostignut prag budžeta",
-			bsBody:  fmt.Sprintf("Potrošeno %s od %s (iskorištenost %s, prag %s).", a.Line.Actual, a.Line.Limit, *a.Line.Utilization, *a.Line.Alert),
+			bsBody:  fmt.Sprintf("Potrošeno %s od %s (iskorištenost %s, prag %s).", bsMoney(a.Line.Actual), bsMoney(a.Line.Limit), bsDecimal(*a.Line.Utilization), bsDecimal(*a.Line.Alert)),
 			dedupe:  fmt.Sprintf("budget:%s:%s:%s:%s", a.Budget.ID, a.PeriodStart, cat, *a.Line.Alert),
 			data:    map[string]any{"budgetId": a.Budget.ID, "categoryId": a.Line.CategoryID, "periodStart": a.PeriodStart, "threshold": *a.Line.Alert}})
 	}
@@ -293,7 +324,7 @@ func Generate(ctx context.Context, db fin.DB, profileID uuid.UUID) (int, error) 
 		cands = append(cands, candidate{kind: "low_balance", severity: "critical", title: "Balance projected below zero on " + s.Date,
 			body:    fmt.Sprintf("An account is expected to reach %s on %s based on planned payments.", s.Amount, s.Date),
 			bsTitle: "Stanje će pasti ispod nule " + bsDate(s.Date),
-			bsBody:  fmt.Sprintf("Očekuje se da račun dostigne %s dana %s prema planiranim plaćanjima.", s.Amount, bsDate(s.Date)),
+			bsBody:  fmt.Sprintf("Očekuje se da račun dostigne %s dana %s prema planiranim plaćanjima.", bsMoney(s.Amount), bsDate(s.Date)),
 			dedupe:  "shortfall:" + s.AccountID.String() + ":" + s.Date, data: map[string]any{"accountId": s.AccountID, "date": s.Date, "amount": s.Amount}})
 	}
 	rows, err := db.Query(ctx, `SELECT id, name, trial_ends_at FROM subscriptions WHERE profile_id = $1 AND deleted_at IS NULL AND status = 'trial'
@@ -321,9 +352,9 @@ func Generate(ctx context.Context, db fin.DB, profileID uuid.UUID) (int, error) 
 		return 0, err
 	}
 	for _, a := range anoms {
-		bsBody := fmt.Sprintf("%s je više od 2x vašeg tipičnog troška (medijan %s), a ovom trgovcu niste plaćali godinu dana.", a.Amount, a.Baseline)
+		bsBody := fmt.Sprintf("Prvo plaćanje ovom trgovcu u godinu dana, a %s je više od 2x vašeg tipičnog troška (medijan %s).", bsMoney(a.Amount), bsMoney(a.Baseline))
 		if a.Rule == "large_for_category" {
-			bsBody = fmt.Sprintf("%s je više od 3x tipičnog iznosa (medijan %s) za ovu kategoriju u prethodnih 180 dana.", a.Amount, a.Baseline)
+			bsBody = fmt.Sprintf("%s je više od 3x tipičnog iznosa (medijan %s) za ovu kategoriju u prethodnih 180 dana (%d troškova).", bsMoney(a.Amount), bsMoney(a.Baseline), a.BasisCount)
 		}
 		cands = append(cands, candidate{kind: "unusual_expense", severity: "warning", title: "Unusual expense: " + a.Description, body: a.Explanation,
 			bsTitle: "Neuobičajen trošak: " + a.Description, bsBody: bsBody,

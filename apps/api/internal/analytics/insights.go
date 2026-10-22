@@ -34,6 +34,7 @@ type Anomaly struct {
 	Rule          string      `json:"rule"`
 	Explanation   string      `json:"explanation"`
 	Baseline      money.Money `json:"baseline"`
+	BasisCount    int         `json:"basisCount"` // expenses the baseline median was taken over
 	Dismissed     bool        `json:"dismissed"`
 }
 
@@ -153,27 +154,27 @@ func Anomalies(ctx context.Context, db fin.DB, q Query, includeDismissed bool) (
 				catHist = append(catHist, h.amount.Minor())
 			}
 		}
-		add := func(rule, expl string, base *big.Int) {
+		add := func(rule, expl string, base *big.Int, n int) {
 			if dismissed[t.id.String()+rule] && !includeDismissed {
 				return
 			}
 			b, _ := money.FromMinor(base, cur)
 			out = append(out, Anomaly{TransactionID: t.id, Date: fin.Fmt(t.date), Description: t.desc, Amount: t.amount, CategoryID: t.cat,
-				MerchantID: t.merchant, Rule: rule, Explanation: expl, Baseline: b, Dismissed: dismissed[t.id.String()+rule]})
+				MerchantID: t.merchant, Rule: rule, Explanation: expl, Baseline: b, BasisCount: n, Dismissed: dismissed[t.id.String()+rule]})
 		}
 		if len(catHist) >= 5 {
 			med := median(catHist)
 			if med.Sign() > 0 && t.amount.Minor().Cmp(new(big.Int).Mul(med, big.NewInt(3))) > 0 {
 				m, _ := money.FromMinor(med, cur)
 				add(ruleCategory, fmt.Sprintf("%s is more than 3x the typical amount (median %s) for this category over the previous 180 days (%d expenses).",
-					t.amount, m, len(catHist)), med)
+					t.amount, m, len(catHist)), med, len(catHist))
 			}
 		}
 		if !seen && len(allHist) >= 10 {
 			med := median(allHist)
 			if med.Sign() > 0 && t.amount.Minor().Cmp(new(big.Int).Mul(med, big.NewInt(2))) > 0 {
 				m, _ := money.FromMinor(med, cur)
-				add(ruleNewMerchant, fmt.Sprintf("First payment to this merchant in a year, and %s is more than 2x your typical expense (median %s).", t.amount, m), med)
+				add(ruleNewMerchant, fmt.Sprintf("First payment to this merchant in a year, and %s is more than 2x your typical expense (median %s).", t.amount, m), med, len(allHist))
 			}
 		}
 	}
