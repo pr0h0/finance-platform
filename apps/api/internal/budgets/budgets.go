@@ -277,15 +277,30 @@ func Update(ctx context.Context, tx pgx.Tx, profileID uuid.UUID, cur Budget, in 
 	return record(ctx, tx, profileID, cur.ID, cur, "budget.update")
 }
 
-// replaceAllocations swaps the default allocation set (tombstones the old rows).
+// replaceAllocations swaps the default allocation set (tombstones the old rows). Every allocation
+// row is its own sync entity on clients, so each tombstone and insert is recorded.
 func replaceAllocations(ctx context.Context, tx pgx.Tx, profileID, budgetID uuid.UUID, allocs []AllocationInput) error {
-	if _, err := tx.Exec(ctx, `UPDATE budget_allocations SET deleted_at = now(), version = version + 1
-		WHERE budget_id = $1 AND profile_id = $2 AND budget_period_id IS NULL AND deleted_at IS NULL`, budgetID, profileID); err != nil {
+	rows, err := tx.Query(ctx, `UPDATE budget_allocations SET deleted_at = now(), version = version + 1
+		WHERE budget_id = $1 AND profile_id = $2 AND budget_period_id IS NULL AND deleted_at IS NULL RETURNING id`, budgetID, profileID)
+	if err != nil {
 		return err
 	}
+	gone, err := pgx.CollectRows(rows, pgx.RowTo[uuid.UUID])
+	if err != nil {
+		return err
+	}
+	for _, id := range gone {
+		if err := recordAllocation(ctx, tx, profileID, id, changes.OpDelete, nil); err != nil {
+			return err
+		}
+	}
 	for _, a := range allocs {
-		if _, err := tx.Exec(ctx, `INSERT INTO budget_allocations (profile_id, budget_id, category_id, amount, currency, rollover_policy)
-			VALUES ($1,$2,$3,$4,$5,$6)`, profileID, budgetID, a.CategoryID, a.Amount.Numeric(), a.Amount.Currency(), a.RolloverPolicy); err != nil {
+		var id uuid.UUID
+		if err := tx.QueryRow(ctx, `INSERT INTO budget_allocations (profile_id, budget_id, category_id, amount, currency, rollover_policy)
+			VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`, profileID, budgetID, a.CategoryID, a.Amount.Numeric(), a.Amount.Currency(), a.RolloverPolicy).Scan(&id); err != nil {
+			return err
+		}
+		if err := recordAllocation(ctx, tx, profileID, id, changes.OpUpsert, nil); err != nil {
 			return err
 		}
 	}
@@ -645,11 +660,15 @@ func ClosePeriod(ctx context.Context, tx pgx.Tx, b Budget, d, today time.Time) (
 		if a, ok := defaults[catKey(l.CategoryID)]; ok {
 			limit = a.Amount
 		}
-		if _, err := tx.Exec(ctx, `INSERT INTO budget_allocations (profile_id, budget_id, budget_period_id, category_id, amount, currency, rollover_amount)
+		var aid uuid.UUID
+		if err := tx.QueryRow(ctx, `INSERT INTO budget_allocations (profile_id, budget_id, budget_period_id, category_id, amount, currency, rollover_amount)
 			VALUES ($1,$2,$3,$4,$5,$6,$7)
 			ON CONFLICT (budget_id, budget_period_id, category_id) WHERE deleted_at IS NULL
-			DO UPDATE SET rollover_amount = EXCLUDED.rollover_amount, version = budget_allocations.version + 1`,
-			b.ProfileID, b.ID, nid, l.CategoryID, limit.Numeric(), b.Currency, carry.Numeric()); err != nil {
+			DO UPDATE SET rollover_amount = EXCLUDED.rollover_amount, version = budget_allocations.version + 1 RETURNING id`,
+			b.ProfileID, b.ID, nid, l.CategoryID, limit.Numeric(), b.Currency, carry.Numeric()).Scan(&aid); err != nil {
+			return st, err
+		}
+		if err := recordAllocation(ctx, tx, b.ProfileID, aid, changes.OpUpsert, nil); err != nil {
 			return st, err
 		}
 	}

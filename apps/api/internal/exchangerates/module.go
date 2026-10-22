@@ -71,10 +71,25 @@ func Register(r chi.Router, deps *app.Deps) {
 				return httpx.Validation(map[string]string{k: "expected YYYY-MM-DD"})
 			}
 		}
-		args := []any{profileID, q.Get("base"), q.Get("quote"), q.Get("from"), q.Get("to"), page.Limit + 1, page.Cursor != "", cur.D, cur.ID}
+		// changedSince (RFC 3339) and scope=profile let sync clients fetch new snapshots incrementally
+		// and reconcile the profile's manual rates.
+		var since *time.Time
+		if v := q.Get("changedSince"); v != "" {
+			t, err := time.Parse(time.RFC3339Nano, v)
+			if err != nil {
+				return httpx.Validation(map[string]string{"changedSince": "expected an RFC 3339 timestamp"})
+			}
+			since = &t
+		}
+		if v := q.Get("scope"); v != "" && v != "profile" {
+			return httpx.Validation(map[string]string{"scope": "expected profile"})
+		}
+		args := []any{profileID, q.Get("base"), q.Get("quote"), q.Get("from"), q.Get("to"), page.Limit + 1, page.Cursor != "", cur.D, cur.ID,
+			since, q.Get("scope") == "profile"}
 		rows, err := deps.DB.Query(r.Context(), `SELECT `+rateCols+` FROM exchange_rates er
 			LEFT JOIN exchange_rate_providers p ON p.id = er.provider_id
-			WHERE (er.profile_id IS NULL OR er.profile_id = $1)
+			WHERE (er.profile_id = $1 OR (er.profile_id IS NULL AND NOT $11))
+			  AND ($10::timestamptz IS NULL OR er.fetched_at > $10)
 			  AND ($2 = '' OR er.base_currency = $2) AND ($3 = '' OR er.quote_currency = $3)
 			  AND ($4 = '' OR er.rate_date >= NULLIF($4, '')::date) AND ($5 = '' OR er.rate_date <= NULLIF($5, '')::date)
 			  AND (NOT $7 OR (er.rate_date, er.id) < (NULLIF($8, '')::date, $9))
@@ -112,10 +127,11 @@ func Register(r chi.Router, deps *app.Deps) {
 			return err
 		}
 		var in struct {
-			BaseCurrency  string `json:"baseCurrency"`
-			QuoteCurrency string `json:"quoteCurrency"`
-			Rate          string `json:"rate"`
-			RateDate      string `json:"rateDate"`
+			ID            *uuid.UUID `json:"id"` // optional client-chosen id (sync clients)
+			BaseCurrency  string     `json:"baseCurrency"`
+			QuoteCurrency string     `json:"quoteCurrency"`
+			Rate          string     `json:"rate"`
+			RateDate      string     `json:"rateDate"`
 		}
 		if err := httpx.DecodeJSON(r, &in); err != nil {
 			return err
@@ -137,9 +153,13 @@ func Register(r chi.Router, deps *app.Deps) {
 			return httpx.Validation(fields)
 		}
 		var id uuid.UUID
-		err = deps.DB.QueryRow(r.Context(), `INSERT INTO exchange_rates (provider_id, profile_id, base_currency, quote_currency, rate, rate_date, source)
-			SELECT p.id, $1, $2, $3, $4::numeric, $5::date, 'manual' FROM exchange_rate_providers p WHERE p.code = 'manual'
-			RETURNING id`, profileID, in.BaseCurrency, in.QuoteCurrency, in.Rate, in.RateDate).Scan(&id)
+		if in.ID == nil {
+			n := uuid.New()
+			in.ID = &n
+		}
+		err = deps.DB.QueryRow(r.Context(), `INSERT INTO exchange_rates (id, provider_id, profile_id, base_currency, quote_currency, rate, rate_date, source)
+			SELECT $6, p.id, $1, $2, $3, $4::numeric, $5::date, 'manual' FROM exchange_rate_providers p WHERE p.code = 'manual'
+			RETURNING id`, profileID, in.BaseCurrency, in.QuoteCurrency, in.Rate, in.RateDate, *in.ID).Scan(&id)
 		if ledger.IsUnique(err) {
 			return httpx.Conflict("a manual rate for this pair and date exists; delete it first")
 		}

@@ -10,5 +10,6 @@ services:
       REGISTRATION_POLICY: open
       MCP_ENABLED: "true"
       BACKUP_SCHEDULE: "off"
+      RATE_LIMIT_AUTH_PER_MIN: "1000" # every spec and real-API test registers/logs in
   gateway:
     ports: !reset []

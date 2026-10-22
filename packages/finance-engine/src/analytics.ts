@@ -123,6 +123,7 @@ export function flows(txs: readonly LedgerTransaction[], opts: AggregateOptions)
   const accounts = opts.accountIds ? new Set(opts.accountIds) : null;
   const out: Flow[] = [];
   const missing = new Map<string, MissingRate>();
+  const byId = new Map(txs.map((t) => [t.id, t]));
   for (const t of txs) {
     if (t.kind !== 'income' && t.kind !== 'expense' && t.kind !== 'refund') continue;
     if (!countsInReports(t) || t.bookingDate < opts.from || t.bookingDate > opts.to) continue;
@@ -131,7 +132,12 @@ export function flows(txs: readonly LedgerTransaction[], opts: AggregateOptions)
       ? [...t.splits]
       : t.postings.map((p) => ({ categoryId: null, amount: abs(p.amount) }));
     const sign = t.kind === 'refund' ? -1n : 1n;
-    const mk = merchantKey(t);
+    // a refund without its own merchant nets against the refunded transaction's merchant
+    const orig =
+      t.kind === 'refund' && !t.merchantId && t.relatedTransactionId
+        ? byId.get(t.relatedTransactionId)
+        : undefined;
+    const mk = merchantKey(orig ?? t);
     for (const s of parts) {
       if (toMinor(s.amount) === 0n) continue;
       const v = opts.convert(s.amount, t.bookingDate);

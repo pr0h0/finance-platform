@@ -506,6 +506,22 @@ func Register(r chi.Router, deps *app.Deps) {
 		httpx.WriteJSON(w, http.StatusOK, v)
 		return nil
 	}))
+
+	r.Patch("/profiles/{id}/settings", httpx.H(func(w http.ResponseWriter, r *http.Request) error {
+		id, err := pathID(r, "id")
+		if err != nil {
+			return err
+		}
+		if _, _, err := authz.RequireProfile(r.Context(), db, id, authz.RoleEditor); err != nil {
+			return err
+		}
+		v, err := users.PatchSettings(r, db, "profile", &id)
+		if err != nil {
+			return err
+		}
+		httpx.WriteJSON(w, http.StatusOK, v)
+		return nil
+	}))
 }
 
 // ensureAnotherOwner fails when removing/demoting userID would leave the profile without an owner.

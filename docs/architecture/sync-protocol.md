@@ -77,6 +77,17 @@ pushed (same `opId`) are acknowledged, not re-applied as remote edits.
 Initial download / large history: `GET /api/v1/sync/snapshot` pages current state (not history); then pull
 from the snapshot's head.
 
+## Side data over REST (no server_version)
+
+Profile settings and exchange rates are not sync entities. After every push/pull the client engine:
+- settings: `PATCH /profiles/{id}/settings` with the keys changed on the device (top-level merge, `null`
+  removes a key), then stores the server object locally (keys edited again meanwhile are kept). The device-only
+  `notifications.browser` never leaves the device.
+- rates: uploads device-entered manual rates with `POST /exchange-rates` (client `id`, Idempotency-Key = id; a
+  409 means the profile already has a rate for that pair/date and the server's wins), lists `scope=profile` to
+  drop manual rates deleted on the server, and fetches new snapshots with `changedSince` (5-minute overlap).
+E2EE profiles skip settings and manual-rate upload (the server would read them); provider rates are fetched.
+
 ## Conflicts
 `GET /sync/conflicts`, `POST /sync/conflicts/{id}/resolve` with `choice: server|client|merged` (+data). The
 resolution is a normal mutation (validated, recorded, audited). Original data on both sides is preserved in

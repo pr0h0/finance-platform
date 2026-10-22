@@ -4,6 +4,7 @@
 # e2e gateway's network namespace, so the app is http://localhost:8080 (a secure context).
 # The public instance (finplat, 127.0.0.1:3810) is never touched. The e2e stack and its volumes
 # are removed afterwards (KEEP_E2E_STACK=1 keeps it).
+# The real-API sync/parity tests run first against the same stack.
 # Usage: scripts/e2e.sh [playwright test args]
 set -euo pipefail
 source "$(dirname "$0")/_docker.sh"
@@ -12,6 +13,10 @@ dockerx "${compose[@]}" up -d --build --wait
 cleanup() { [ -n "${KEEP_E2E_STACK:-}" ] || dockerx "${compose[@]}" down -v --remove-orphans >/dev/null 2>&1; }
 trap cleanup EXIT
 tty=(); [ -t 0 ] && tty=(-it)
+# client sync engine + TS engine vs the real Go API (packages/sync-client/src/real-server.test.ts)
+dockerx run --rm "${tty[@]}" --user 1000:1000 --network finplat-e2e_default \
+  -v "$FINPLAT_ROOT:/repo" -w /repo -v finplat_bun:/cache/bun -e BUN_INSTALL_CACHE_DIR=/cache/bun -e HOME=/tmp \
+  -e FINPLAT_API_URL=http://api:8080 oven/bun:1.4 bun test packages/sync-client/src/real-server.test.ts
 dockerx run --rm "${tty[@]}" --user 1000:1000 --network container:finplat-e2e-gateway-1 --ipc host \
   -v "$FINPLAT_ROOT:/repo" -w /repo/tests/e2e -e HOME=/tmp \
   -e E2E_BASE_URL=http://localhost:8080 ${CI:+-e CI=1} \

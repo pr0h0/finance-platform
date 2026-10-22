@@ -42,9 +42,11 @@
 - (fixed) fp1 fingerprint is implemented identically in Go; both pass packages/test-fixtures/imports/fingerprint.json.
 
 ## Shared TS engine (packages/finance-engine, forecasting)
-- Go conformance runner (`apps/api/internal/conformance_test`) runs recurrence, subscriptions and fx_lookup;
-  aggregation, budgets and forecast fixtures are skipped until the Go modules export pure functions over
-  in-memory data.
+- Go conformance runner (`apps/api/internal/conformance_test`) runs recurrence, subscriptions, fx_lookup,
+  budget periods and (DB-seeded) aggregation byCategory/byMerchant/balances/savingsRate. Still skipped:
+  aggregation income-by-category (REST has no such report), cashflow and netWorth (different Go result shapes),
+  budget `status` and forecast fixtures. `real-server.test.ts` (run by `scripts/e2e.sh`) adds an end-to-end
+  web-vs-REST check for budget status totals, net worth with a manual USD rate and the merchant ranking.
 - (fixed) `analytics/fin.Converter` now delegates rate selection to `exchangerates.Lookup`; the EUR/BAM fixed-parity
   conformance cases run in the Go runner.
 - Rule regexes run on the JS engine; only the RE2-compatible subset is guaranteed to behave like Go. Patterns
@@ -118,12 +120,21 @@
 - (fixed) Rules run automatically on REST/MCP-created transactions and server import commits
   (`ledger.AutoCategorize`, set by the automation module). Transactions arriving by sync push are not
   re-categorized: the device already ran its rules (manual entries and imports).
-- Financial parity web vs REST/MCP is only partly shown: the Go runner covers recurrence, subscriptions,
-  fx_lookup and budget periods (`TestBudgetPeriods`; it found and fixed a Go divergence for anchor day 0).
-  `aggregation`, budget `status` and `forecast` fixtures are still skipped: the Go analytics/budget-status code is
-  DB-bound, and `forecasting.Project` differs from the TS engine (no credit-limit rule, shortfalls tracked in
+- Financial parity web vs REST/MCP is only partly shown: aggregation (category, merchant, balances, savings
+  rate) runs in both runners; budget `status` and `forecast` fixtures are still skipped (the Go budget-status code
+  is DB-bound, and `forecasting.Project` differs from the TS engine: no credit-limit rule, shortfalls tracked in
   the forecast currency rather than per account in native currency, no safe-to-spend account selection). Until
   ported, MCP/REST answers and web numbers can differ on those features.
+- Budget rollover differs: the TS engine (web) chains rollover through every period since the budget start;
+  REST/MCP only carry an amount after an explicit `POST /budgets/{id}/periods/close` (the stored next-period
+  allocation rows now sync to clients, but the web ignores their `rolloverAmount`). Limits and actuals agree;
+  `rolloverIn`/remaining can differ for budgets with a rollover policy.
+- (fixed) Budgets created/edited by REST or MCP now reach the web with their limits (`budget_allocations` sync
+  changes). Profile settings and exchange rates now sync in connected mode (REST side data of the sync engine).
+  A device-entered manual rate for a pair/date that the profile already has on the server is dropped in favour
+  of the server's rate (409). E2EE profiles keep settings and manual rates on the device.
+- (fixed) Merchant analytics: refunds without their own merchant net against the refunded transaction's merchant
+  (Go and TS); Go counts transactions (not split lines) and labels name groups like the TS engine.
 - PDF reports are plain text (Helvetica/WinAnsi; characters outside Latin-1 print as `?`).
 
 

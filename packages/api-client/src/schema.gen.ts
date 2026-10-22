@@ -320,7 +320,11 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Merge profile settings (top-level keys; null removes a key)
+         * @description Used by sync clients so devices never overwrite each other's other keys.
+         */
+        patch: operations["patch_profiles_id_settings"];
         trace?: never;
     };
     "/api/v1/households": {
@@ -3326,6 +3330,8 @@ export interface components {
             fetchedAt?: components["schemas"]["Instant"];
         };
         ExchangeRateInput: {
+            /** @description Optional client-chosen id (sync clients upload device-entered rates with their local id) */
+            id?: components["schemas"]["Uuid"];
             baseCurrency: string;
             quoteCurrency: string;
             rate: components["schemas"]["Decimal"];
@@ -4835,6 +4841,33 @@ export interface operations {
         };
         responses: {
             /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Settings"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    patch_profiles_id_settings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Settings"];
+            };
+        };
+        responses: {
+            /** @description OK (the merged settings) */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -7480,6 +7513,10 @@ export interface operations {
                 quote?: string;
                 from?: components["parameters"]["From"];
                 to?: components["parameters"]["To"];
+                /** @description Only snapshots fetched/entered after this instant (incremental client fetch) */
+                changedSince?: string;
+                /** @description profile = only this profile's manual rates (no provider snapshots) */
+                scope?: "profile";
                 limit?: components["parameters"]["Limit"];
                 cursor?: components["parameters"]["Cursor"];
             };

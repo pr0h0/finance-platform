@@ -519,6 +519,28 @@ paths:
                 $ref: "#/components/schemas/Settings"
         default:
           $ref: "#/components/responses/Error"
+    patch:
+      tags: ["profiles"]
+      summary: "Merge profile settings (top-level keys; null removes a key)"
+      description: "Used by sync clients so devices never overwrite each other's other keys."
+      operationId: "patch_profiles_id_settings"
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Settings"
+      responses:
+        "200":
+          description: "OK (the merged settings)"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Settings"
+        default:
+          $ref: "#/components/responses/Error"
   /api/v1/households:
     get:
       tags: ["households"]
@@ -2607,6 +2629,18 @@ paths:
             type: "string"
         - $ref: "#/components/parameters/From"
         - $ref: "#/components/parameters/To"
+        - name: "changedSince"
+          in: "query"
+          description: "Only snapshots fetched/entered after this instant (incremental client fetch)"
+          schema:
+            type: "string"
+            format: "date-time"
+        - name: "scope"
+          in: "query"
+          description: "profile = only this profile's manual rates (no provider snapshots)"
+          schema:
+            type: "string"
+            enum: ["profile"]
         - $ref: "#/components/parameters/Limit"
         - $ref: "#/components/parameters/Cursor"
       responses:
@@ -6518,6 +6552,9 @@ components:
     ExchangeRateInput:
       type: "object"
       properties:
+        id:
+          $ref: "#/components/schemas/Uuid"
+          description: "Optional client-chosen id (sync clients upload device-entered rates with their local id)"
         baseCurrency:
           type: "string"
         quoteCurrency:

@@ -578,7 +578,7 @@ export class LocalFinanceService {
         from: row.id,
         to: row.id,
       }))
-        await this.tombstone(tx, 'budget_allocations', a);
+        if (!a.budgetPeriodId) await this.tombstone(tx, 'budget_allocations', a); // period rows are server-managed
       await this.writeAllocations(tx, row.id, patch);
     }
     if (entity === 'planned_transactions' && 'recurrence' in patch)
@@ -1696,6 +1696,7 @@ export class LocalFinanceService {
         key,
         value,
         updatedAt: this.ts(),
+        dirty: true, // connected mode uploads it (sync-client engine syncSettings)
       }),
     );
   }

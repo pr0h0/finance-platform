@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"math/big"
+	"slices"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -119,6 +121,17 @@ func Anomalies(ctx context.Context, db fin.DB, q Query, includeDismissed bool) (
 		dismissed[id.String()+rule] = true
 	}
 	rows.Close()
+	// dismissals made in a client are the synced profile setting analytics.dismissedAnomalies
+	// (ids "anomaly:<transactionId>:<rule>", packages/finance-engine insights.ts)
+	var ids []string
+	if _, err := fin.Setting(ctx, db, q.P.ID, "analytics.dismissedAnomalies", &ids); err != nil {
+		return nil, err
+	}
+	for _, id := range ids {
+		if parts := strings.Split(id, ":"); len(parts) == 3 && parts[0] == "anomaly" {
+			dismissed[parts[1]+parts[2]] = true
+		}
+	}
 	out := []Anomaly{}
 	cur := q.Currency
 	for i, t := range all {
@@ -391,7 +404,12 @@ func Insights(ctx context.Context, db fin.DB, p fin.Profile, cur string) ([]Insi
 			Body:  "Exchange rates are missing for some dates; totals exclude those amounts until rates are added.",
 			Data:  map[string]any{"missingRates": append(byCat.MissingRates, f.MissingRates...)}})
 	}
-	return out, nil
+	// insights dismissed in a client (profile setting insights.dismissed, synced) stay dismissed here
+	var dismissed []string
+	if _, err := fin.Setting(ctx, db, p.ID, "insights.dismissed", &dismissed); err != nil {
+		return nil, err
+	}
+	return slices.DeleteFunc(out, func(i Insight) bool { return slices.Contains(dismissed, i.ID) }), nil
 }
 
 func pct(ratio string) string {

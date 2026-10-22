@@ -2,6 +2,7 @@ package fin
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -49,9 +50,14 @@ func Flows(ctx context.Context, db DB, profileID uuid.UUID, from, to time.Time, 
 	}
 	rows, err := db.Query(ctx, `
 		WITH tx AS (
-		  SELECT t.id, t.booking_date, t.kind, t.merchant_id, t.description, t.payee,
+		  SELECT t.id, t.booking_date, t.kind,
+		         -- a refund without its own merchant nets against the refunded transaction's merchant
+		         CASE WHEN o.id IS NULL THEN t.merchant_id ELSE o.merchant_id END AS merchant_id,
+		         CASE WHEN o.id IS NULL THEN t.description ELSE o.description END AS description,
+		         CASE WHEN o.id IS NULL THEN t.payee ELSE o.payee END AS payee,
 		         (SELECT p.account_id FROM postings p WHERE p.transaction_id = t.id AND p.deleted_at IS NULL ORDER BY p.line_no, p.id LIMIT 1) AS account_id
 		  FROM transactions t
+		  LEFT JOIN transactions o ON t.kind = 'refund' AND t.merchant_id IS NULL AND o.id = t.related_transaction_id AND o.profile_id = t.profile_id
 		  WHERE t.profile_id = $1 AND t.deleted_at IS NULL AND t.status <> 'void' AND NOT t.exclude_from_reports
 		    AND t.kind IN ('income','expense','refund') AND t.booking_date BETWEEN $2 AND $3)
 		SELECT tx.id, tx.booking_date, tx.kind, s.category_id, tx.merchant_id, tx.account_id, s.amount, s.currency, tx.description, tx.payee
@@ -241,13 +247,18 @@ func IsWithin(cats map[uuid.UUID]Category, id, ancestor uuid.UUID) bool {
 	return false
 }
 
-// Setting reads a profile-scoped JSON setting into v; ok=false when unset.
+// Setting reads one key of the profile settings object (PUT/PATCH /profiles/{id}/settings, the
+// settings row with key 'settings') into v; ok=false when unset or null.
 func Setting(ctx context.Context, db DB, profileID uuid.UUID, key string, v any) (bool, error) {
-	err := db.QueryRow(ctx, `SELECT value FROM settings WHERE scope = 'profile' AND owner_id = $1 AND key = $2`, profileID, key).Scan(v)
-	if errors.Is(err, pgx.ErrNoRows) {
+	var raw []byte
+	err := db.QueryRow(ctx, `SELECT value -> $2 FROM settings WHERE scope = 'profile' AND owner_id = $1 AND key = 'settings'`, profileID, key).Scan(&raw)
+	if errors.Is(err, pgx.ErrNoRows) || (err == nil && (raw == nil || string(raw) == "null")) {
 		return false, nil
 	}
-	return err == nil, err
+	if err != nil {
+		return false, err
+	}
+	return true, json.Unmarshal(raw, v)
 }
 
 var ownedTables = map[string]bool{"accounts": true, "categories": true, "merchants": true, "transactions": true,

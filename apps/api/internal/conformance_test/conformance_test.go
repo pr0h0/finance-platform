@@ -334,9 +334,8 @@ func TestBudgetPeriods(t *testing.T) {
 // The fixtures are the contract; these are listed, not hidden.
 func TestPendingFamilies(t *testing.T) {
 	for name, waitsFor := range map[string]string{
-		"aggregation": "an exported pure aggregation over in-memory transactions (analytics: byCategory/byMerchant/cashflow/netWorth/savingsRate)",
-		"budgets":     "status cases: budgets.ComputeStatus over in-memory transactions (periods cases run in TestBudgetPeriods)",
-		"forecast":    "forecasting.Project with the TS account semantics (credit limits, native-currency account shortfalls, safe accounts) and EventsFromPlans",
+		"budgets":  "status cases: budgets.ComputeStatus over in-memory transactions (periods cases run in TestBudgetPeriods)",
+		"forecast": "forecasting.Project with the TS account semantics (credit limits, native-currency account shortfalls, safe accounts) and EventsFromPlans",
 	} {
 		t.Run(name, func(t *testing.T) {
 			var v any

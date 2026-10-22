@@ -314,3 +314,54 @@ test('incompatible server is refused before any data is sent (feature 107)', asy
   await expect(a.engine.sync()).rejects.toThrow('not a finance-platform server');
   expect(server.pushCalls).toBe(0);
 });
+
+test('profile settings and exchange rates reach other devices (REST side data)', async () => {
+  const server = new FakeSyncServer();
+  server.rates.push({
+    id: '0190a000-0000-7000-8000-0000000000aa',
+    providerCode: 'frankfurter',
+    profileId: null,
+    baseCurrency: 'USD',
+    quoteCurrency: 'BAM',
+    rate: '1.8',
+    rateDate: '2026-10-01',
+    source: 'provider',
+    fetchedAt: '2026-10-01T10:00:00Z',
+  });
+  const a = await device(server, 'dev-a');
+  const b = await device(server, 'dev-b');
+  await a.svc.setSetting('forecast.minimumReserve', m('300.00'));
+  await a.svc.setSetting('notifications.browser', true); // device setting: stays local
+  await a.svc.addExchangeRate({
+    baseCurrency: 'CHF',
+    quoteCurrency: 'BAM',
+    rate: '2.1',
+    rateDate: '2026-10-20',
+  });
+  await a.engine.sync();
+  expect(server.settings.get(PID)).toEqual({ 'forecast.minimumReserve': m('300.00') });
+  expect(server.rates.map((r) => r.baseCurrency).sort()).toEqual(['CHF', 'USD']);
+
+  await b.svc.setSetting('import.templates', [{ id: 't1' }]);
+  await b.engine.sync();
+  expect(await b.svc.getSettings()).toEqual({
+    'forecast.minimumReserve': m('300.00'),
+    'import.templates': [{ id: 't1' }],
+  });
+  const rates = await b.svc.rateSnapshots();
+  expect(rates.map((r) => `${r.baseCurrency}:${r.rate}:${r.source}`).sort()).toEqual([
+    'CHF:2.1:manual',
+    'USD:1.8:provider',
+  ]);
+
+  // a key removed elsewhere (null) and a rate deleted on the server disappear here too
+  await b.svc.setSetting('forecast.minimumReserve', null);
+  await b.engine.sync();
+  server.rates = server.rates.filter((r) => r.baseCurrency !== 'CHF');
+  await a.engine.sync();
+  expect(await a.svc.getSettings()).toEqual({
+    'notifications.browser': true,
+    'import.templates': [{ id: 't1' }],
+  });
+  expect((await a.svc.rateSnapshots()).map((r) => r.baseCurrency)).toEqual(['USD']);
+});

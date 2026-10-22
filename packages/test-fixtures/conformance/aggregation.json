@@ -708,6 +708,93 @@
       }
     },
     {
+      "name": "a refund without its own merchant nets against the refunded transaction's merchant (no 'Refund:' row)",
+      "op": "byMerchant",
+      "params": {
+        "from": "2026-10-01",
+        "to": "2026-10-31",
+        "currency": "BAM",
+        "extraTransactions": [
+          {
+            "id": "t16",
+            "kind": "refund",
+            "status": "cleared",
+            "bookingDate": "2026-10-07",
+            "excludeFromReports": false,
+            "deletedAt": null,
+            "merchantId": null,
+            "payee": "",
+            "description": "Refund: ",
+            "relatedTransactionId": "t05",
+            "postings": [
+              {
+                "accountId": "card",
+                "amount": {
+                  "amount": "20.00",
+                  "currency": "BAM"
+                }
+              }
+            ],
+            "splits": [
+              {
+                "categoryId": "restaurants",
+                "amount": {
+                  "amount": "20.00",
+                  "currency": "BAM"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "rows": [
+          {
+            "key": "m-konzum",
+            "label": "Konzum",
+            "amount": {
+              "amount": "127.90",
+              "currency": "BAM"
+            },
+            "count": 2
+          },
+          {
+            "key": "name:pizzeria napoli",
+            "label": "pizzeria napoli",
+            "amount": {
+              "amount": "60.00",
+              "currency": "BAM"
+            },
+            "count": 2
+          },
+          {
+            "key": "name:lidl",
+            "label": "lidl",
+            "amount": {
+              "amount": "19.56",
+              "currency": "BAM"
+            },
+            "count": 1
+          },
+          {
+            "key": "name:konzum sarajevo",
+            "label": "konzum sarajevo",
+            "amount": {
+              "amount": "12.00",
+              "currency": "BAM"
+            },
+            "count": 1
+          }
+        ],
+        "total": {
+          "amount": "219.46",
+          "currency": "BAM"
+        },
+        "complete": true,
+        "missingRates": []
+      }
+    },
+    {
       "name": "monthly cash flow and savings rate",
       "op": "cashflow",
       "params": {

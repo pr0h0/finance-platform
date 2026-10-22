@@ -3,10 +3,10 @@ package analytics
 import (
 	"context"
 	"fmt"
-	"regexp"
 	"sort"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -161,7 +161,7 @@ func SpendingByCategory(ctx context.Context, db fin.DB, q Query) (fin.Rows, erro
 	}
 	type key struct{ period, cat string }
 	sums := map[key]*fin.Accumulator{}
-	counts := map[key]int{}
+	txs := map[key]map[uuid.UUID]bool{}
 	var order []key
 	var total fin.Accumulator
 	for _, f := range flows {
@@ -178,9 +178,10 @@ func SpendingByCategory(ctx context.Context, db fin.DB, q Query) (fin.Rows, erro
 		if sums[kk] == nil {
 			sums[kk] = &fin.Accumulator{}
 			order = append(order, kk)
+			txs[kk] = map[uuid.UUID]bool{}
 		}
 		sums[kk].Add(f.Spend)
-		counts[kk]++
+		txs[kk][f.TransactionID] = true // count = transactions, not split lines
 		total.Add(f.Spend)
 	}
 	sort.SliceStable(order, func(i, j int) bool {
@@ -190,7 +191,7 @@ func SpendingByCategory(ctx context.Context, db fin.DB, q Query) (fin.Rows, erro
 		return cmpM(sums[order[j]].Money(q.Currency), sums[order[i]].Money(q.Currency)) < 0
 	})
 	for _, k := range order {
-		row := fin.Row{Key: k.cat, Amount: sums[k].Money(q.Currency), Count: counts[k], Period: k.period}
+		row := fin.Row{Key: k.cat, Amount: sums[k].Money(q.Currency), Count: len(txs[k]), Period: k.period}
 		if k.cat == "uncategorized" {
 			row.Label = "Uncategorized"
 		} else {
@@ -208,16 +209,18 @@ func SpendingByCategory(ctx context.Context, db fin.DB, q Query) (fin.Rows, erro
 	return res, nil
 }
 
-var digits = regexp.MustCompile(`[0-9#*/\\._-]+`)
-var spaces = regexp.MustCompile(`\s+`)
-
-// NormalizeMerchant derives a grouping key from a payee/description without a merchant: lower
-// case, digits/reference noise removed, whitespace collapsed (e.g. "KONZUM 123 SARAJEVO" ->
-// "konzum sarajevo").
+// NormalizeMerchant derives a grouping key from a payee/description without a merchant, exactly
+// like normalizeMerchantName in packages/finance-engine: lower case, split on anything but letters
+// and digits, tokens containing a digit dropped (card numbers, store ids), single spaces
+// ("KONZUM 123 SARAJEVO" -> "konzum sarajevo").
 func NormalizeMerchant(s string) string {
-	s = strings.ToLower(s)
-	s = digits.ReplaceAllString(s, " ")
-	return strings.TrimSpace(spaces.ReplaceAllString(s, " "))
+	var out []string
+	for _, tok := range strings.FieldsFunc(strings.ToLower(s), func(r rune) bool { return !unicode.IsLetter(r) && !unicode.IsNumber(r) }) {
+		if strings.IndexFunc(tok, unicode.IsNumber) < 0 {
+			out = append(out, tok)
+		}
+	}
+	return strings.Join(out, " ")
 }
 
 // SpendingByMerchant groups spending by merchant (merchant aliases are merged by the merchants
@@ -236,7 +239,7 @@ func SpendingByMerchant(ctx context.Context, db fin.DB, q Query) (fin.Rows, erro
 	}
 	type key struct{ period, k string }
 	sums := map[key]*fin.Accumulator{}
-	counts := map[key]int{}
+	txs := map[key]map[uuid.UUID]bool{}
 	labels := map[string]string{}
 	var order []key
 	var total fin.Accumulator
@@ -253,29 +256,33 @@ func SpendingByMerchant(ctx context.Context, db fin.DB, q Query) (fin.Rows, erro
 				src = f.Description
 			}
 			n := NormalizeMerchant(src)
+			k, label = "name:"+n, n
 			if n == "" {
-				n = "unknown"
+				label = "Unknown"
 			}
-			k, label = "name:"+n, src
 		}
 		kk := key{PeriodKey(q.Interval, f.Date), k}
 		if sums[kk] == nil {
 			sums[kk] = &fin.Accumulator{}
 			order = append(order, kk)
 			labels[k] = label
+			txs[kk] = map[uuid.UUID]bool{}
 		}
 		sums[kk].Add(f.Spend)
-		counts[kk]++
+		txs[kk][f.TransactionID] = true // count = transactions, not split lines
 		total.Add(f.Spend)
 	}
 	sort.SliceStable(order, func(i, j int) bool {
 		if order[i].period != order[j].period {
 			return order[i].period < order[j].period
 		}
-		return cmpM(sums[order[j]].Money(q.Currency), sums[order[i]].Money(q.Currency)) < 0
+		if c := cmpM(sums[order[j]].Money(q.Currency), sums[order[i]].Money(q.Currency)); c != 0 {
+			return c < 0
+		}
+		return order[i].k < order[j].k
 	})
 	for _, k := range order {
-		res.Rows = append(res.Rows, fin.Row{Key: k.k, Label: labels[k.k], Amount: sums[k].Money(q.Currency), Count: counts[k], Period: k.period})
+		res.Rows = append(res.Rows, fin.Row{Key: k.k, Label: labels[k.k], Amount: sums[k].Money(q.Currency), Count: len(txs[k]), Period: k.period})
 	}
 	res.Total = total.Money(q.Currency)
 	res.Finish(conv)

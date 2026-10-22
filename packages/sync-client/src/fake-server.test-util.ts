@@ -36,6 +36,8 @@ export class FakeSyncServer {
   failNext = 0; // network failures before handling
   loseResponses = 0; // apply, then drop the response (client sees a network error)
   pushCalls = 0;
+  settings = new Map<string, Data>(); // profile id -> settings object
+  rates: Data[] = []; // exchange rate snapshots (profileId null = provider)
 
   fetch = async (req: Request): Promise<Response> => {
     if (this.failNext > 0) {
@@ -132,6 +134,51 @@ export class FakeSyncServer {
       }
       return json({
         items: this.keys.filter((k) => k.profileId === pid).map(({ profileId: _p, ...k }) => k),
+      });
+    }
+    const sm = p.match(/^\/api\/v1\/profiles\/([^/]+)\/settings$/);
+    if (sm) {
+      const cur = this.settings.get(sm[1] as string) ?? {};
+      if (req.method === 'PATCH') {
+        for (const [k, v] of Object.entries((await req.json()) as Data))
+          if (v === null) delete cur[k];
+          else cur[k] = v;
+        this.settings.set(sm[1] as string, cur);
+      }
+      return json(cur);
+    }
+    if (p === '/api/v1/exchange-rates') {
+      if (req.method === 'POST') {
+        const b = (await req.json()) as Data;
+        if (
+          this.rates.some(
+            (r) =>
+              r.profileId === pid &&
+              r.baseCurrency === b.baseCurrency &&
+              r.quoteCurrency === b.quoteCurrency &&
+              r.rateDate === b.rateDate,
+          )
+        )
+          return json({ error: { code: 'conflict', message: 'exists' } }, 409);
+        const r = {
+          providerCode: 'manual',
+          ...b,
+          profileId: pid,
+          source: 'manual',
+          fetchedAt: new Date().toISOString(),
+        };
+        this.rates.push(r);
+        return json(r, 201);
+      }
+      const since = url.searchParams.get('changedSince');
+      const mine = url.searchParams.get('scope') === 'profile';
+      return json({
+        items: this.rates.filter(
+          (r) =>
+            (r.profileId === pid || (r.profileId === null && !mine)) &&
+            (!since || (r.fetchedAt as string) > since),
+        ),
+        nextCursor: null,
       });
     }
     return json({ error: { code: 'route_not_found', message: p } }, 404);

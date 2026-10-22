@@ -15,6 +15,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/pr0h0/finance-platform/apps/api/internal/app"
 	"github.com/pr0h0/finance-platform/apps/api/internal/authz"
@@ -162,7 +163,17 @@ func GetSettings(ctx context.Context, q authz.Querier, scope string, owner *uuid
 }
 
 // PutSettings replaces the settings object from the request body (any JSON object; size bounded by MaxBody).
-func PutSettings(r *http.Request, db changes.Execer, scope string, owner *uuid.UUID) (map[string]any, error) {
+func PutSettings(r *http.Request, db *pgxpool.Pool, scope string, owner *uuid.UUID) (map[string]any, error) {
+	return writeSettings(r, db, scope, owner, false)
+}
+
+// PatchSettings merges the body's top-level keys into the stored object; a null value removes the
+// key. Devices syncing single keys use it so they never overwrite each other's other keys.
+func PatchSettings(r *http.Request, db *pgxpool.Pool, scope string, owner *uuid.UUID) (map[string]any, error) {
+	return writeSettings(r, db, scope, owner, true)
+}
+
+func writeSettings(r *http.Request, db *pgxpool.Pool, scope string, owner *uuid.UUID, merge bool) (map[string]any, error) {
 	if ct := r.Header.Get("Content-Type"); ct != "" && !strings.HasPrefix(ct, "application/json") {
 		return nil, httpx.NewError(http.StatusUnsupportedMediaType, "unsupported_media_type", "expected application/json")
 	}
@@ -174,7 +185,20 @@ func PutSettings(r *http.Request, db changes.Execer, scope string, owner *uuid.U
 		}
 		return nil, httpx.BadRequest("settings must be a JSON object")
 	}
-	_, err := db.Exec(r.Context(), `INSERT INTO settings (scope, owner_id, key, value, updated_at) VALUES ($1, $2, $3, $4, now())
-		ON CONFLICT (scope, owner_id, key) DO UPDATE SET value = EXCLUDED.value, updated_at = now()`, scope, owner, settingsKey, v)
-	return v, err
+	if !merge {
+		_, err := db.Exec(r.Context(), `INSERT INTO settings (scope, owner_id, key, value, updated_at) VALUES ($1, $2, $3, $4, now())
+			ON CONFLICT (scope, owner_id, key) DO UPDATE SET value = EXCLUDED.value, updated_at = now()`, scope, owner, settingsKey, v)
+		return v, err
+	}
+	var raw []byte
+	err := db.QueryRow(r.Context(), `INSERT INTO settings (scope, owner_id, key, value, updated_at)
+		VALUES ($1, $2, $3, $4::jsonb - ARRAY(SELECT k FROM jsonb_each($4::jsonb) e(k, x) WHERE x = 'null'::jsonb), now())
+		ON CONFLICT (scope, owner_id, key) DO UPDATE SET updated_at = now(),
+		  value = (settings.value || $4::jsonb) - ARRAY(SELECT k FROM jsonb_each($4::jsonb) e(k, x) WHERE x = 'null'::jsonb)
+		RETURNING value`, scope, owner, settingsKey, v).Scan(&raw)
+	if err != nil {
+		return nil, err
+	}
+	out := map[string]any{}
+	return out, json.Unmarshal(raw, &out)
 }

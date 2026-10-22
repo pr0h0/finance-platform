@@ -67,3 +67,17 @@ test('parses localized number input', () => {
   expect(parseDecimalInput('-12', 'en')).toBe('-12');
   expect(parseDecimalInput('12abc', 'en')).toBeNull();
 });
+
+test('a misplaced group separator is a decimal point, never dropped (no silent 100x)', () => {
+  expect(parseDecimalInput('12,50', 'en-US')).toBe('12.50');
+  expect(parseDecimalInput('12.50', 'bs-BA')).toBe('12.50');
+  expect(parseDecimalInput('12.50', 'hr-HR')).toBe('12.50');
+  expect(parseDecimalInput('12,50', 'bs-BA')).toBe('12.50');
+  expect(parseDecimalInput('1.234', 'bs-BA')).toBe('1234');
+  expect(parseDecimalInput('1,234', 'en-US')).toBe('1234');
+  expect(parseDecimalInput('1.234.567,8', 'bs-BA')).toBe('1234567.8');
+  expect(parseDecimalInput('-1,5', 'en-US')).toBe('-1.5');
+  expect(parseDecimalInput('1,234,56', 'en-US')).toBeNull();
+  expect(parseDecimalInput('1.234,56', 'en-US')).toBeNull();
+  expect(parseDecimalInput('12,', 'en-US')).toBeNull();
+});

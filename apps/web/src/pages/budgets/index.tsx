@@ -54,7 +54,7 @@ export default function BudgetsPage() {
   const s = snap.data;
   const allocFor = (id: string): AllocationRow[] =>
     (allocs.data ?? [])
-      .filter((a) => a.budgetId === id)
+      .filter((a) => a.budgetId === id && !a.budgetPeriodId) // period rows are server-managed
       .map((a) => ({ categoryId: a.categoryId, amount: a.amount }));
   const budgets = s.budgets.filter((b) => !b.isTemplate && !b.isArchived);
   const templates = s.budgets.filter((b) => b.isTemplate && !b.isArchived);

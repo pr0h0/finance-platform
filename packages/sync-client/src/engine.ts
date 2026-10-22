@@ -3,7 +3,13 @@
 // the checkpoint, keep tombstones, store conflicts and rejected ops for explicit resolution.
 // Never last-write-wins: a local row with unpushed ops is never overwritten by a pull.
 import { type ApiClient, ApiError, checkCompatibility } from '@finplat/api-client';
-import type { ImportedRawRecord, OperationResult, SyncChange, SyncConflict } from '@finplat/domain';
+import type {
+  ExchangeRate as D_Rate,
+  ImportedRawRecord,
+  OperationResult,
+  SyncChange,
+  SyncConflict,
+} from '@finplat/domain';
 import { SYNC_PROTOCOL_VERSION } from '@finplat/domain';
 import {
   ackOps,
@@ -86,6 +92,8 @@ export class IncompatibleServerError extends Error {
 }
 
 const SYNCED = new Set<string>(SYNCED_TABLES);
+/** Settings that describe this device, not the profile: never synced. */
+const DEVICE_SETTINGS = new Set(['notifications.browser']);
 const TABLES = [...SYNCED_TABLES, 'outbox', 'checkpoints', 'conflicts', 'meta'];
 
 export class SyncEngine {
@@ -420,6 +428,157 @@ export class SyncEngine {
     return n;
   }
 
+  // ------------------------------------------------------------ settings and exchange rates
+
+  /** Profile settings and exchange rates have no server_version (not sync entities); they
+   * travel over REST after each push/pull. e2ee profiles keep settings and manual rates on the
+   * device (the server would read them); provider rates are still fetched. */
+  async syncSideData(): Promise<void> {
+    const send = this.o.api.send;
+    if (!send) return;
+    if (!this.o.keyring) await this.syncSettings(send);
+    await this.syncRates(send);
+  }
+
+  private async syncSettings(send: NonNullable<SyncApi['send']>) {
+    type Setting = {
+      id: string;
+      profileId: string;
+      key: string;
+      value: unknown;
+      updatedAt: string;
+      dirty?: boolean;
+    };
+    const local = await this.o.store.run('readonly', ['settings'], (tx) =>
+      tx.query<Setting>('settings', { profileId: this.o.localProfileId }),
+    );
+    // rows written before settings synced have no flag: upload them once
+    const dirty = local.filter((r) => r.dirty !== false && !DEVICE_SETTINGS.has(r.key));
+    const path = `/api/v1/profiles/${this.o.remoteProfileId}/settings`;
+    const hdr = { 'X-Profile-ID': this.o.remoteProfileId };
+    const res = await this.retry(() =>
+      dirty.length
+        ? send(
+            'PATCH',
+            path,
+            JSON.stringify(Object.fromEntries(dirty.map((r) => [r.key, r.value ?? null]))),
+            { ...hdr, 'Content-Type': 'application/json' },
+          )
+        : send('GET', path, undefined, hdr),
+    );
+    const server = (await res.json()) as Record<string, unknown>;
+    const pushed = new Map(dirty.map((r) => [r.key, r.updatedAt]));
+    await this.o.store.run('readwrite', ['settings'], async (tx) => {
+      const rows = await tx.query<Setting>('settings', { profileId: this.o.localProfileId });
+      const byKey = new Map(rows.map((r) => [r.key, r]));
+      for (const r of rows) {
+        if (DEVICE_SETTINGS.has(r.key) || r.key in server) continue;
+        // removed on the server (set to null elsewhere), unless edited here since the upload
+        if (r.dirty === false || pushed.get(r.key) === r.updatedAt)
+          await tx.delete('settings', r.id);
+      }
+      for (const [key, value] of Object.entries(server)) {
+        if (DEVICE_SETTINGS.has(key)) continue;
+        const cur = byKey.get(key);
+        if (cur && cur.dirty !== false && pushed.get(key) !== cur.updatedAt) continue; // newer local edit
+        await tx.put('settings', {
+          id: `${this.o.localProfileId}:${key}`,
+          profileId: this.o.localProfileId,
+          key,
+          value,
+          updatedAt: cur?.updatedAt ?? this.o.now().toISOString(),
+          dirty: false,
+        });
+      }
+    });
+  }
+
+  private ratesKey = () => `sync:rates:${this.o.localProfileId}`;
+
+  private async syncRates(send: NonNullable<SyncApi['send']>) {
+    type Rate = D_Rate & { id: string; profileId: string | null; uploaded?: boolean };
+    const hdr = { 'X-Profile-ID': this.o.remoteProfileId };
+    const pid = this.o.localProfileId;
+    if (!this.o.keyring) {
+      const mine = await this.o.store.run('readonly', ['exchange_rates'], (tx) =>
+        tx.query<Rate>('exchange_rates', { profileId: pid }),
+      );
+      for (const r of mine.filter((x) => x.source === 'manual' && x.uploaded !== true)) {
+        const body = JSON.stringify({
+          id: r.id,
+          baseCurrency: r.baseCurrency,
+          quoteCurrency: r.quoteCurrency,
+          rate: r.rate,
+          rateDate: r.rateDate,
+        });
+        let keep = true;
+        try {
+          await this.retry(() =>
+            send('POST', '/api/v1/exchange-rates', body, {
+              ...hdr,
+              'Content-Type': 'application/json',
+              'Idempotency-Key': r.id,
+            }),
+          );
+        } catch (e) {
+          if (!(e instanceof ApiError) || e.retryable) throw e;
+          // 409: the profile already has a manual rate for this pair and date (entered on
+          // another device); the server's rate wins and arrives below. Other refusals stay local.
+          keep = e.status !== 409;
+        }
+        await this.o.store.run('readwrite', ['exchange_rates'], (tx) =>
+          keep
+            ? tx.put('exchange_rates', { ...r, uploaded: true })
+            : tx.delete('exchange_rates', r.id),
+        );
+      }
+    }
+    const fetchAll = async (query: string) => {
+      const out: (Rate & { fetchedAt: string })[] = [];
+      let cursor: string | null = null;
+      do {
+        const q = [query, 'limit=500', cursor && `cursor=${encodeURIComponent(cursor)}`]
+          .filter(Boolean)
+          .join('&');
+        const res = await this.retry(() =>
+          send('GET', `/api/v1/exchange-rates?${q}`, undefined, hdr),
+        );
+        const page = (await res.json()) as {
+          items: (Rate & { fetchedAt: string })[];
+          nextCursor?: string | null;
+        };
+        out.push(...page.items);
+        cursor = page.nextCursor ?? null;
+      } while (cursor);
+      return out;
+    };
+    const toLocal = (r: Rate & { fetchedAt: string }) => ({
+      ...r,
+      // provider snapshots are shared by every profile; local rows are per profile
+      id: r.profileId ? r.id : `${pid}:${r.id}`,
+      profileId: pid,
+      uploaded: true,
+      deletedAt: null,
+    });
+    const profileRates = this.o.keyring ? null : await fetchAll('scope=profile');
+    const since = await getMeta<string>(this.o.store, this.ratesKey());
+    const fresh = await fetchAll(since ? `changedSince=${encodeURIComponent(since)}` : '');
+    await this.o.store.run('readwrite', ['exchange_rates'], async (tx) => {
+      if (profileRates) {
+        const live = new Set(profileRates.map((r) => r.id));
+        for (const r of await tx.query<Rate>('exchange_rates', { profileId: pid }))
+          if (r.source === 'manual' && r.uploaded === true && !live.has(r.id))
+            await tx.delete('exchange_rates', r.id); // deleted on the server
+        for (const r of profileRates) await tx.put('exchange_rates', toLocal(r));
+      }
+      for (const r of fresh) await tx.put('exchange_rates', toLocal(r));
+    });
+    const newest = fresh.reduce((m, r) => Math.max(m, Date.parse(r.fetchedAt)), 0);
+    // overlap of 5 minutes: rows committed late with an earlier fetchedAt are fetched again
+    if (newest)
+      await setMeta(this.o.store, this.ratesKey(), new Date(newest - 300_000).toISOString());
+  }
+
   // ------------------------------------------------------------ orchestration
 
   /** push → pull. Concurrent calls share one run. Errors are recorded in the state and thrown. */
@@ -429,6 +588,7 @@ export class SyncEngine {
         await this.checkServer();
         await this.push();
         await this.pull();
+        await this.syncSideData();
         await this.saveState({ lastSyncAt: this.o.now().toISOString(), lastError: null });
       } catch (e) {
         const err = e as { code?: string; message?: string };

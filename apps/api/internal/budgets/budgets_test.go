@@ -164,3 +164,41 @@ func TestTemplates(t *testing.T) {
 		t.Fatalf("patched: %+v", patched)
 	}
 }
+
+// Sync clients keep allocations in their own budget_allocations table, so every REST/MCP write of a
+// budget's allocations must reach them as budget_allocations changes (not only inside the budget).
+func TestAllocationsAreSyncChanges(t *testing.T) {
+	pool := testdb.New(t)
+	user, profile := testdb.SeedUserProfile(t, pool)
+	api := fintest.NewAPI(t, pool, user, profile, Register)
+	food := fintest.Category(t, pool, profile, "Food", nil)
+	amt := func(s string) map[string]string { return map[string]string{"amount": s, "currency": "BAM"} }
+	var b Budget
+	api.Must(http.StatusCreated, "POST", "/budgets", map[string]any{"name": "Oct", "periodType": "monthly", "startDate": "2026-10-01",
+		"currency": "BAM", "rolloverPolicy": "carry_surplus", "allocations": []map[string]any{{"categoryId": nil, "amount": amt("500.00")}, {"categoryId": food, "amount": amt("100.00")}}}, &b)
+	count := func(op string) int {
+		var n int
+		if err := pool.QueryRow(fintest.Ctx(user), `SELECT count(*) FROM sync_changes c JOIN budget_allocations a ON a.id = c.entity_id
+			WHERE c.profile_id = $1 AND c.entity_type = 'budget_allocations' AND c.op = $2 AND a.budget_id = $3`, profile, op, b.ID).Scan(&n); err != nil {
+			t.Fatal(err)
+		}
+		return n
+	}
+	if count("upsert") != 2 || count("delete") != 0 {
+		t.Fatalf("create: upserts %d deletes %d", count("upsert"), count("delete"))
+	}
+	var bid, a string
+	if err := pool.QueryRow(fintest.Ctx(user), `SELECT c.data->>'budgetId', c.data->'amount'->>'amount' FROM sync_changes c JOIN budget_allocations a ON a.id = c.entity_id
+		WHERE c.entity_type = 'budget_allocations' AND a.category_id = $1`, food).Scan(&bid, &a); err != nil || bid != b.ID.String() || a != "100.00" {
+		t.Fatalf("snapshot %s %s %v", bid, a, err)
+	}
+	api.Must(http.StatusOK, "PATCH", "/budgets/"+b.ID.String(), map[string]any{"version": b.Version, "allocations": []map[string]any{{"categoryId": nil, "amount": amt("600.00")}}}, &b)
+	if count("upsert") != 3 || count("delete") != 2 {
+		t.Fatalf("update: upserts %d deletes %d", count("upsert"), count("delete"))
+	}
+	// period close writes next-period rollover rows: they sync too
+	api.Must(http.StatusOK, "POST", "/budgets/"+b.ID.String()+"/periods/close?date=2026-10-15", nil, nil)
+	if count("upsert") != 4 {
+		t.Fatalf("close: upserts %d", count("upsert"))
+	}
+}

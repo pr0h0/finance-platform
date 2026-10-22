@@ -235,14 +235,20 @@ export function MappingEditor() {
                 >
                   <Download size={12} aria-hidden />
                 </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  aria-label={`Delete ${x.name}`}
-                  onClick={() => window.confirm(`Delete template ${x.name}?`) && del.mutate(x.id)}
-                >
-                  <Trash2 size={12} aria-hidden />
-                </Button>
+                {settings.data?.community.has(x.id) ? (
+                  <span className="text-xs text-muted" title="Server-wide template (read-only)">
+                    shared
+                  </span>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    aria-label={`Delete ${x.name}`}
+                    onClick={() => window.confirm(`Delete template ${x.name}?`) && del.mutate(x.id)}
+                  >
+                    <Trash2 size={12} aria-hidden />
+                  </Button>
+                )}
               </span>
             </li>
           ))}

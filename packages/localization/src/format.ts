@@ -110,13 +110,28 @@ export function formatMonth(yearMonth: string, locale = 'en'): string {
   }).format(Date.UTC(y, mo - 1, 1));
 }
 
-/** Parse what a user typed in their locale ("1.234,56" in bs) into a plain decimal string. */
+/** Parse what a user typed in their locale ("1.234,56" in bs) into a plain decimal string.
+ * Group separators count only in valid thousands positions; a single misplaced one is read as
+ * the decimal point ("12,50" in en -> 12.50, "12.50" in bs -> 12.50), never silently dropped. */
 export function parseDecimalInput(input: string, locale = 'en'): string | null {
   const parts = nf(locale, { style: 'decimal' }).formatToParts(12345.6);
   const group = parts.find((p) => p.type === 'group')?.value ?? ',';
   const decimal = parts.find((p) => p.type === 'decimal')?.value ?? '.';
-  let s = input.trim().replace(/[\s  ]/g, '');
-  if (group !== decimal) s = s.split(group).join('');
-  s = s.replace(decimal, '.').replace(/^\+/, '').replace(/^−/, '-');
-  return /^-?\d+(\.\d+)?$/.test(s) ? s : null;
+  let s = input
+    .trim()
+    .replace(/[\s\u00a0\u202f]/g, '')
+    .replace(/^\+/, '')
+    .replace(/^−/, '-');
+  const neg = s.startsWith('-');
+  if (neg) s = s.slice(1);
+  const grouped = new RegExp(`^\\d{1,3}(${group.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\d{3})+$`);
+  let int = s;
+  let frac: string | null = null;
+  const di = s.lastIndexOf(decimal);
+  if (di >= 0) [int, frac] = [s.slice(0, di), s.slice(di + 1)];
+  else if (group !== decimal && s.split(group).length === 2 && !grouped.test(s))
+    [int, frac] = s.split(group) as [string, string];
+  if (group !== decimal && grouped.test(int)) int = int.split(group).join('');
+  const out = `${neg ? '-' : ''}${int}${frac === null ? '' : `.${frac}`}`;
+  return /^-?\d+(\.\d+)?$/.test(out) ? out : null;
 }
