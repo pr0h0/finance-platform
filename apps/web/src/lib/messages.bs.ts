@@ -820,6 +820,11 @@ export const bs: Record<string, string> = {
   'transactions.detailDrawer.categoriesAndSplits': 'Kategorije i podjele',
   'transactions.detailDrawer.originalBankRecordRead': 'Originalni zapis banke (samo za čitanje)',
   'transactions.detailDrawer.refunds': 'Povrati',
+  'transactions.detailDrawer.ownTransfer': 'Prenos između vlastitih računa',
+  'transactions.detailDrawer.unlinkTransfer': 'Razdvoji u rashod i prihod',
+  'transactions.detailDrawer.noTransferMatch':
+    'Nema odgovarajuće transakcije na drugom računu unutar 3 dana.',
+  'transactions.detailDrawer.linkTransfer': 'Poveži kao prenos',
   'transactions.detailDrawer.plannedTransaction': 'Planirana transakcija',
   'transactions.detailDrawer.details': 'Detalji',
   'transactions.detailDrawer.payee': 'Primalac',

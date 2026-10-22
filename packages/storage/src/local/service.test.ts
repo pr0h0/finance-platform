@@ -329,6 +329,75 @@ test('import: stage keeps raw evidence, commit applies rules, duplicates recogni
   expect((await svc.importPreview(p2.batch.id)).rows.map((r) => r.outcome)).toEqual(['new', 'new']);
 });
 
+test('imported halves of an own-account transfer link into one transfer and unlink again', async () => {
+  const { checking, savings, food } = await setup();
+  const rec = (description: string, direction: 'debit' | 'credit', fp: string) => ({
+    rowNumber: 1,
+    postingDate: '2026-02-03',
+    description,
+    direction,
+    amount: '40.00',
+    currency: 'BAM',
+    raw: {},
+    fingerprint: fp,
+  });
+  const imp = async (accountId: string, r: ReturnType<typeof rec>) => {
+    const p = await svc.stageImport({
+      accountId,
+      importerId: 'csv',
+      importerVersion: '1.0.0',
+      fileName: `${r.fingerprint}.csv`,
+      fileSha256: r.fingerprint,
+      fileSize: 1,
+      records: [r],
+    });
+    return svc.commitImport(p.batch.id);
+  };
+  const b1 = await imp(checking.id, rec('PRENOS to savings', 'debit', 'out'));
+  await imp(savings.id, rec('PRENOS from checking', 'credit', 'in'));
+  const [out, inc] = (await svc.searchTransactions({ q: 'prenos' })).items.sort((a, b) =>
+    a.kind.localeCompare(b.kind),
+  ) as [D.Transaction, D.Transaction];
+  expect(
+    (
+      await err(
+        svc.linkTransfer(
+          out.id,
+          (
+            await svc.createTransaction({
+              kind: 'income',
+              accountId: checking.id,
+              amount: m('40.00'),
+              bookingDate: '2026-02-03',
+              categoryId: food.id,
+            })
+          ).id,
+        ),
+      )
+    )?.message,
+  ).toContain('two different accounts');
+
+  const before = [await bal(checking.id), await bal(savings.id)];
+  const t = await svc.linkTransfer(inc.id, out.id); // either order
+  expect(t).toMatchObject({
+    id: out.id,
+    kind: 'transfer',
+    splits: [],
+    relatedTransactionId: inc.id,
+  });
+  expect(t.postings.map((p) => p.amount.amount)).toEqual(['-40.00', '40.00']);
+  expect((await svc.searchTransactions({ q: 'prenos' })).items).toHaveLength(1);
+  expect([await bal(checking.id), await bal(savings.id)]).toEqual(before);
+  expect((await err(svc.rollbackImport(b1.id)))?.code).toBe('linked_transfer');
+
+  await svc.unlinkTransfer(t.id);
+  const back = (await svc.searchTransactions({ q: 'prenos' })).items;
+  expect(back.map((x) => x.kind).sort()).toEqual(['expense', 'income']);
+  expect(back.find((x) => x.kind === 'income')?.importRecordId).toBe(inc.importRecordId);
+  expect([await bal(checking.id), await bal(savings.id)]).toEqual(before);
+  await svc.rollbackImport(b1.id);
+});
+
 test('search: keyset pagination by date desc, filters', async () => {
   const { checking, food } = await setup();
   for (let d = 1; d <= 5; d++)

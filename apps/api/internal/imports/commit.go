@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 	"time"
 
@@ -514,6 +515,18 @@ func Rollback(ctx context.Context, db *pgxpool.Pool, profileID, batchID uuid.UUI
 	}
 	if b.Status != "committed" {
 		return b, httpx.Conflict("batch is " + b.Status + "; only committed batches can be rolled back")
+	}
+	var linked bool
+	if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM transactions t JOIN imported_raw_records r ON r.id = t.import_record_id
+		WHERE r.import_batch_id = $1 AND t.profile_id = $2 AND (
+			(t.deleted_at IS NULL AND t.kind = 'transfer' AND t.related_transaction_id IS NOT NULL)
+			OR EXISTS (SELECT 1 FROM transactions o WHERE o.related_transaction_id = t.id AND o.kind = 'transfer' AND o.deleted_at IS NULL)))`,
+		batchID, profileID).Scan(&linked); err != nil {
+		return b, err
+	}
+	if linked { // removing one half would leave the other account's leg behind
+		return b, httpx.NewError(http.StatusConflict, "linked_transfer",
+			"transactions of this import are linked into transfers; undo those links first")
 	}
 	type link struct {
 		tx      uuid.UUID

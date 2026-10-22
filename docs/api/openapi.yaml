@@ -1830,6 +1830,43 @@ paths:
           $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
+  /api/v1/transactions/{id}/link-transfer:
+    post:
+      tags: ["transactions"]
+      summary: "Merge an expense on one account and the matching income on another (e.g. both imported) into one transfer; the income half is tombstoned and referenced by relatedTransactionId. Undo on both halves unlinks."
+      operationId: "post_transactions_id_link_transfer"
+      parameters:
+        - $ref: "#/components/parameters/ProfileHeader"
+        - $ref: "#/components/parameters/Id"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: "object"
+              properties:
+                counterpartId:
+                  $ref: "#/components/schemas/Uuid"
+              required: ["counterpartId"]
+              additionalProperties: false
+      responses:
+        "200":
+          description: "OK (the transfer)"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Transaction"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+        default:
+          $ref: "#/components/responses/Error"
   /api/v1/transactions/{id}/undo:
     post:
       tags: ["transactions"]

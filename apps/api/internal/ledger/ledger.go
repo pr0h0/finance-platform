@@ -642,7 +642,7 @@ func Update(ctx context.Context, tx pgx.Tx, before, after *Transaction, action s
 		return nil, errors.New("ledger: update must keep id and profile")
 	}
 	postingsChanged := !postingsEqual(before.Postings, after.Postings)
-	if before.IsImported() && (postingsChanged || after.BookingDate != before.BookingDate || after.Kind != before.Kind) {
+	if before.IsImported() && (after.BookingDate != before.BookingDate || !evidenceKept(before, after)) {
 		return nil, httpx.NewError(http.StatusConflict, "imported_evidence",
 			"amount, account, kind and booking date of imported transactions are evidence; record an adjustment instead")
 	}
@@ -687,6 +687,28 @@ func Update(ctx context.Context, tx pgx.Tx, before, after *Transaction, action s
 		}
 	}
 	return record(ctx, tx, after.ProfileID, after.ID, before, action, meta)
+}
+
+// evidenceKept: the postings of an imported transaction are bank evidence and stay as they are, except
+// that an imported income/expense may become one leg of a transfer (linking the two imported halves of a
+// transfer between own accounts) and go back again (undo). Its own posting must survive unchanged.
+func evidenceKept(before, after *Transaction) bool {
+	if after.Kind == before.Kind {
+		return postingsEqual(before.Postings, after.Postings)
+	}
+	single, pair := before, after
+	if before.Kind == "transfer" {
+		single, pair = after, before
+	}
+	if !SplitKinds(single.Kind) || pair.Kind != "transfer" || len(single.Postings) != 1 {
+		return false
+	}
+	for _, p := range pair.Postings {
+		if postingsEqual([]Posting{p}, single.Postings) {
+			return true
+		}
+	}
+	return false
 }
 
 // Delete tombstones a transaction (postings stay, but balances ignore deleted transactions).

@@ -781,6 +781,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/transactions/{id}/link-transfer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Merge an expense on one account and the matching income on another (e.g. both imported) into one transfer; the income half is tombstoned and referenced by relatedTransactionId. Undo on both halves unlinks. */
+        post: operations["post_transactions_id_link_transfer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/transactions/{id}/undo": {
         parameters: {
             query?: never;
@@ -6502,6 +6519,44 @@ export interface operations {
                         items: components["schemas"]["AuditEntry"][];
                         nextCursor?: string;
                     };
+                };
+            };
+            400: components["responses"]["Error"];
+            401: components["responses"]["Error"];
+            403: components["responses"]["Error"];
+            404: components["responses"]["Error"];
+            default: components["responses"]["Error"];
+        };
+    };
+    post_transactions_id_link_transfer: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Active financial profile. Required on all profile-scoped endpoints. */
+                "X-Profile-ID": components["parameters"]["ProfileHeader"];
+                /** @description Makes the mutation safe to retry (24h). */
+                "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    counterpartId: components["schemas"]["Uuid"];
+                };
+            };
+        };
+        responses: {
+            /** @description OK (the transfer) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Transaction"];
                 };
             };
             400: components["responses"]["Error"];

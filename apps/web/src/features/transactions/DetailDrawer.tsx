@@ -184,6 +184,15 @@ function Detail({
           <Refunds tx={tx} all={all} refs={refs} />
         </Section>
       )}
+      {(tx.kind === 'expense' ||
+        tx.kind === 'income' ||
+        (tx.kind === 'transfer' && tx.relatedTransactionId)) && (
+        <Section
+          title={t('transactions.detailDrawer.ownTransfer', 'Transfer between own accounts')}
+        >
+          <TransferLink tx={tx} all={all} refs={refs} onLinked={onClose} />
+        </Section>
+      )}
       {(tx.kind === 'expense' || tx.kind === 'income') && (
         <Section title={t('transactions.detailDrawer.plannedTransaction', 'Planned transaction')}>
           <PlanMatch tx={tx} />
@@ -773,6 +782,93 @@ function Refunds({ tx, all, refs }: { tx: D.Transaction; all: D.Transaction[]; r
           </Button>
         </div>
       )}
+      <ErrorText error={err} />
+    </div>
+  );
+}
+
+const DAY_MS = 86_400_000;
+
+/** The other half of a transfer between own accounts (both imported from statements): the opposite
+ * kind, same amount, another account, within 3 days. Linking merges them into one transfer. */
+function TransferLink({
+  tx,
+  all,
+  refs,
+  onLinked,
+}: {
+  tx: D.Transaction;
+  all: D.Transaction[];
+  refs: Refs;
+  onLinked: () => void;
+}) {
+  const t = useT();
+  const { locale } = useLedgerEnv();
+  const [err, setErr] = useState<string | null>(null);
+  const link = useWrite((o, other: string) => o.linkTransfer(tx.id, other));
+  const unlink = useWrite((o) => o.unlinkTransfer(tx.id));
+  const run = (p: Promise<unknown>) => p.catch((e) => setErr(describeError(e)));
+  if (tx.kind === 'transfer')
+    return (
+      <div className="flex flex-col gap-2 text-sm">
+        <Button
+          size="sm"
+          onClick={() => run(unlink.mutateAsync(undefined))}
+          disabled={unlink.isPending}
+        >
+          {t('transactions.detailDrawer.unlinkTransfer', 'Unlink into expense and income')}
+        </Button>
+        <ErrorText error={err} />
+      </div>
+    );
+  const own = tx.postings[0] as D.Posting;
+  const other = tx.kind === 'expense' ? 'income' : 'expense';
+  const day = Date.parse(tx.bookingDate);
+  const candidates = all
+    .filter((o) => {
+      const p = o.postings[0];
+      return (
+        o.id !== tx.id &&
+        o.kind === other &&
+        o.postings.length === 1 &&
+        p !== undefined &&
+        p.accountId !== own.accountId &&
+        p.amount.currency === own.amount.currency &&
+        toMinor(p.amount) === -toMinor(own.amount) &&
+        Math.abs(Date.parse(o.bookingDate) - day) <= 3 * DAY_MS
+      );
+    })
+    .sort(
+      (a, b) =>
+        Math.abs(Date.parse(a.bookingDate) - day) - Math.abs(Date.parse(b.bookingDate) - day),
+    )
+    .slice(0, 5);
+  if (!candidates.length)
+    return (
+      <p className="text-sm text-muted">
+        {t(
+          'transactions.detailDrawer.noTransferMatch',
+          'No matching transaction on another account within 3 days.',
+        )}
+      </p>
+    );
+  return (
+    <div className="flex flex-col gap-2 text-sm">
+      {candidates.map((c) => (
+        <div key={c.id} className="flex flex-wrap items-center gap-2">
+          <span>
+            {c.bookingDate} · {refs.accountName(c.postings[0]?.accountId ?? '')} ·{' '}
+            {c.description || c.payee} (<MoneyText value={primaryAmount(c)} locale={locale} />)
+          </span>
+          <Button
+            size="sm"
+            disabled={link.isPending}
+            onClick={() => run(link.mutateAsync(c.id).then(onLinked))}
+          >
+            {t('transactions.detailDrawer.linkTransfer', 'Link as transfer')}
+          </Button>
+        </div>
+      ))}
       <ErrorText error={err} />
     </div>
   );

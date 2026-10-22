@@ -288,6 +288,24 @@ func Register(r chi.Router, deps *app.Deps) {
 		return nil
 	}))
 
+	r.With(httpx.Idempotent(db)).Post("/transactions/{id}/link-transfer", mutate(db, http.StatusOK, func(r *http.Request, tx pgx.Tx, profileID uuid.UUID) (any, error) {
+		cur, err := load(r, tx, profileID)
+		if err != nil {
+			return nil, err
+		}
+		var in struct {
+			CounterpartID uuid.UUID `json:"counterpartId"`
+		}
+		if err := httpx.DecodeJSON(r, &in); err != nil {
+			return nil, err
+		}
+		other, err := ledger.Get(r.Context(), tx, profileID, in.CounterpartID, true)
+		if err != nil || other.DeletedAt != nil {
+			return nil, firstErr(err, httpx.NotFound("transaction"))
+		}
+		return LinkTransfer(r.Context(), tx, cur, other)
+	}))
+
 	r.With(httpx.Idempotent(db)).Post("/transactions/{id}/undo", mutate(db, http.StatusOK, func(r *http.Request, tx pgx.Tx, profileID uuid.UUID) (any, error) {
 		id, err := ledger.IDParam(r, "id", "transaction")
 		if err != nil {

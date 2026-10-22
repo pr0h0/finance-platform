@@ -1063,6 +1063,80 @@ export class LocalFinanceService {
     return this.getTransaction(newId);
   }
 
+  /** POST /transactions/{id}/link-transfer: an expense on one account and the matching income on
+   * another (e.g. both imported) become one transfer; the income half is tombstoned and referenced by
+   * relatedTransactionId (same as Go transactions.LinkTransfer). */
+  async linkTransfer(id: string, counterpartId: string): Promise<D.Transaction> {
+    const keep = await this.write(async (tx) => {
+      type T = D.Transaction & Syncable;
+      const a = await this.load<T>(tx, 'transactions', id, 'transaction');
+      const b = await this.load<T>(tx, 'transactions', counterpartId, 'transaction');
+      const [out, inc] = a.kind === 'income' ? [b, a] : [a, b];
+      const [from, to] = [out.postings[0], inc.postings[0]];
+      if (a.id === b.id || out.kind !== 'expense' || inc.kind !== 'income' || !from || !to)
+        throw unprocessable('link an expense on one account with the matching income on another');
+      if (out.postings.length !== 1 || inc.postings.length !== 1)
+        throw unprocessable('link an expense on one account with the matching income on another');
+      if (from.accountId === to.accountId)
+        throw unprocessable('a transfer needs two different accounts');
+      if (
+        from.amount.currency !== to.amount.currency ||
+        toMinor(from.amount) + toMinor(to.amount) !== 0n
+      )
+        throw unprocessable('the amounts must be equal and in the same currency');
+      await this.replace(tx, 'transactions', out, {
+        ...out,
+        kind: 'transfer',
+        splits: [],
+        categorizationSource: 'none',
+        relatedTransactionId: inc.id,
+        postings: [from, { ...to, id: this.newId(), lineNo: 1 }],
+      });
+      await this.tombstone(tx, 'transactions', inc);
+      return out.id;
+    });
+    return this.getTransaction(keep);
+  }
+
+  /** Undo linkTransfer: the transfer is the (uncategorized) expense again and the income half comes
+   * back as a new transaction with the same import evidence (sync never revives tombstones). */
+  async unlinkTransfer(id: string): Promise<D.Transaction> {
+    await this.write(async (tx) => {
+      type T = D.Transaction & Syncable;
+      const t = await this.load<T>(tx, 'transactions', id, 'transaction');
+      const [from, to] = t.postings;
+      const inc = t.relatedTransactionId
+        ? await tx.get<T>('transactions', t.relatedTransactionId)
+        : undefined;
+      if (t.kind !== 'transfer' || !from || !to || t.postings.length !== 2 || !inc)
+        throw unprocessable('not a linked transfer');
+      await this.replace(tx, 'transactions', t, {
+        ...t,
+        kind: 'expense',
+        postings: [from],
+        splits: buildSplits(this.newId, undefined, null, from.amount),
+        relatedTransactionId: null,
+      });
+      const {
+        id: _i,
+        version: _v,
+        serverVersion: _s,
+        createdAt: _c,
+        updatedAt: _u,
+        deletedAt: _d,
+        ...rest
+      } = inc;
+      await this.insertTransaction(tx, {
+        ...rest,
+        kind: 'income',
+        postings: [{ ...to, id: this.newId(), lineNo: 0 }],
+        splits: buildSplits(this.newId, undefined, null, to.amount),
+        categorizationSource: 'none',
+      });
+    });
+    return this.getTransaction(id);
+  }
+
   /** DELETE /transactions/{id}: tombstone; imported ones are excluded from reports instead. */
   async deleteTransaction(id: string): Promise<void> {
     await this.write(async (tx) => {
@@ -1601,13 +1675,31 @@ export class LocalFinanceService {
         from: batchId,
         to: batchId,
       });
+      const txs: (D.Transaction & Syncable)[] = [];
       for (const r of recs)
-        for (const t of await this.all<D.Transaction & Syncable>(tx, 'transactions', {
-          index: 'importRecordId',
-          from: r.id,
-          to: r.id,
-        }))
-          await this.tombstone(tx, 'transactions', t);
+        txs.push(
+          ...(await this.all<D.Transaction & Syncable>(tx, 'transactions', {
+            index: 'importRecordId',
+            from: r.id,
+            to: r.id,
+            includeDeleted: true,
+          })),
+        );
+      const ids = new Set(txs.map((t) => t.id));
+      const linkedTo = await this.all<D.Transaction>(tx, 'transactions', {
+        filter: (t) =>
+          t.kind === 'transfer' && !!t.relatedTransactionId && ids.has(t.relatedTransactionId),
+      });
+      // removing one half would leave the other account's leg behind (as Go imports.Rollback)
+      if (
+        linkedTo.length ||
+        txs.some((t) => !t.deletedAt && t.kind === 'transfer' && t.relatedTransactionId)
+      )
+        throw conflict(
+          'transactions of this import are linked into transfers; unlink them first',
+          'linked_transfer',
+        );
+      for (const t of txs) if (!t.deletedAt) await this.tombstone(tx, 'transactions', t);
       await this.replace(tx, 'import_batches', b, {
         ...b,
         status: 'rolled_back',

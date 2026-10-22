@@ -593,3 +593,34 @@ func InputFrom(t *ledger.Transaction, bookingDate string) (Input, error) {
 	}
 	return in, nil
 }
+
+// LinkTransfer merges the two halves of a transfer between own accounts (an expense on one account and
+// the matching income on another, e.g. both imported from statements) into one transfer: the expense
+// keeps its posting and gains the income's, the income is tombstoned and referenced by
+// relatedTransactionId. Undo on both restores them.
+func LinkTransfer(ctx context.Context, tx pgx.Tx, a, b *ledger.Transaction) (*ledger.Transaction, error) {
+	out, in := a, b
+	if a.Kind == "income" {
+		out, in = b, a
+	}
+	if a.ID == b.ID || out.Kind != "expense" || in.Kind != "income" || len(out.Postings) != 1 || len(in.Postings) != 1 {
+		return nil, httpx.Unprocessable("link an expense on one account with the matching income on another")
+	}
+	from, to := out.Postings[0], in.Postings[0]
+	if from.AccountID == to.AccountID {
+		return nil, httpx.Unprocessable("a transfer needs two different accounts")
+	}
+	if s, err := from.Amount.Add(to.Amount); err != nil || !s.IsZero() {
+		return nil, httpx.Unprocessable("the amounts must be equal and in the same currency")
+	}
+	after := out.Clone()
+	after.Kind, after.Splits, after.CategorizationSource = "transfer", []ledger.Split{}, "none"
+	after.Postings = append(after.Postings, to)
+	after.RelatedTransactionID = &in.ID
+	meta := map[string]any{"linked": in.ID.String()}
+	res, err := ledger.Update(ctx, tx, out, after, "transaction.link_transfer", meta)
+	if err != nil {
+		return nil, err
+	}
+	return res, ledger.Delete(ctx, tx, in, "transaction.link_transfer")
+}
