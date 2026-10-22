@@ -33,6 +33,11 @@ test('the two halves of an own-account transfer link into one transfer and sync'
   await page.goto('/transactions', { waitUntil: 'domcontentloaded' });
   await page.getByRole('row', { name: /Prenos out/ }).click();
   const drawer = page.getByRole('dialog', { name: 'Transaction' });
+  // a click on the backdrop (left of the right-hand drawer) closes it, like X and Esc
+  await expect(drawer).toBeVisible();
+  await page.mouse.click(20, 300);
+  await expect(drawer).toBeHidden();
+  await page.getByRole('row', { name: /Prenos out/ }).click();
   await expect(drawer).toContainText('Prenos in');
   await drawer.getByRole('button', { name: 'Link as transfer' }).click();
   await expect(page.getByRole('row', { name: /Prenos in/ })).toBeHidden();

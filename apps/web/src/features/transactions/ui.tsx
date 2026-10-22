@@ -66,7 +66,7 @@ export function Field({
   );
 }
 
-/** Modal dialog on the native <dialog> element (Esc closes, focus is trapped). */
+/** Modal dialog on the native <dialog> element (Esc or a backdrop click closes, focus is trapped). */
 export function Dialog({
   open,
   onClose,
@@ -84,6 +84,9 @@ export function Dialog({
 }) {
   const t = useT();
   const ref = useRef<HTMLDialogElement>(null);
+  // The backdrop is the <dialog> itself (the content fills it). Both press and release must be on it,
+  // so selecting text inside and releasing outside does not close.
+  const downOnBackdrop = useRef(false);
   useEffect(() => {
     const d = ref.current;
     if (!d) return;
@@ -94,10 +97,18 @@ export function Dialog({
     ? 'ml-auto mr-0 h-dvh max-h-dvh w-full max-w-2xl rounded-none'
     : `m-auto w-[calc(100%-2rem)] rounded-lg ${wide ? 'max-w-4xl' : 'max-w-lg'} max-h-[90dvh]`;
   return (
+    // biome-ignore lint/a11y/useKeyWithClickEvents: the backdrop click mirrors Esc, which the native dialog already handles
     <dialog
       ref={ref}
       onClose={onClose}
       onCancel={onClose}
+      onMouseDown={(e) => {
+        downOnBackdrop.current = e.target === e.currentTarget;
+      }}
+      onClick={(e) => {
+        if (downOnBackdrop.current && e.target === e.currentTarget) onClose();
+        downOnBackdrop.current = false;
+      }}
       aria-label={title}
       className={`${pos} border border-line bg-surface p-0 text-fg shadow-xl backdrop:bg-black/40`}
     >
