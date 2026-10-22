@@ -14,6 +14,7 @@ const validKey = (v: unknown) => typeof v === 'string' || typeof v === 'number';
 export function runQuery<T>(rows: Iterable<Row>, def: TableDef, q: Query<T>): T[] {
   const field = q.index;
   if (field && !def.indexes?.includes(field)) throw new Error(`no index ${field}`);
+  if (field && q.profileId === undefined) throw new Error('indexed queries need profileId'); // as idb.ts
   let list = [...rows].filter((r) => {
     if (q.profileId !== undefined && r.profileId !== q.profileId) return false;
     if (field) {

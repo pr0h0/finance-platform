@@ -249,6 +249,7 @@ export class SyncEngine {
       }
       const recs = await this.o.store.run('readonly', ['imported_raw_records'], (tx) =>
         tx.query<ImportedRawRecord>('imported_raw_records', {
+          profileId: this.o.localProfileId,
           index: 'importBatchId',
           from: op.entityId,
           to: op.entityId,
