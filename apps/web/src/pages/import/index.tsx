@@ -24,13 +24,21 @@ export default function ImportPage() {
   const t = useT();
   const refs = useRefs();
   const [params, setParams] = useSearchParams();
-  const tab = (TABS.find((t) => t.id === params.get('tab'))?.id ?? 'import') as Tab;
+  const tab = (TABS.find((x) => x.id === params.get('tab'))?.id ?? 'import') as Tab;
+  const labels: Record<Tab, string> = {
+    import: t('import.tabs.import', 'Import'),
+    history: t('import.tabs.history', 'History'),
+    coverage: t('import.tabs.coverage', 'Coverage'),
+    mapping: t('import.tabs.mapping', 'Mapping editor'),
+    importers: t('import.tabs.importers', 'Importers'),
+    adapters: t('import.tabs.adapters', 'Custom adapters'),
+  };
   const [reprocess, setReprocess] = useState<{ file: File; accountId?: string; n: number } | null>(
     null,
   );
-  const setTab = (t: Tab) => {
+  const setTab = (next: Tab) => {
     const p = new URLSearchParams(params);
-    p.set('tab', t);
+    p.set('tab', next);
     setParams(p, { replace: true });
   };
 
@@ -46,7 +54,7 @@ export default function ImportPage() {
         label={t('import.page.importCenter', 'Import center')}
         value={tab}
         onChange={setTab}
-        tabs={TABS}
+        tabs={TABS.map((x) => ({ ...x, label: labels[x.id] }))}
       />
       {tab === 'import' && !refs.loading && (
         <ImportWizard

@@ -456,7 +456,9 @@ export function ImportWizard({
                 <Button
                   size="sm"
                   variant="ghost"
-                  aria-label={`Remove ${j.file.name}`}
+                  aria-label={t('import.importWizard.remove', 'Remove {{name}}', {
+                    name: j.file.name,
+                  })}
                   onClick={() => setJobs((js) => js.filter((x) => x.key !== j.key))}
                 >
                   <X size={14} aria-hidden />
@@ -718,7 +720,10 @@ function StagedRows({
   // Save a merchant template from a row, then pre-fill every other unmatched, uncategorized row it matches.
   const saveMerchant = async (id: string) => {
     const c = choices[id] as Choice;
-    const name = window.prompt('Merchant name (matched inside bank descriptions)', c.description);
+    const name = window.prompt(
+      t('import.importWizard.merchantPrompt', 'Merchant name (matched inside bank descriptions)'),
+      c.description,
+    );
     if (!name?.trim()) return;
     const match = await onSaveMerchant(name.trim(), c.categoryId);
     if (!match) return;
@@ -843,7 +848,9 @@ function StagedRows({
                   <td className="py-1">
                     <input
                       type="checkbox"
-                      aria-label={`Import row ${r.rowNumber}`}
+                      aria-label={t('import.importWizard.importRow', 'Import row {{rowNumber}}', {
+                        rowNumber: r.rowNumber,
+                      })}
                       checked={c.selected}
                       onChange={(e) => set(r.id, { selected: e.target.checked })}
                     />
@@ -851,7 +858,11 @@ function StagedRows({
                   <td className="whitespace-nowrap tabular-nums">{r.postingDate}</td>
                   <td className="min-w-48">
                     <input
-                      aria-label={`Description of row ${r.rowNumber}`}
+                      aria-label={t(
+                        'import.importWizard.descriptionOfRow',
+                        'Description of row {{rowNumber}}',
+                        { rowNumber: r.rowNumber },
+                      )}
                       className={`${inputCls} h-7`}
                       value={c.description}
                       onChange={(e) => set(r.id, { description: e.target.value })}
@@ -863,7 +874,9 @@ function StagedRows({
                   </td>
                   <td>
                     <select
-                      aria-label={`Category of row ${r.rowNumber}`}
+                      aria-label={t('import.importWizard.categoryOfRow', 'Category of row {{n}}', {
+                        n: r.rowNumber,
+                      })}
                       className={`${inputCls} h-7 min-w-36 text-xs`}
                       value={c.categoryId ?? ''}
                       onChange={(e) =>
@@ -901,7 +914,13 @@ function StagedRows({
                               splitTemplateId: e.target.checked ? c.splitSuggestion : null,
                             })
                           }
-                          aria-label={`Apply split template to row ${r.rowNumber}`}
+                          aria-label={t(
+                            'import.importWizard.applySplitToRow',
+                            'Apply split template to row {{n}}',
+                            {
+                              n: r.rowNumber,
+                            },
+                          )}
                         />
                         {t('import.importWizard.split', 'split:')}{' '}
                         {splitTemplateName(c.splitSuggestion)}

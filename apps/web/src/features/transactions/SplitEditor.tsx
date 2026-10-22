@@ -116,7 +116,9 @@ export function SplitEditor({ tx, refs }: { tx: D.Transaction; refs: Refs }) {
         {lines.map((l, i) => (
           <li key={l.key} className="flex flex-wrap items-center gap-1">
             <select
-              aria-label={`Category of line ${i + 1}`}
+              aria-label={t('transactions.splitEditor.categoryOfLine', 'Category of line {{v0}}', {
+                v0: i + 1,
+              })}
               className={`${inputCls} min-w-40 flex-[2]`}
               value={l.categoryId ?? ''}
               onChange={(e) => set(i, { categoryId: e.target.value || null })}
@@ -129,14 +131,18 @@ export function SplitEditor({ tx, refs }: { tx: D.Transaction; refs: Refs }) {
               ))}
             </select>
             <input
-              aria-label={`Amount of line ${i + 1}`}
+              aria-label={t('transactions.splitEditor.amountOfLine', 'Amount of line {{v0}}', {
+                v0: i + 1,
+              })}
               inputMode="decimal"
               className={`${inputCls} w-28 text-right tabular-nums`}
               value={l.amount}
               onChange={(e) => set(i, { amount: e.target.value.replace(',', '.') })}
             />
             <input
-              aria-label={`Note of line ${i + 1}`}
+              aria-label={t('transactions.splitEditor.noteOfLine', 'Note of line {{v0}}', {
+                v0: i + 1,
+              })}
               placeholder={t('transactions.splitEditor.note', 'Note')}
               className={`${inputCls} min-w-24 flex-1`}
               value={l.description}

@@ -116,7 +116,11 @@ export function OccurrenceDetail({
         <legend className="px-1 font-medium">
           {t('planning.occurrenceDialog.changeThisOccurrenceOnly', 'Change this occurrence only')}
         </legend>
-        <Field label={`Amount (${row.amount.currency})`}>
+        <Field
+          label={t('planning.occurrenceDialog.amount', 'Amount ({{currency}})', {
+            currency: row.amount.currency,
+          })}
+        >
           <Input inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />
         </Field>
         <Field label={t('transaction.date', 'Date')}>

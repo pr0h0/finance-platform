@@ -179,7 +179,9 @@ export default function SubscriptionsPage() {
                     <td className="text-right">
                       <Button
                         variant="ghost"
-                        aria-label={`Edit ${r.sub.name}`}
+                        aria-label={t('subscriptions.page.edit', 'Edit {{name}}', {
+                          name: r.sub.name,
+                        })}
                         onClick={() => setEdit({ sub: r.sub })}
                       >
                         <Pencil aria-hidden className="size-4" />
@@ -371,7 +373,7 @@ function SubscriptionForm({
         </Select>
       </Field>
       <Field
-        label={`Price (${currency})`}
+        label={t('subscriptions.page.priceIn', 'Price ({{currency}})', { currency: currency })}
         hint={
           sub
             ? t('subscriptions.page.aNewPriceApplies', 'A new price applies to future payments')

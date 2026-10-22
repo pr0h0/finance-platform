@@ -117,7 +117,7 @@ export default function BudgetsPage() {
                   </Button>
                   <Button
                     variant="ghost"
-                    aria-label={`Edit ${tpl.name}`}
+                    aria-label={t('budgets.page.edit', 'Edit {{name}}', { name: tpl.name })}
                     onClick={() => setEdit({ budget: tpl, allocations: allocFor(tpl.id) })}
                   >
                     <Pencil aria-hidden className="size-4" />
@@ -241,12 +241,16 @@ function BudgetCard({
           >
             <Copy aria-hidden className="size-4" />
           </Button>
-          <Button variant="ghost" aria-label={`Edit ${budget.name}`} onClick={onEdit}>
+          <Button
+            variant="ghost"
+            aria-label={t('budgets.page.edit', 'Edit {{name}}', { name: budget.name })}
+            onClick={onEdit}
+          >
             <Pencil aria-hidden className="size-4" />
           </Button>
           <Button
             variant="ghost"
-            aria-label={`Archive ${budget.name}`}
+            aria-label={t('budgets.page.archive', 'Archive {{name}}', { name: budget.name })}
             onClick={() => confirm('Archive this budget?') && archive.mutate(undefined)}
           >
             <Archive aria-hidden className="size-4" />
@@ -304,7 +308,9 @@ function BudgetCard({
                       </td>
                       <td>
                         <ProgressBar
-                          label={`${l.utilization ? Math.round(Number(l.utilization) * 100) : 0}% used`}
+                          label={t('budgets.page.used', '{{v0}}% used', {
+                            v0: l.utilization ? Math.round(Number(l.utilization) * 100) : 0,
+                          })}
                           parts={[
                             {
                               value: Number(l.actual.amount) / lim,

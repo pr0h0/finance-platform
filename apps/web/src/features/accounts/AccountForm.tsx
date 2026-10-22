@@ -181,7 +181,9 @@ export function AccountForm({
         </Field>
         {!account && (
           <Field
-            label={`Opening balance (${f.currency || '…'})`}
+            label={t('accounts.accountForm.openingBalance', 'Opening balance ({{v0}})', {
+              v0: f.currency || '…',
+            })}
             hint={
               liability
                 ? t(

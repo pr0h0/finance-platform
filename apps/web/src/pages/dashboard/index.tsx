@@ -147,14 +147,18 @@ function SortableWidget({
             <>
               <Button
                 variant="ghost"
-                aria-label={`Move ${w?.title} earlier`}
+                aria-label={t('dashboard.page.moveEarlier', 'Move {{title}} earlier', {
+                  title: w?.title ?? '',
+                })}
                 onClick={() => onMove(-1)}
               >
                 <ArrowUp aria-hidden className="size-4" />
               </Button>
               <Button
                 variant="ghost"
-                aria-label={`Move ${w?.title} later`}
+                aria-label={t('dashboard.page.moveLater', 'Move {{title}} later', {
+                  title: w?.title ?? '',
+                })}
                 onClick={() => onMove(1)}
               >
                 <ArrowDown aria-hidden className="size-4" />
@@ -174,7 +178,7 @@ function SortableWidget({
               <button
                 type="button"
                 className="cursor-grab rounded p-1 hover:bg-surface-2"
-                aria-label={`Drag ${w?.title}`}
+                aria-label={t('dashboard.page.drag', 'Drag {{title}}', { title: w?.title ?? '' })}
                 {...s.attributes}
                 {...s.listeners}
               >

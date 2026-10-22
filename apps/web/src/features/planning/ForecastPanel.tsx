@@ -60,10 +60,16 @@ export function ForecastSummary({
       <Stat
         label={t('planning.forecastPanel.safeToSpend', 'Safe to spend')}
         value={<Amount value={fc.safeToSpend} />}
-        hint={`Lowest conservative balance until ${f.date(fc.safeToSpendUntil)}, minus reserve`}
+        hint={t(
+          'planning.forecastPanel.lowestConservativeBalanceUntil',
+          'Lowest conservative balance until {{v0}}, minus reserve',
+          { v0: f.date(fc.safeToSpendUntil) },
+        )}
       />
       <Stat
-        label={`End of forecast (${f.date(fc.to)})`}
+        label={t('planning.forecastPanel.endOfForecast', 'End of forecast ({{v0}})', {
+          v0: f.date(fc.to),
+        })}
         value={<Amount value={fc.days.at(-1)?.expected as Money} tone />}
       />
       {fc.shortfalls.length > 0 && (
@@ -194,7 +200,11 @@ export function ForecastPanel({ snap }: { snap: Snapshot }) {
             );
           }}
         >
-          <Field label={`Minimum reserve (${snap.currency})`}>
+          <Field
+            label={t('planning.forecastPanel.minimumReserve', 'Minimum reserve ({{currency}})', {
+              currency: snap.currency,
+            })}
+          >
             <Input
               inputMode="decimal"
               value={reserveText}

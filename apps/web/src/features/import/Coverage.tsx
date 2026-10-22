@@ -84,7 +84,12 @@ export function Coverage({ refs }: { refs: Refs }) {
         const years = [...new Set(months.map((m) => m.month.slice(0, 4)))];
         const gaps = months.filter((m) => m.status === 'missing' || m.status === 'partial').length;
         return (
-          <section key={accountId} aria-label={`Coverage of ${refs.accountName(accountId)}`}>
+          <section
+            key={accountId}
+            aria-label={t('import.coverage.coverageOf', 'Coverage of {{v0}}', {
+              v0: refs.accountName(accountId),
+            })}
+          >
             <h3 className="mb-2 text-sm font-semibold">
               {refs.accountName(accountId)}{' '}
               <span className="font-normal text-muted">
@@ -117,7 +122,16 @@ export function Coverage({ refs }: { refs: Refs }) {
                           {m ? (
                             <span
                               className={`block size-6 rounded-sm border border-line ${TONE[m.status]}`}
-                              title={`${key}: ${LABEL[m.status]} (${m.days.complete + m.days.unverified} of ${Object.values(m.days).reduce((a, b) => a + b, 0)} days)`}
+                              title={t(
+                                'import.coverage.ofDays',
+                                '{{key}}: {{v1}} ({{v2}} of {{v3}} days)',
+                                {
+                                  key: key,
+                                  v1: LABEL[m.status],
+                                  v2: m.days.complete + m.days.unverified,
+                                  v3: Object.values(m.days).reduce((a, b) => a + b, 0),
+                                },
+                              )}
                               role="img"
                               aria-label={`${key}: ${LABEL[m.status]}`}
                             />

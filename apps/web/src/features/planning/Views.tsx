@@ -370,7 +370,11 @@ export function InstallmentsCard({ snap }: { snap: Snapshot }) {
               </span>
             </div>
             <ProgressBar
-              label={`${p.paid} of ${p.total} installments paid`}
+              label={t(
+                'planning.views.ofInstallmentsPaid',
+                '{{paid}} of {{total}} installments paid',
+                { paid: p.paid, total: p.total },
+              )}
               parts={[
                 { value: p.paid, className: 'bg-pos', title: 'paid' },
                 { value: p.remaining, className: 'bg-transparent', title: 'remaining' },

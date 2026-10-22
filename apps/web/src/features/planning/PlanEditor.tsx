@@ -170,7 +170,9 @@ export function PlanEditor({
           </Select>
         </Field>
       )}
-      <Field label={`Amount (${currency})`}>
+      <Field
+        label={t('planning.planEditor.amount', 'Amount ({{currency}})', { currency: currency })}
+      >
         <Input
           required
           inputMode="decimal"

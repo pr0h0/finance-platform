@@ -92,7 +92,10 @@ export default function GoalsPage() {
           {ef.target && ef.months && (
             <div>
               <ProgressBar
-                label={`${ef.months} of ${ef.target} months`}
+                label={t('goals.page.ofMonths', '{{months}} of {{target}} months', {
+                  months: ef.months,
+                  target: ef.target,
+                })}
                 parts={[
                   { value: Number(ef.months), className: 'bg-pos', title: 'covered' },
                   {
@@ -130,7 +133,7 @@ export default function GoalsPage() {
             actions={
               <Button
                 variant="ghost"
-                aria-label={`Edit ${g.name}`}
+                aria-label={t('goals.page.edit', 'Edit {{name}}', { name: g.name })}
                 onClick={() => setEdit({ goal: g })}
               >
                 <Pencil aria-hidden className="size-4" />
@@ -148,7 +151,7 @@ export default function GoalsPage() {
                 </span>
               </div>
               <ProgressBar
-                label={`${f.percent(p.progress, 0)} saved`}
+                label={t('goals.page.saved', '{{v0}} saved', { v0: f.percent(p.progress, 0) })}
                 parts={[
                   { value: Number(p.progress), className: 'bg-pos', title: 'saved' },
                   {
@@ -463,7 +466,7 @@ function ContributionForm({ goal, onDone }: { goal: SavingsGoal; onDone: () => v
         );
       }}
     >
-      <Field label={`Amount (${cur})`}>
+      <Field label={t('goals.page.amount', 'Amount ({{cur}})', { cur: cur })}>
         <Input
           required
           inputMode="decimal"

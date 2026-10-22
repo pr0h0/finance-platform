@@ -328,7 +328,9 @@ function EditFields({ tx, refs }: { tx: D.Transaction; refs: Refs }) {
           )}
         </Field>
         <Field
-          label={`Amount (${amt?.currency ?? ''})`}
+          label={t('transactions.detailDrawer.amount', 'Amount ({{v0}})', {
+            v0: amt?.currency ?? '',
+          })}
           hint={
             tx.importRecordId
               ? t(
@@ -587,7 +589,9 @@ function Attachments({ tx }: { tx: D.Transaction }) {
             <Button
               size="sm"
               variant="ghost"
-              aria-label={`Remove ${a.fileName}`}
+              aria-label={t('transactions.detailDrawer.remove', 'Remove {{fileName}}', {
+                fileName: a.fileName,
+              })}
               onClick={() => window.confirm(`Remove ${a.fileName}?`) && del.mutate(a.id)}
             >
               <Trash2 size={14} aria-hidden />
@@ -708,7 +712,11 @@ function Refunds({ tx, all, refs }: { tx: D.Transaction; all: D.Transaction[]; r
       </p>
       {left > 0n && (
         <div className="flex flex-wrap items-end gap-2">
-          <Field label={`Refund amount (${total.currency})`}>
+          <Field
+            label={t('transactions.detailDrawer.refundAmount', 'Refund amount ({{currency}})', {
+              currency: total.currency,
+            })}
+          >
             {(id) => (
               <input
                 id={id}
@@ -1058,7 +1066,9 @@ function ReceiptScan({
         {label}
       </label>
       <input
-        aria-label={`Receipt ${label.toLowerCase()}`}
+        aria-label={t('transactions.detailDrawer.receipt', 'Receipt {{v0}}', {
+          v0: label.toLowerCase(),
+        })}
         className={`${inputCls} flex-1`}
         value={vals?.[k] ?? ''}
         disabled={disabled}

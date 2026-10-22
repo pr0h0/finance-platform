@@ -143,7 +143,11 @@ export function Converter() {
           </Field>
         </div>
         <Field
-          label={`Manual rate (${to} per 1 ${from}, optional)`}
+          label={t(
+            'currency.converter.manualRatePer1',
+            'Manual rate ({{to}} per 1 {{from}}, optional)',
+            { to: to, from: from },
+          )}
           hint={t('currency.converter.eGTheRate', 'e.g. the rate your bank actually applied')}
         >
           {(id, d) => (

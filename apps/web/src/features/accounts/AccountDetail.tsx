@@ -339,7 +339,11 @@ function Reconcile({ account, txs }: { account: D.Account; txs: D.Transaction[] 
             )}
           </Field>
         )}
-        <Field label={`Statement balance (${currency})`}>
+        <Field
+          label={t('accounts.accountDetail.statementBalance', 'Statement balance ({{currency}})', {
+            currency: currency,
+          })}
+        >
           {(id) => (
             <input
               id={id}

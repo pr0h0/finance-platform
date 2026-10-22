@@ -48,7 +48,11 @@ export function QuickActions({ snap }: { snap: Snapshot }) {
         <PlanEditor snap={snap} onDone={() => setOpen(null)} />
       </Dialog>
       {open && open !== 'planned' && (
-        <Dialog open onClose={() => setOpen(null)} title={`New ${open}`}>
+        <Dialog
+          open
+          onClose={() => setOpen(null)}
+          title={t('dashboard.quickActions.new', 'New {{open}}', { open: open })}
+        >
           <EntryForm snap={snap} kind={open} onDone={() => setOpen(null)} />
         </Dialog>
       )}
@@ -152,7 +156,9 @@ function EntryForm({ snap, kind, onDone }: { snap: Snapshot; kind: Kind; onDone:
           </Select>
         </Field>
       )}
-      <Field label={`Amount (${from?.currency ?? ''})`}>
+      <Field
+        label={t('dashboard.quickActions.amount', 'Amount ({{v0}})', { v0: from?.currency ?? '' })}
+      >
         <Input
           autoFocus
           required
@@ -162,7 +168,11 @@ function EntryForm({ snap, kind, onDone }: { snap: Snapshot; kind: Kind; onDone:
         />
       </Field>
       {cross && (
-        <Field label={`Received (${to?.currency})`}>
+        <Field
+          label={t('dashboard.quickActions.received', 'Received ({{currency}})', {
+            currency: to?.currency,
+          })}
+        >
           <Input
             required
             inputMode="decimal"

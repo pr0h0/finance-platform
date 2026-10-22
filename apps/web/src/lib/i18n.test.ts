@@ -42,6 +42,10 @@ const sources = files(SRC).map((p) => {
   };
 });
 
+// Literal parts of `Edit ${name}` (placeholders dropped), so template strings are checked too.
+const templateText = (e: ts.TemplateExpression) =>
+  [e.head.text, ...e.templateSpans.map((s) => s.literal.text)].join(' ');
+
 function walk(n: ts.Node, f: (n: ts.Node) => void) {
   f(n);
   n.forEachChild((c) => walk(c, f));
@@ -128,6 +132,8 @@ test('no hardcoded English UI text outside the catalogs', () => {
         const i = n.initializer;
         if (isStr(i)) flag(rel, sf, n, i.text);
         else if (ts.isJsxExpression(i) && isStr(i.expression)) flag(rel, sf, n, i.expression.text);
+        else if (ts.isJsxExpression(i) && i.expression && ts.isTemplateExpression(i.expression))
+          flag(rel, sf, n, templateText(i.expression));
       } else if (isStr(n) && uiLiteral(n)) flag(rel, sf, n, n.text);
       else if (
         ts.isJsxExpression(n) &&

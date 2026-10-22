@@ -225,7 +225,7 @@ export function WhatIf({ snap }: { snap: Snapshot }) {
               <li key={`${l}-${i}`} className="flex items-center gap-2">
                 <Button
                   variant="ghost"
-                  aria-label={`Remove ${l}`}
+                  aria-label={t('planning.whatIf.remove', 'Remove {{l}}', { l: l })}
                   onClick={() => {
                     setItems(items.filter((_, j) => j !== i));
                     setLabels(labels.filter((_, j) => j !== i));

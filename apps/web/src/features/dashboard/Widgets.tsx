@@ -78,7 +78,9 @@ function TotalBalance({ snap }: { snap: Snapshot }) {
   return (
     <>
       <Stat
-        label={`Net worth (${snap.currency})`}
+        label={t('dashboard.widgets.netWorth', 'Net worth ({{currency}})', {
+          currency: snap.currency,
+        })}
         value={<Amount value={nw.netWorth} />}
         hint={
           <>
@@ -190,7 +192,9 @@ function Accounts({ snap }: { snap: Snapshot }) {
           <span className="hidden w-24 sm:block">
             {r.share !== null && (
               <ProgressBar
-                label={`${(r.share * 100).toFixed(1)}% of assets`}
+                label={t('dashboard.widgets.ofAssets', '{{v0}}% of assets', {
+                  v0: (r.share * 100).toFixed(1),
+                })}
                 parts={[
                   { value: r.share, className: 'bg-accent', title: 'share' },
                   { value: 1 - r.share, className: 'bg-transparent', title: 'rest' },
@@ -519,7 +523,7 @@ function Goals({ snap }: { snap: Snapshot }) {
             <span className="text-xs text-muted">{f.percent(p.progress, 0)}</span>
           </div>
           <ProgressBar
-            label={`${goal.name} progress`}
+            label={t('dashboard.widgets.progress', '{{name}} progress', { name: goal.name })}
             parts={[
               { value: Number(p.progress), className: 'bg-pos', title: 'saved' },
               {
@@ -574,7 +578,11 @@ function Coverage({ snap }: { snap: Snapshot }) {
           <div
             className="flex gap-0.5"
             role="img"
-            aria-label={`${r.account.name}: ${r.months.filter((m) => m.imported).length} of 12 months imported`}
+            aria-label={t(
+              'dashboard.widgets.of12MonthsImported',
+              '{{name}}: {{length}} of 12 months imported',
+              { name: r.account.name, length: r.months.filter((m) => m.imported).length },
+            )}
           >
             {r.months.map((m) => (
               <span

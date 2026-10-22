@@ -220,7 +220,9 @@ export function BudgetEditor({
               ))}
             </Select>
             <Input
-              aria-label={`Limit (${currency})`}
+              aria-label={t('budgets.budgetEditor.limit', 'Limit ({{currency}})', {
+                currency: currency,
+              })}
               inputMode="decimal"
               className="w-32"
               value={l.amount}

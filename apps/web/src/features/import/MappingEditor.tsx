@@ -228,7 +228,7 @@ export function MappingEditor() {
                 <Button
                   size="sm"
                   variant="ghost"
-                  aria-label={`Export ${x.name}`}
+                  aria-label={t('import.mappingEditor.export', 'Export {{name}}', { name: x.name })}
                   onClick={() =>
                     download(
                       `${x.id}.template.json`,
@@ -253,7 +253,9 @@ export function MappingEditor() {
                   <Button
                     size="sm"
                     variant="ghost"
-                    aria-label={`Delete ${x.name}`}
+                    aria-label={t('import.mappingEditor.delete', 'Delete {{name}}', {
+                      name: x.name,
+                    })}
                     onClick={() => window.confirm(`Delete template ${x.name}?`) && del.mutate(x.id)}
                   >
                     <Trash2 size={12} aria-hidden />

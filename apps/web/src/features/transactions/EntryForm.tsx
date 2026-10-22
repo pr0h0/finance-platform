@@ -363,7 +363,11 @@ export function EntryForm({
           </div>
           <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
             {d.settle === 'received' && (
-              <Field label={`Received (${dst.currency})`}>
+              <Field
+                label={t('transactions.entryForm.received', 'Received ({{currency}})', {
+                  currency: dst.currency,
+                })}
+              >
                 {(id) => (
                   <input
                     id={id}
@@ -376,7 +380,12 @@ export function EntryForm({
               </Field>
             )}
             {d.settle === 'rate' && (
-              <Field label={`${dst.currency} per 1 ${d.currency}`}>
+              <Field
+                label={t('transactions.entryForm.per1', '{{currency}} per 1 {{currency1}}', {
+                  currency: dst.currency,
+                  currency1: d.currency,
+                })}
+              >
                 {(id) => (
                   <input
                     id={id}
@@ -409,7 +418,9 @@ export function EntryForm({
       {d.kind === 'transfer' && (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Field
-            label={`Fee (${d.currency}, optional)`}
+            label={t('transactions.entryForm.feeOptional', 'Fee ({{currency}}, optional)', {
+              currency: d.currency,
+            })}
             hint={t(
               'transactions.entryForm.recordedAsALinked',
               'Recorded as a linked expense on the source account',
