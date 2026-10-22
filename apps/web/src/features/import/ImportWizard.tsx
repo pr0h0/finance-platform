@@ -201,7 +201,7 @@ export function ImportWizard({
         const fromHistory = s && refs.category.has(s.value) ? s.value : null;
         const m = matcher(r.sourceDescription);
         choices[r.id] = {
-          selected: row.outcome === 'new' && !j.result.requiresApproval,
+          selected: row.outcome !== 'duplicate' && !j.result.requiresApproval,
           categoryId:
             fromHistory ?? (m?.categoryId && refs.category.has(m.categoryId) ? m.categoryId : null),
           description: r.sourceDescription,
@@ -517,6 +517,8 @@ export function ImportWizard({
               {t('import.importWizard.transactionsCreated', 'transactions created,')}{' '}
               {String(j.committed.stats.duplicates ?? 0)}{' '}
               {t('import.importWizard.duplicatesSkipped', 'duplicates skipped.')}
+              {Number(j.committed.stats.linked ?? 0) > 0 &&
+                ` ${t('import.importWizard.linkedManual', '{{n}} linked to transactions you entered by hand.', { n: String(j.committed.stats.linked) })}`}
             </p>
           )}
         </article>
@@ -699,7 +701,7 @@ function StagedRows({
   const p = job.preview as ImportPreview;
   const choices = job.choices as NonNullable<Job['choices']>;
   const [page, setPage] = useState(0);
-  const [show, setShow] = useState<'all' | 'new' | 'duplicate' | 'warnings'>('all');
+  const [show, setShow] = useState<'all' | 'new' | 'matched' | 'duplicate' | 'warnings'>('all');
   const rows = p.rows.filter((r) =>
     show === 'all' ? true : show === 'warnings' ? r.record.warnings.length > 0 : r.outcome === show,
   );
@@ -749,6 +751,8 @@ function StagedRows({
         <MoneyText value={p.totals.income} locale={locale} />{' '}
         {t('import.importWizard.expenses', '· expenses')}{' '}
         <MoneyText value={p.totals.expenses} locale={locale} />
+        {p.totals.matched > 0 &&
+          ` · ${t('import.importWizard.matchedCount', '{{n}} match transactions you entered by hand (linked, not duplicated)', { n: String(p.totals.matched) })}`}
       </p>
       <div className="flex flex-wrap items-center gap-2 text-sm">
         <select
@@ -762,6 +766,9 @@ function StagedRows({
         >
           <option value="all">{t('import.importWizard.allRows', 'All rows')}</option>
           <option value="new">{t('import.importWizard.newOnly', 'New only')}</option>
+          <option value="matched">
+            {t('import.importWizard.matchedOnly', 'Matching my entries')}
+          </option>
           <option value="duplicate">
             {t('import.importWizard.duplicatesOnly', 'Duplicates only')}
           </option>
@@ -926,6 +933,11 @@ function StagedRows({
                     )}
                     {row.outcome === 'duplicate' && (
                       <Badge tone="amber">{t('import.importWizard.duplicate', 'duplicate')}</Badge>
+                    )}
+                    {row.outcome === 'matched' && (
+                      <Badge tone="blue">
+                        {t('import.importWizard.matchesEntry', 'matches your entry: linked')}
+                      </Badge>
                     )}
                     {r.warnings.length > 0 && (
                       <span title={r.warnings.join('; ')} className="ml-1 text-warn">

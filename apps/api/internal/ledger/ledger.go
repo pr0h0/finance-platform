@@ -651,11 +651,11 @@ func Update(ctx context.Context, tx pgx.Tx, before, after *Transaction, action s
 	}
 	tag, err := tx.Exec(ctx, `UPDATE transactions SET kind=$3, status=$4, booking_date=$5::date, value_date=$6::date, occurred_at=$7,
 		description=$8, notes=$9, merchant_id=$10, payee=$11, reference=$12, exclude_from_reports=$13, related_transaction_id=$14,
-		categorization_source=$15, deleted_at=$16, version = version + 1
+		categorization_source=$15, deleted_at=$16, import_record_id=$17, version = version + 1
 		WHERE id=$1 AND profile_id=$2`,
 		after.ID, after.ProfileID, after.Kind, after.Status, after.BookingDate, after.ValueDate, after.OccurredAt, after.Description,
 		after.Notes, after.MerchantID, after.Payee, after.Reference, after.ExcludeFromReports, after.RelatedTransactionID,
-		after.CategorizationSource, after.DeletedAt)
+		after.CategorizationSource, after.DeletedAt, after.ImportRecordID)
 	if err != nil {
 		return nil, fmt.Errorf("update transaction: %w", err)
 	}

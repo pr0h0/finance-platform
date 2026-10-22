@@ -329,6 +329,64 @@ test('import: stage keeps raw evidence, commit applies rules, duplicates recogni
   expect((await svc.importPreview(p2.batch.id)).rows.map((r) => r.outcome)).toEqual(['new', 'new']);
 });
 
+test('import links entries made by hand (same amount, same account, ±3 days) instead of duplicating', async () => {
+  const { checking, savings, food } = await setup();
+  const manual = await svc.createTransaction({
+    kind: 'expense',
+    accountId: checking.id,
+    amount: m('20.00'),
+    bookingDate: '2026-02-03',
+    description: 'groceries (typed in)',
+    categoryId: food.id,
+  });
+  await svc.createTransaction({
+    kind: 'expense',
+    accountId: savings.id,
+    amount: m('20.00'),
+    bookingDate: '2026-02-01',
+  });
+  const rec = (rowNumber: number, postingDate: string, amount: string, fp: string) => ({
+    rowNumber,
+    postingDate,
+    description: 'BINGO PJ 12',
+    direction: 'debit' as const,
+    amount,
+    currency: 'BAM',
+    raw: {},
+    fingerprint: fp,
+  });
+  const p = await svc.stageImport({
+    accountId: checking.id,
+    importerId: 'csv',
+    importerVersion: '1.0.0',
+    fileName: 'm.csv',
+    fileSha256: 'm',
+    fileSize: 1,
+    records: [
+      rec(1, '2026-02-01', '20.00', 'a'),
+      rec(2, '2026-02-01', '20.00', 'b'),
+      rec(3, '2026-02-09', '5.00', 'c'),
+    ],
+  });
+  // one manual entry claims one row; the savings-account entry is not a candidate
+  expect(p.rows.map((r) => r.outcome)).toEqual(['matched', 'new', 'new']);
+  expect(p.rows[0]?.matchOf).toBe(manual.id);
+  expect(p.totals.matched).toBe(1);
+  const b = await svc.commitImport(p.batch.id);
+  expect(b.stats).toMatchObject({ created: 2, linked: 1 });
+  const linked = await svc.getTransaction(manual.id);
+  expect(linked.importRecordId).toBe(p.rows[0]?.record.id);
+  expect(linked).toMatchObject({ bookingDate: '2026-02-03', description: 'groceries (typed in)' });
+  expect(linked.splits[0]?.categoryId).toBe(food.id);
+  expect(await bal(checking.id)).toEqual(['955.00 BAM']); // 1000 - 20 (manual) - 20 - 5
+
+  await svc.rollbackImport(b.id);
+  const back = await svc.getTransaction(manual.id);
+  expect(back.importRecordId).toBeNull();
+  expect(back.deletedAt).toBeNull();
+  expect(await bal(checking.id)).toEqual(['980.00 BAM']);
+});
+
 test('imported halves of an own-account transfer link into one transfer and unlink again', async () => {
   const { checking, savings, food } = await setup();
   const rec = (description: string, direction: 'debit' | 'credit', fp: string) => ({

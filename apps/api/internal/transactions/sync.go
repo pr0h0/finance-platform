@@ -47,8 +47,13 @@ var syncEntity = sync.Entity{
 		if err != nil {
 			return err
 		}
-		// Not client-editable after creation (ledger.Update keeps them too).
-		in.Source, in.ImportRecordID, in.CorrectsTransactionID = cur.Source, cur.ImportRecordID, cur.CorrectsTransactionID
+		// Not client-editable after creation (ledger.Update keeps them too), except that a manual entry
+		// may be linked to the bank record that proves it (browser import matching) and unlinked again
+		// (rollback of that import). serverRefs already dropped record ids this profile does not have.
+		in.Source, in.CorrectsTransactionID = cur.Source, cur.CorrectsTransactionID
+		if cur.Source == "import" {
+			in.ImportRecordID = cur.ImportRecordID
+		}
 		in.Version, in.CreatedAt = cur.Version, cur.CreatedAt
 		_, err = ledger.Update(ctx, tx, cur, &in, "transaction.update", nil)
 		return err

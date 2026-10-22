@@ -1286,6 +1286,11 @@ export const bs: Record<string, string> = {
   'import.importWizard.stageForReview': 'Pripremi za pregled',
   'import.importWizard.committed': 'Potvrđeno:',
   'import.importWizard.transactionsCreated': 'transakcija kreirano,',
+  'import.importWizard.linkedManual': '{{n}} povezano s transakcijama koje ste unijeli ručno.',
+  'import.importWizard.matchedCount':
+    '{{n}} odgovara ručno unesenim transakcijama (povezano, bez duplikata)',
+  'import.importWizard.matchedOnly': 'Odgovara mojim unosima',
+  'import.importWizard.matchesEntry': 'odgovara vašem unosu: povezano',
   'import.importWizard.duplicatesSkipped': 'duplikata preskočeno.',
   'import.importWizard.statementOpeningBalance': 'Početno stanje izvoda',
   'import.importWizard.setOpeningBalance': 'Postavi početno stanje',

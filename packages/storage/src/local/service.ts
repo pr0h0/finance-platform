@@ -157,14 +157,23 @@ export const importSourceKey = (batchId: string) => `import:${batchId}`;
 
 export interface StagedRow {
   record: D.ImportedRawRecord;
-  outcome: 'new' | 'duplicate';
+  outcome: 'new' | 'duplicate' | 'matched';
   duplicateOf: string | null; // raw record id already imported with the same fingerprint
+  /** matched: a not-yet-imported (manual) transaction with the same amount on this account
+   * within ±3 days; committing links it to this record instead of creating another (= Go classify). */
+  matchOf?: string | null;
 }
 
 export interface ImportPreview {
   batch: D.ImportBatch;
   rows: StagedRow[];
-  totals: { income: D.Money; expenses: D.Money; count: number; duplicates: number };
+  totals: {
+    income: D.Money;
+    expenses: D.Money;
+    count: number;
+    duplicates: number;
+    matched: number;
+  };
 }
 
 export interface CommitRow {
@@ -1569,6 +1578,26 @@ export class LocalFinanceService {
       let income = 0n;
       let expenses = 0n;
       const cur = records[0]?.amount.currency ?? 'XXX';
+      const day = (d: string) => Date.parse(d) / 86_400_000;
+      const dates = records.map((r) => day(r.postingDate));
+      const lo = Math.min(...dates) - 3;
+      const hi = Math.max(...dates) + 3;
+      const acc = records[0]?.accountId;
+      const cands = (
+        await this.all<D.Transaction>(tx, 'transactions', {
+          filter: (t) => !t.importRecordId && day(t.bookingDate) >= lo && day(t.bookingDate) <= hi,
+        })
+      )
+        .map((t) => ({
+          id: t.id,
+          day: day(t.bookingDate),
+          amount: t.postings
+            .filter((p) => p.accountId === acc)
+            .reduce((a, p) => a + toMinor(p.amount), 0n),
+          on: t.postings.some((p) => p.accountId === acc),
+          claimed: false,
+        }))
+        .filter((c) => c.on);
       for (const r of records.sort((a, b) => a.rowNumber - b.rowNumber)) {
         const earlier = await this.all<D.ImportedRawRecord>(tx, 'imported_raw_records', {
           index: 'dedupeFingerprint',
@@ -1587,7 +1616,21 @@ export class LocalFinanceService {
         }
         const dupOf = committed[0]?.id ?? seen.get(r.dedupeFingerprint) ?? null;
         seen.set(r.dedupeFingerprint, r.id);
-        rows.push({ record: r, outcome: dupOf ? 'duplicate' : 'new', duplicateOf: dupOf });
+        let match: (typeof cands)[number] | undefined;
+        if (!dupOf) {
+          const a = toMinor(r.amount);
+          const d = day(r.postingDate);
+          for (const c of cands)
+            if (!c.claimed && c.amount === a && Math.abs(c.day - d) <= 3)
+              if (!match || Math.abs(c.day - d) < Math.abs(match.day - d)) match = c;
+          if (match) match.claimed = true;
+        }
+        rows.push({
+          record: r,
+          outcome: dupOf ? 'duplicate' : match ? 'matched' : 'new',
+          duplicateOf: dupOf,
+          matchOf: match?.id ?? null,
+        });
         const a = toMinor(r.amount);
         if (!dupOf && a < 0n) expenses -= a;
         else if (!dupOf) income += a;
@@ -1600,12 +1643,15 @@ export class LocalFinanceService {
           expenses: fromMinor(expenses, cur),
           count: rows.length,
           duplicates: rows.filter((r) => r.outcome === 'duplicate').length,
+          matched: rows.filter((r) => r.outcome === 'matched').length,
         },
       };
     });
   }
 
-  /** Create transactions for the selected (default: non-duplicate) rows; rules run on them. */
+  /** Create transactions for the selected (default: non-duplicate) rows; rules run on them.
+   * Matched rows link the existing (manual) transaction to its bank record instead: its date,
+   * category and splits stay as entered. */
   async commitImport(batchId: string, rows: CommitRow[] = []): Promise<D.ImportBatch> {
     const preview = await this.importPreview(batchId);
     if (preview.batch.status !== 'staged')
@@ -1614,10 +1660,23 @@ export class LocalFinanceService {
     await this.write(async (tx) => {
       const rules = await this.all<D.CategorizationRule>(tx, 'categorization_rules');
       let created = 0;
+      let linked = 0;
       for (const row of preview.rows) {
         const choice = sel.get(row.record.id);
-        if (!(choice?.selected ?? row.outcome === 'new')) continue;
+        if (!(choice?.selected ?? row.outcome !== 'duplicate')) continue;
         const r = row.record;
+        if (row.outcome === 'matched' && row.matchOf) {
+          const m = await this.load<D.Transaction & Syncable>(tx, 'transactions', row.matchOf);
+          if (m.importRecordId)
+            throw conflict('a matched transaction changed since the preview', 'conflict');
+          await this.replace(tx, 'transactions', m, {
+            ...m,
+            importRecordId: r.id,
+            ...(choice?.description ? { description: choice.description } : {}),
+          });
+          linked++;
+          continue;
+        }
         if (choice?.merchantId) await this.exists(tx, 'merchants', choice.merchantId, 'merchantId');
         const tpl = choice?.splitTemplateId
           ? await this.load<D.SplitTemplate & Syncable>(
@@ -1659,7 +1718,7 @@ export class LocalFinanceService {
         ...b,
         status: 'committed',
         committedAt: this.ts(),
-        stats: { ...b.stats, created, duplicates: preview.totals.duplicates },
+        stats: { ...b.stats, created, linked, duplicates: preview.totals.duplicates },
       });
     });
     return this.read((tx) => this.load<D.ImportBatch & Syncable>(tx, 'import_batches', batchId));
@@ -1699,7 +1758,13 @@ export class LocalFinanceService {
           'transactions of this import are linked into transfers; unlink them first',
           'linked_transfer',
         );
-      for (const t of txs) if (!t.deletedAt) await this.tombstone(tx, 'transactions', t);
+      for (const t of txs) {
+        if (t.deletedAt) continue;
+        // a matched manual entry existed before the import: only its bank link goes
+        if (t.source !== 'import')
+          await this.replace(tx, 'transactions', t, { ...t, importRecordId: null });
+        else await this.tombstone(tx, 'transactions', t);
+      }
       await this.replace(tx, 'import_batches', b, {
         ...b,
         status: 'rolled_back',
