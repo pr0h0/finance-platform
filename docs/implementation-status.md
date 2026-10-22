@@ -224,7 +224,7 @@ Whole-system checks run by the integrator (all in Docker):
 | Check | Command | Result |
 |---|---|---|
 | Go vet + tests (real Postgres) | `scripts/go.sh vet ./...`; `scripts/go.sh test ./...` (dev stack up) | pass |
-| TS typecheck / lint / unit tests | `scripts/bun.sh run typecheck`; `scripts/bun.sh run lint`; `scripts/bun.sh run test` | pass (287 pass, 1 skip = real-server test without `FINPLAT_API_URL`) |
+| TS typecheck / lint / unit tests | `scripts/bun.sh run typecheck`; `scripts/bun.sh run lint`; `scripts/bun.sh run test` | pass (287 pass, 2 skip = the real-server tests without `FINPLAT_API_URL`) |
 | Client sync vs real API | `FINPLAT_API_URL=http://api:8080 scripts/bun.sh test packages/sync-client/src/real-server.test.ts` | 2/2 pass |
 | Production stack | `sg docker -c "docker compose -p finplat up -d --build"` → 127.0.0.1:3810 | SPA, `/api/health`, `/api/v1/meta` (schema = latest migration), register/login with Secure cookie behind `X-Forwarded-Proto: https`, `/mcp` initialize/tools/call with a granted token, 401 for bad tokens |
 | Browser journeys (PLAN §46) | `scripts/e2e.sh` (Playwright 1.63 image, Chromium, against 127.0.0.1:3810) | 8/8 pass |
