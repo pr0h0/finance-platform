@@ -1,5 +1,6 @@
 // Client-side report export: CSV (RFC 4180, spreadsheet formula injection guarded), PNG of a
 // rendered chart SVG, and PDF through the browser's print dialog (print stylesheet in the page).
+import { tNow } from '../../lib/i18n.ts';
 
 /** Quote a CSV cell; cells starting with = + - @ tab or CR get a leading ' unless numeric. */
 export function csvCell(v: unknown): string {
@@ -63,6 +64,6 @@ export async function downloadChartPng(container: HTMLElement, name: string): Pr
   ctx.scale(2, 2);
   ctx.drawImage(img, 0, 0, width, height);
   const blob = await new Promise<Blob | null>((r) => canvas.toBlob(r, 'image/png'));
-  if (!blob) throw new Error('PNG export failed');
+  if (!blob) throw new Error(tNow('reports.err.png', 'PNG export failed'));
   download(name, blob);
 }

@@ -1,6 +1,7 @@
 // Web Push subscription of this browser (connected mode). The service worker shows the messages
 // (public/push-sw.js); the server keeps one subscription per browser endpoint.
 import type { ApiClient } from '@finplat/api-client';
+import { tNow } from '../../lib/i18n.ts';
 
 export const pushSupported = (): boolean =>
   typeof navigator !== 'undefined' &&
@@ -19,7 +20,10 @@ export function vapidKeyBytes(b64url: string): Uint8Array<ArrayBuffer> {
 
 async function registration(): Promise<ServiceWorkerRegistration> {
   const reg = await navigator.serviceWorker.getRegistration();
-  if (!reg) throw new Error('The app is not installed as a service worker yet (reload once).');
+  if (!reg)
+    throw new Error(
+      tNow('push.err.noWorker', 'The app is not installed as a service worker yet (reload once).'),
+    );
   return reg;
 }
 
@@ -40,10 +44,15 @@ const sameKey = (sub: PushSubscription, key: Uint8Array): boolean => {
 
 /** Asks for permission, subscribes this browser and registers it with the server. */
 export async function subscribePush(api: ApiClient, publicKey: string): Promise<void> {
-  if (!pushSupported()) throw new Error('This browser does not support push notifications.');
+  if (!pushSupported())
+    throw new Error(
+      tNow('push.err.unsupported', 'This browser does not support push notifications.'),
+    );
   const perm = await Notification.requestPermission();
   if (perm !== 'granted')
-    throw new Error('Notifications are blocked for this site in the browser.');
+    throw new Error(
+      tNow('push.err.blocked', 'Notifications are blocked for this site in the browser.'),
+    );
   const reg = await registration();
   const key = vapidKeyBytes(publicKey);
   let sub = await reg.pushManager.getSubscription();

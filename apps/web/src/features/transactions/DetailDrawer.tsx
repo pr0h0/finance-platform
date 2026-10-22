@@ -1056,7 +1056,8 @@ function ReceiptScan({
     try {
       if (use.merchant && vals.merchant.trim()) patch.payee = vals.merchant.trim();
       if (use.date) {
-        if (!/^\d{4}-\d{2}-\d{2}$/.test(vals.date)) return setErr('Date must be YYYY-MM-DD.');
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(vals.date))
+          return setErr(t('transactions.ocr.dateFormat', 'Date must be YYYY-MM-DD.'));
         patch.bookingDate = vals.date;
       }
       if (use.total && amountEditable && amt) patch.amount = money(vals.total, amt.currency);

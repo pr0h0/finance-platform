@@ -168,6 +168,7 @@ const PROSE = /^[A-Z][a-z]+(?:[\s,.;:()'’/-]+[A-Za-z][a-z]*)*[\s.…:!?)]*$/;
 const NON_UI_CALLS = new Set([
   't',
   'translate',
+  'tNow',
   'Error',
   'get',
   'getItem',

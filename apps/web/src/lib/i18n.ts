@@ -32,6 +32,10 @@ export function useT(): TFn {
   return useCallback((key, en, vars) => translate(lang, key, en, vars), [lang]);
 }
 
+/** translate() in the current UI language, for code outside components (validation, helpers). */
+export const tNow: TFn = (key, en, vars) =>
+  translate(useApp.getState().prefs.language, key, en, vars);
+
 /** Readable message for an ApiError/ServiceError/Error in the UI language. */
 export function errorText(e: unknown, lang = useApp.getState().prefs.language): string {
   const err = e as { code?: string; message?: string; status?: number; details?: unknown } | null;

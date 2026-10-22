@@ -10,7 +10,7 @@ import { useApp } from '../app/store.ts';
 import { Button, cx, Dialog, ErrorBox, Field, Input, Select } from '../components/ui/index.tsx';
 import { toast } from '../components/ui/toast.tsx';
 import { todayIso, useFormat } from '../lib/format.ts';
-import { useT } from '../lib/i18n.ts';
+import { tNow, useT } from '../lib/i18n.ts';
 import { type QuickKind, useShell } from './shell-state.ts';
 
 export interface QuickForm {
@@ -32,14 +32,17 @@ export function buildInput(
   parse: (s: string) => string | null,
 ) {
   const acc = accounts.find((a) => a.id === f.accountId);
-  if (!acc) throw new Error('Choose an account.');
+  if (!acc) throw new Error(tNow('quick.err.account', 'Choose an account.'));
   const raw = parse(f.amount);
-  if (!raw || /^-|^0*(\.0*)?$/.test(raw)) throw new Error('Enter an amount greater than zero.');
+  if (!raw || /^-|^0*(\.0*)?$/.test(raw))
+    throw new Error(tNow('quick.err.amount', 'Enter an amount greater than zero.'));
   let amount: D.Money;
   try {
     amount = money(raw, acc.currency);
   } catch {
-    throw new Error(`Too many decimal places for ${acc.currency}.`);
+    throw new Error(
+      tNow('quick.err.decimals', 'Too many decimal places for {{c}}.', { c: acc.currency }),
+    );
   }
   const input: Record<string, unknown> = {
     kind: f.kind,
@@ -51,16 +54,21 @@ export function buildInput(
   };
   if (f.kind === 'transfer') {
     const to = accounts.find((a) => a.id === f.toAccountId);
-    if (!to || to.id === acc.id) throw new Error('Choose a different destination account.');
+    if (!to || to.id === acc.id)
+      throw new Error(tNow('quick.err.destination', 'Choose a different destination account.'));
     input.toAccountId = to.id;
     if (to.currency !== acc.currency) {
       const r = parse(f.toAmount);
       if (!r || /^-|^0*(\.0*)?$/.test(r))
-        throw new Error(`Enter the amount received in ${to.currency}.`);
+        throw new Error(
+          tNow('quick.err.received', 'Enter the amount received in {{c}}.', { c: to.currency }),
+        );
       try {
         input.toAmount = money(r, to.currency);
       } catch {
-        throw new Error(`Too many decimal places for ${to.currency}.`);
+        throw new Error(
+          tNow('quick.err.decimals', 'Too many decimal places for {{c}}.', { c: to.currency }),
+        );
       }
       input.kind = 'fx';
     }
