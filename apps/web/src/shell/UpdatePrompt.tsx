@@ -1,6 +1,8 @@
 // PWA update behaviour: a new service worker waits until the user chooses to reload, so an
 // update never interrupts a form. The SW caches only the app shell (see vite.config.ts).
+
 import { useRegisterSW } from 'virtual:pwa-register/react';
+import { useEffect } from 'react';
 import { Button } from '../components/ui/index.tsx';
 import { useT } from '../lib/i18n.ts';
 
@@ -15,6 +17,12 @@ export function UpdatePrompt() {
       if (reg) setInterval(() => reg.update().catch(() => undefined), 60 * 60_000);
     },
   });
+  // "ready offline" is informational: hide it by itself so it does not keep covering page controls
+  useEffect(() => {
+    if (!offlineReady || needRefresh) return;
+    const id = setTimeout(() => setOfflineReady(false), 6000);
+    return () => clearTimeout(id);
+  }, [offlineReady, needRefresh, setOfflineReady]);
   if (!needRefresh && !offlineReady) return null;
   return (
     <div

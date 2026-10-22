@@ -24,7 +24,9 @@ async function registration(): Promise<ServiceWorkerRegistration> {
 }
 
 export async function currentSubscription(): Promise<PushSubscription | null> {
-  if (!pushSupported()) return null;
+  // Without permission there is no subscription; skipping the call also avoids WebKitGTK, whose
+  // getSubscription() takes the page down.
+  if (!pushSupported() || Notification.permission !== 'granted') return null;
   const reg = await navigator.serviceWorker.getRegistration();
   return reg ? reg.pushManager.getSubscription() : null;
 }
