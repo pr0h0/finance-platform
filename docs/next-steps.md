@@ -12,7 +12,7 @@ Native, in order:
 3. Android on a real phone: `apps/native/dist/android/app-arm64-release.apk`, checklist (biometrics,
    camera, notifications, connected mode against fin.pr0h0.me).
 4. Desktop items of PLAN still open: auto-update with signed releases (tauri-plugin-updater + an update
-   feed, e.g. on the server), OS keychain for the bearer token and E2EE keys, scheduled automatic
+   feed, e.g. on the server), E2EE keys in the OS keychain (the token already is), scheduled automatic
    backups to a folder, local MCP bridge (131), close-to-tray.
 5. Push notifications when the app is closed (FCM/APNs from the server's notification job).
 

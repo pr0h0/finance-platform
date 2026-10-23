@@ -301,8 +301,9 @@ Full state and checklists: docs/native/README.md.
 - Windows, macOS and iOS are built on GitHub Actions only; nobody has run them yet. Linux was driven
   headless (Xvfb); tray icon, global shortcut and OS notifications were not seen on a real desktop.
   Android ran in an emulator only (no biometrics, camera or real notifications there).
-- The bearer token and E2EE keys live in the app's private data (WebView storage / SQLite), not in
-  the OS keychain. Signing in again from the "session ended" banner registers a new device.
+- The bearer token is in the OS credential store on desktop/iOS; on Android (and Linux without a
+  Secret Service) it stays in the app's private settings. E2EE keys stay in the app's SQLite.
+  Signing in again from the "session ended" banner registers a new device.
 - No push notifications while the app is closed; OS notifications are shown while it runs.
 - No passkeys in the native app (WebAuthn is bound to the server's web origin): password sign-in.
 - No auto-update, no signed Windows/macOS builds yet (SmartScreen / Gatekeeper warnings).

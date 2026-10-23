@@ -28,7 +28,8 @@ The workflow runs only on "Run workflow" or a `v*` tag (macOS minutes count 10×
 ```
 apps/web (React, unchanged pages)          apps/native/src-tauri (Rust)
   src/platform/native.ts  ── invoke ──▶    store.rs   SQLite: one file per local store
-  src/platform/store.ts                    lib.rs     plugins, tray, global shortcut
+  src/platform/store.ts                    secret.rs  server token in the OS credential store
+                                           lib.rs     plugins, tray, global shortcut
   (isNative = '__TAURI_INTERNALS__')       capabilities/*.json  permissions per window/platform
 ```
 
@@ -48,9 +49,18 @@ apps/web (React, unchanged pages)          apps/native/src-tauri (Rust)
 - **Server connection.** The native app can connect to any compatible server (the web app only
   talks to the server that serves it). Requests go through `tauri-plugin-http` (Rust side: no
   CORS), and the app signs in as a native device: `POST /auth/login` with
-  `device: {platform: linux|windows|macos|android|ios}` returns a **bearer token**, kept in the app
-  settings (`connection.token`). Signing in again from the "session ended" banner registers a new
-  device and replaces the token.
+  `device: {platform: linux|windows|macos|android|ios}` returns a **bearer token**. The token is kept
+  in the **OS credential store** (macOS/iOS Keychain, Windows Credential Manager, Linux Secret
+  Service: `src-tauri/src/secret.rs`, keyring crate); `app/store.ts` keeps it out of localStorage and
+  puts it back at start. Where there is no usable credential store (Android; a Linux session without
+  GNOME Keyring/KWallet) it stays in the app's private settings (`connection.token`). Signing in again
+  from the "session ended" banner registers a new device and replaces the token.
+- **Files.** Exports (CSV, PDF reports, charts), encrypted backups and attachment downloads go through
+  one helper (`downloadBlob` in `apps/web/src/lib/format.ts`): a browser download on the web, the
+  **OS save dialog** in the app (`tauri-plugin-dialog`; `tauri-plugin-fs` may write only the path the
+  user picked). Opening files (imports, receipts) uses the normal file input, which the WebViews
+  turn into the OS file picker; drag & drop onto the Import page works (window `dragDropEnabled: false`
+  hands drops to the web app).
 - **Not in the native app:** service worker / PWA update prompt (the app updates as a whole),
   Web Push (replaced by OS notifications, below), passkeys (WebAuthn is bound to the server's web
   origin; the native app signs in with the password).
@@ -60,9 +70,11 @@ apps/web (React, unchanged pages)          apps/native/src-tauri (Rust)
   push when the app is closed (that needs APNs/FCM: open item).
 - **Desktop extras:** tray icon (Open / Add transaction / Quit), global shortcut
   **Ctrl+Shift+E** (Cmd+Shift+E on macOS) opens quick entry from anywhere, single instance (a second
-  launch focuses the running app). Links to other sites open in the system browser.
+  launch focuses the running app), **start at login** (Settings → General → Desktop app;
+  `tauri-plugin-autostart`, off by default). Links to other sites open in the system browser.
 - **Mobile extras:** the app lock screen offers **fingerprint / Face ID** (tauri-plugin-biometric)
   when the device has it; the PIN stays the fallback. Biometrics only gate the UI, like the PIN.
+  Android back button: closes dialogs, goes back in the app, leaves the app only from the dashboard.
 
 ## Repository layout
 
@@ -72,7 +84,8 @@ apps/web (React, unchanged pages)          apps/native/src-tauri (Rust)
 | `apps/native/src-tauri/tauri.conf.json` | app id `me.pr0h0.finplat`, window, bundle settings; builds `apps/web` first (`beforeBuildCommand`) |
 | `apps/native/src-tauri/src/lib.rs` | plugins, tray, global shortcut, mobile entry point |
 | `apps/native/src-tauri/src/store.rs` | SQLite persistence commands `store_load`, `store_commit`, `store_destroy` |
-| `apps/native/src-tauri/capabilities/` | permissions: HTTP to any http(s) server, notifications, OS info, opener; biometric on mobile |
+| `apps/native/src-tauri/src/secret.rs` | OS credential store commands `secret_get`, `secret_set`, `secret_delete` |
+| `apps/native/src-tauri/capabilities/` | permissions: HTTP to any http(s) server, notifications, OS info, opener, save dialog + write of the chosen file; desktop: autostart; mobile: biometric, exit (back button) |
 | `apps/native/src-tauri/icons/` | generated from `apps/web/public/icon-512.png` (`bunx tauri icon …`) |
 | `apps/native/src-tauri/gen/android` | Android Studio project (generated once, committed) |
 | `apps/native/src-tauri/gen/apple` | Xcode project: **not generated yet** (needs a Mac: `bunx tauri ios init`) |
@@ -107,7 +120,9 @@ The smoke tests: the app runs inside Tauri with the native bridges, local onboar
 opening balance, dashboard; quits; the SQLite file exists; starts again and finds the account and
 balance restored from SQLite. Connected: registers on the server through the native HTTP client,
 signs in as a `linux` device (bearer token), adds an account, syncs; the test checks the server
-side through the API; after a restart the app is still signed in with the data cached in SQLite. Install a bundle on a desktop: `sudo apt install ./Finance*.deb`, or run
+side through the API; it runs with a Secret Service (gnome-keyring) and checks the token is not in
+localStorage; after a restart the app is still signed in (token read back from the keyring) with the
+data cached in SQLite. The local test also turns "start at login" on and off (XDG autostart entry). Install a bundle on a desktop: `sudo apt install ./Finance*.deb`, or run
 the AppImage directly.
 
 Dev mode with live reload needs a desktop session: on a Linux desktop install the
@@ -224,12 +239,13 @@ Updates: `tauri-plugin-updater` with GitHub Releases is the planned path (not ad
 ## Open items (native)
 
 - Push notifications while the app is closed (FCM / APNs via the server's notification job).
-- Secure storage of the bearer token and E2EE keys in the OS keychain (Keychain, Credential
-  Manager, Secret Service, Android Keystore). Today they sit in the app's private data directory
-  (WebView storage / SQLite), protected by the OS sandbox and the app lock, not by the keychain.
+- E2EE profile keys in the OS credential store too (today in the app's SQLite, like on the web in
+  IndexedDB), and the bearer token on Android in the Android Keystore (a small Kotlin plugin; the
+  keyring crate has no Android backend).
 - Local MCP server for desktop (PLAN feature 131).
 - Auto-update (tauri-plugin-updater) and signed release pipeline.
-- Desktop: close-to-tray option, start at login.
+- Desktop: close-to-tray option; scheduled automatic backups to a chosen folder (needs a persisted
+  fs scope for that folder).
 - Android: share a statement/receipt from another app into Finance Platform (share target).
 - iOS: safe-area insets (notch / home indicator) come from `viewport-fit=cover` + CSS `env()`:
   header and onboarding pad by `safe-area-inset-top`, the bottom navigation by
