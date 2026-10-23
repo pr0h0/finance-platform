@@ -18,3 +18,4 @@ tests/e2e/test-results/
 samples/
 apps/native/dist/
 tests/native/results/
+apps/native/.signing/

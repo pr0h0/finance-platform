@@ -36,6 +36,18 @@ RUN mkdir -p $ANDROID_HOME/cmdline-tools && cd /tmp \
          "platform-tools" "platforms;android-35" "build-tools;35.0.0" "ndk;27.2.12479018" >/dev/null \
     && chmod -R a+rwX $ANDROID_HOME
 RUN rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
+# the generated project (gen/android) compiles against SDK 37 / build-tools 36
+RUN sdkmanager "platforms;android-37" "build-tools;36.0.0" >/dev/null && chmod -R a+rwX $ANDROID_HOME
 ENV PATH=$ANDROID_HOME/platform-tools:$ANDROID_HOME/cmdline-tools/latest/bin:$PATH
 # Gradle caches go to a volume too (GRADLE_USER_HOME) so rebuilds do not re-download.
 ENV GRADLE_USER_HOME=/cache/gradle
+
+# target android-test: headless emulator (needs /dev/kvm) to install the debug APK and drive its
+# WebView over the Chrome DevTools protocol: tests/native/android-smoke.ts (scripts/native-test.sh android)
+FROM android AS android-test
+RUN sdkmanager "emulator" "system-images;android-35;google_apis;x86_64" >/dev/null \
+    && echo no | avdmanager create avd -n test -k "system-images;android-35;google_apis;x86_64" -d pixel_6 \
+    && mkdir -p /opt/avd && mv /root/.android/avd/* /opt/avd/ \
+    && sed -i 's#/root/.android/avd#/opt/avd#' /opt/avd/test.ini \
+    && chmod -R a+rwX /opt/avd $ANDROID_HOME
+ENV ANDROID_AVD_HOME=/opt/avd PATH=$ANDROID_HOME/emulator:$PATH

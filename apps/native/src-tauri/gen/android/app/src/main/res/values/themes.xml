@@ -1,0 +1,9 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Base application theme. The window background shows behind the system bars (MainActivity
+         pads the web app by the bar insets): the web app's surface color, light theme. -->
+    <style name="Theme.finplat_native" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="android:windowBackground">#ffffff</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
+    </style>
+</resources>

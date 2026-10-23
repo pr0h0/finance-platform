@@ -1,0 +1,8 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Dark theme: the web app's dark surface color behind the system bars, light bar icons. -->
+    <style name="Theme.finplat_native" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="android:windowBackground">#151b23</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+    </style>
+</resources>
