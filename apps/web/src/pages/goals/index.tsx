@@ -27,7 +27,7 @@ import { emergencyFund, goalRows } from '../../features/goals/compute.ts';
 import { PRIORITY_LABEL } from '../../features/planning/labels.ts';
 import { describeRRule } from '../../features/planning/rrule.ts';
 import { useFormat } from '../../lib/format.ts';
-import { useT } from '../../lib/i18n.ts';
+import { tNow, useT } from '../../lib/i18n.ts';
 
 const KIND_LABEL = {
   general: 'General',
@@ -325,11 +325,13 @@ function GoalForm({
   const submit = (e: FormEvent) => {
     e.preventDefault();
     const t = parseMoneyInput(target, currency, f.parseDecimal);
-    if (!t || toMinor(t) <= 0n) return setErr(new Error('Enter a positive target amount'));
+    if (!t || toMinor(t) <= 0n)
+      return setErr(new Error(tNow('goals.form.positiveTarget', 'Enter a positive target amount')));
     const st = starting.trim()
       ? parseMoneyInput(starting, currency, f.parseDecimal)
       : fromMinor(0n, currency);
-    if (!st) return setErr(new Error('Invalid starting amount'));
+    if (!st)
+      return setErr(new Error(tNow('goals.form.invalidStarting', 'Invalid starting amount')));
     save.mutate(
       {
         name,
@@ -480,7 +482,10 @@ function ContributionForm({ goal, onDone }: { goal: SavingsGoal; onDone: () => v
       onSubmit={(e) => {
         e.preventDefault();
         const m = parseMoneyInput(amount, cur, f.parseDecimal);
-        if (!m || toMinor(m) <= 0n) return setErr(new Error(`Enter a positive ${cur} amount`));
+        if (!m || toMinor(m) <= 0n)
+          return setErr(
+            new Error(t('common.positiveAmountIn', 'Enter a positive {{cur}} amount', { cur })),
+          );
         save.mutate(
           {
             goalId: goal.id,

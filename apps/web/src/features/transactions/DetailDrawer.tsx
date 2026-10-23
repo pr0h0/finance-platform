@@ -469,26 +469,29 @@ function RawRecord({ id }: { id: string }) {
     );
   const r = q.data;
   const rows: [string, string][] = [
-    ['Posting date', r.postingDate],
-    ['Value date', r.valueDate ?? ''],
-    ['Amount', `${r.amount.amount} ${r.amount.currency} (${r.direction})`],
+    [t('transactions.raw.postingDate', 'Posting date'), r.postingDate],
+    [t('transactions.raw.valueDate', 'Value date'), r.valueDate ?? ''],
     [
-      'Original amount',
+      t('transactions.raw.amount', 'Amount'),
+      `${r.amount.amount} ${r.amount.currency} (${r.direction})`,
+    ],
+    [
+      t('transactions.raw.originalAmount', 'Original amount'),
       r.originalAmount ? `${r.originalAmount.amount} ${r.originalAmount.currency}` : '',
     ],
-    ['Exchange rate', r.exchangeRate ?? ''],
+    [t('transactions.raw.exchangeRate', 'Exchange rate'), r.exchangeRate ?? ''],
     [
-      'Running balance',
+      t('transactions.raw.runningBalance', 'Running balance'),
       r.runningBalance ? `${r.runningBalance.amount} ${r.runningBalance.currency}` : '',
     ],
-    ['Description', r.sourceDescription],
-    ['Counterparty', r.counterparty],
-    ['Bank reference', r.bankReference],
-    ['Statement', r.statementRef],
-    ['Source account', r.sourceAccount],
-    ['Row', String(r.rowNumber)],
-    ['Importer', `${r.importerId} ${r.importerVersion}`],
-    ['Fingerprint', r.dedupeFingerprint],
+    [t('transactions.raw.description', 'Description'), r.sourceDescription],
+    [t('transactions.raw.counterparty', 'Counterparty'), r.counterparty],
+    [t('transactions.raw.bankReference', 'Bank reference'), r.bankReference],
+    [t('transactions.raw.statement', 'Statement'), r.statementRef],
+    [t('transactions.raw.sourceAccount', 'Source account'), r.sourceAccount],
+    [t('transactions.raw.row', 'Row'), String(r.rowNumber)],
+    [t('transactions.raw.importer', 'Importer'), `${r.importerId} ${r.importerVersion}`],
+    [t('transactions.raw.fingerprint', 'Fingerprint'), r.dedupeFingerprint],
   ];
   return (
     <div className="text-sm">
@@ -554,7 +557,11 @@ function Attachments({ tx }: { tx: D.Transaction }) {
     setErr(null);
     for (const f of files ?? []) {
       if (f.size > 25 * 1024 * 1024) {
-        setErr(`${f.name} is larger than 25 MB.`);
+        setErr(
+          t('transactions.attachments.tooLarge', '{{name}} is larger than 25 MB.', {
+            name: f.name,
+          }),
+        );
         continue;
       }
       await add.mutateAsync(f).catch((e) => setErr(describeError(e)));
@@ -1072,8 +1079,11 @@ function Actions({ tx, onClose }: { tx: D.Transaction; onClose: () => void }) {
         onClick={() =>
           window.confirm(
             tx.importRecordId
-              ? 'Imported transactions are kept as evidence and only excluded from reports. Continue?'
-              : 'Delete this transaction?',
+              ? t(
+                  'transactions.actions.excludeImportedConfirm',
+                  'Imported transactions are kept as evidence and only excluded from reports. Continue?',
+                )
+              : t('transactions.actions.deleteConfirm', 'Delete this transaction?'),
           ) && run(del.mutateAsync(undefined), !tx.importRecordId)
         }
       >

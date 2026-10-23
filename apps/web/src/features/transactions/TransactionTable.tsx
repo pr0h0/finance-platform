@@ -174,7 +174,9 @@ export function TransactionTable({
                   : refs.categoryLabel(tx.splits[0]?.categoryId ?? null),
         cell: ({ getValue, row }) => {
           const v = getValue() as string;
-          const unc = v === 'Uncategorized' && row.original.kind !== 'adjustment';
+          const unc =
+            v === t('transaction.uncategorized', 'Uncategorized') &&
+            row.original.kind !== 'adjustment';
           return <span className={`truncate ${unc ? 'text-warn' : ''}`}>{v}</span>;
         },
       },

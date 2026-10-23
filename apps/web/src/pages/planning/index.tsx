@@ -131,7 +131,7 @@ export default function PlanningPage() {
                   className={`flex items-center gap-1 px-2 py-1 text-sm ${view === v ? 'bg-surface-2 font-medium' : 'text-muted'}`}
                 >
                   <Icon aria-hidden className="size-4" />
-                  {label}
+                  {t(`planning.view.${v}`, label)}
                 </button>
               ))}
             </div>
@@ -158,9 +158,11 @@ export default function PlanningPage() {
         {!c.complete && (
           <DataBanner
             warnings={[
-              'Some planned amounts have no exchange rate to ' +
-                s.currency +
-                ' and are not in the totals.',
+              t(
+                'planning.page.missingRates',
+                'Some planned amounts have no exchange rate to {{currency}} and are not in the totals.',
+                { currency: s.currency },
+              ),
             ]}
           />
         )}

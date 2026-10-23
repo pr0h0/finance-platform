@@ -11,6 +11,7 @@ import {
   type ToReporting,
 } from '@finplat/finance-engine';
 import type { EntityName, FinanceOps } from '@finplat/storage';
+import { tNow } from '../../lib/i18n.ts';
 
 export interface Snapshot {
   today: string;
@@ -104,7 +105,10 @@ export const planById = (s: Snapshot) => new Map(s.plans.map((p) => [p.id, p]));
 export const accountById = (s: Snapshot) => new Map(s.accounts.map((a) => [a.id, a]));
 export const categoryName = (s: Snapshot) => {
   const m = new Map(s.categories.map((c) => [c.id, c.name]));
-  return (id: string | null | undefined) => (id ? (m.get(id) ?? 'Unknown') : 'Uncategorized');
+  return (id: string | null | undefined) =>
+    id
+      ? (m.get(id) ?? tNow('analytics.unknownCategory', 'Unknown'))
+      : tNow('transaction.uncategorized', 'Uncategorized');
 };
 
 export type { PlanOccurrence };

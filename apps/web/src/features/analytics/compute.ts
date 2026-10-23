@@ -20,6 +20,7 @@ import {
   type ToReporting,
   toMinor,
 } from '@finplat/finance-engine';
+import { tNow } from '../../lib/i18n.ts';
 import type { Snapshot } from './snapshot.ts';
 
 export interface Filters {
@@ -76,7 +77,10 @@ export function categoryTrend(s: Snapshot, f: Filters, n = 5) {
   const labels = new Map(total.rows.map((r) => [r.key, r.label]));
   const keys = [...top, ...(total.rows.length > n ? ['other'] : [])];
   return {
-    keys: keys.map((k) => ({ key: k, label: k === 'other' ? 'Other' : (labels.get(k) ?? k) })),
+    keys: keys.map((k) => ({
+      key: k,
+      label: k === 'other' ? tNow('analytics.other', 'Other') : (labels.get(k) ?? k),
+    })),
     rows: months.map((month) => ({
       month,
       values: Object.fromEntries(

@@ -1,5 +1,6 @@
 // Recurrence editor model <-> RFC 5545 RRULE (the subset the engine supports).
 import { parseRRule } from '@finplat/finance-engine';
+import { tNow } from '../../lib/i18n.ts';
 
 export const WEEKDAYS = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'] as const;
 
@@ -47,13 +48,33 @@ export function parseRecurrence(
 
 export function describeRRule(rrule: string): string {
   const r = parseRRule(rrule);
-  const unit = { DAILY: 'day', WEEKLY: 'week', MONTHLY: 'month', YEARLY: 'year' }[r.freq];
-  let s = r.interval > 1 ? `Every ${r.interval} ${unit}s` : `Every ${unit}`;
+  const unit = ({ DAILY: 'day', WEEKLY: 'week', MONTHLY: 'month', YEARLY: 'year' } as const)[
+    r.freq
+  ];
+  const every = {
+    day: tNow('rrule.everyDay', 'Every day'),
+    week: tNow('rrule.everyWeek', 'Every week'),
+    month: tNow('rrule.everyMonth', 'Every month'),
+    year: tNow('rrule.everyYear', 'Every year'),
+  };
+  const everyN = {
+    day: tNow('rrule.everyNDays', 'Every {{n}} days', { n: r.interval }),
+    week: tNow('rrule.everyNWeeks', 'Every {{n}} weeks', { n: r.interval }),
+    month: tNow('rrule.everyNMonths', 'Every {{n}} months', { n: r.interval }),
+    year: tNow('rrule.everyNYears', 'Every {{n}} years', { n: r.interval }),
+  };
+  let s = r.interval > 1 ? everyN[unit] : every[unit];
   if (r.byDay.length)
-    s += ` on ${r.byDay.map((d) => `${d.ordinal ? `${d.ordinal}. ` : ''}${WEEKDAYS[d.weekday - 1]}`).join(', ')}`;
+    s += tNow('rrule.onDays', ' on {{days}}', {
+      days: r.byDay
+        .map((d) => `${d.ordinal ? `${d.ordinal}. ` : ''}${WEEKDAYS[d.weekday - 1]}`)
+        .join(', '),
+    });
   if (r.byMonthDay.length)
-    s += ` on day ${r.byMonthDay.map((d) => (d === -1 ? 'last' : d)).join(', ')}`;
-  if (r.count) s += `, ${r.count} times`;
-  if (r.until) s += ` until ${r.until}`;
+    s += tNow('rrule.onMonthDay', ' on day {{days}}', {
+      days: r.byMonthDay.map((d) => (d === -1 ? tNow('rrule.last', 'last') : d)).join(', '),
+    });
+  if (r.count) s += tNow('rrule.count', ', {{n}} times', { n: r.count });
+  if (r.until) s += tNow('rrule.until', ' until {{date}}', { date: r.until });
   return s;
 }

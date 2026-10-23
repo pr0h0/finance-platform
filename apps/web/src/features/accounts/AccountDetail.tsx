@@ -131,7 +131,11 @@ export function AccountDetail({
             variant="danger"
             onClick={() =>
               window.confirm(
-                `Delete ${account.name}? Only accounts without transactions can be deleted.`,
+                t(
+                  'accounts.detail.deleteConfirm',
+                  'Delete {{name}}? Only accounts without transactions can be deleted.',
+                  { name: account.name },
+                ),
               ) &&
               remove
                 .mutateAsync(undefined)
@@ -205,7 +209,7 @@ export function AccountDetail({
                   }}
                   formatter={(_v, _n, item) => [
                     formatMoney((item.payload as { label: D.Money }).label, locale),
-                    'Balance',
+                    t('account.balance', 'Balance'),
                   ]}
                 />
                 <Area
@@ -276,7 +280,11 @@ function Reconcile({ account, txs }: { account: D.Account; txs: D.Transaction[] 
       return ops.createAdjustment(target.id, {
         amount: d,
         bookingDate: date,
-        reason: `Reconciliation adjustment (statement ${date}: ${statement?.amount} ${currency})`,
+        reason: t(
+          'accounts.reconcile.reason',
+          'Reconciliation adjustment (statement {{date}}: {{amount}} {{currency}})',
+          { date, amount: statement?.amount ?? '', currency },
+        ),
         accountId: account.id,
       });
     return ops.createTransaction({

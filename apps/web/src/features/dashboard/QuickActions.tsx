@@ -88,11 +88,23 @@ function EntryForm({ snap, kind, onDone }: { snap: Snapshot; kind: Kind; onDone:
   const submit = (e: FormEvent) => {
     e.preventDefault();
     setErr(null);
-    if (!from) return setErr(new Error('Choose an account'));
+    if (!from) return setErr(new Error(t('common.chooseAccount', 'Choose an account')));
     const amt = parseMoneyInput(amount, from.currency, f.parseDecimal);
-    if (!amt) return setErr(new Error(`Enter a valid ${from.currency} amount`));
+    if (!amt)
+      return setErr(
+        new Error(
+          t('common.validAmountIn', 'Enter a valid {{cur}} amount', { cur: from.currency }),
+        ),
+      );
     const toAmt = cross && to ? parseMoneyInput(toAmount, to.currency, f.parseDecimal) : null;
-    if (cross && !toAmt) return setErr(new Error(`Enter the ${to?.currency} amount received`));
+    if (cross && !toAmt)
+      return setErr(
+        new Error(
+          t('dashboard.quickActions.receivedAmount', 'Enter the {{cur}} amount received', {
+            cur: to?.currency ?? '',
+          }),
+        ),
+      );
     save.mutate(
       {
         kind,

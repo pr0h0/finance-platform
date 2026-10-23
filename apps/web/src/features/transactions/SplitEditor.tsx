@@ -91,7 +91,9 @@ export function SplitEditor({ tx, refs }: { tx: D.Transaction; refs: Refs }) {
     setErr(null);
     const name = window.prompt(
       t('transactions.splitEditor.templateName', 'Split template name'),
-      refs.merchantName(tx.merchantId) || tx.description || 'Split',
+      refs.merchantName(tx.merchantId) ||
+        tx.description ||
+        t('transactions.splitEditor.defaultName', 'Split'),
     );
     if (!name) return;
     // Weights keep the proportions, so the template fits any future amount.

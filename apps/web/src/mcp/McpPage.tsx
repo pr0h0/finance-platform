@@ -574,7 +574,9 @@ function Proposals() {
             onChange={(e) => setStatus(e.target.value)}
           >
             {['pending', 'approved', 'applied', 'rejected', 'failed', 'expired'].map((s) => (
-              <option key={s}>{s}</option>
+              <option key={s} value={s}>
+                {t(`mcp.proposalStatus.${s}`, s)}
+              </option>
             ))}
           </Select>
           {status === 'pending' && (
@@ -629,7 +631,7 @@ function Proposals() {
                           : 'neutral'
                   }
                 >
-                  {p.status}
+                  {p.status && t(`mcp.proposalStatus.${p.status}`, p.status)}
                 </Badge>
               </div>
               <details>

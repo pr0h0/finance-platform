@@ -28,11 +28,11 @@ import { useFormat } from '../../lib/format.ts';
 import { useT } from '../../lib/i18n.ts';
 
 const FREQS = [
-  ['FREQ=WEEKLY', 'Weekly'],
-  ['FREQ=MONTHLY', 'Monthly'],
-  ['FREQ=MONTHLY;INTERVAL=3', 'Quarterly'],
-  ['FREQ=MONTHLY;INTERVAL=6', 'Every 6 months'],
-  ['FREQ=YEARLY', 'Yearly'],
+  ['FREQ=WEEKLY', 'weekly', 'Weekly'],
+  ['FREQ=MONTHLY', 'monthly', 'Monthly'],
+  ['FREQ=MONTHLY;INTERVAL=3', 'quarterly', 'Quarterly'],
+  ['FREQ=MONTHLY;INTERVAL=6', 'semiannual', 'Every 6 months'],
+  ['FREQ=YEARLY', 'yearly', 'Yearly'],
 ] as const;
 
 type Draft = { sub?: Subscription; candidate?: RecurringCandidate };
@@ -161,7 +161,7 @@ export default function SubscriptionsPage() {
                     <td>{r.next ? f.date(r.next.date) : '—'}</td>
                     <td>
                       <span className="rounded bg-surface-2 px-1.5 py-0.5 text-xs">
-                        {r.sub.status}
+                        {t(`subscription.status.${r.sub.status}`, r.sub.status)}
                       </span>
                       {r.sub.status === 'trial' && r.sub.trialEndsAt && (
                         <span className="block text-[10px] text-warn">
@@ -362,7 +362,12 @@ function SubscriptionForm({
   const submit = (e: FormEvent) => {
     e.preventDefault();
     const m = parseMoneyInput(amount, currency, f.parseDecimal);
-    if (!m) return setErr(new Error(`Enter a valid ${currency} price`));
+    if (!m)
+      return setErr(
+        new Error(
+          t('subscriptions.form.invalidPrice', 'Enter a valid {{cur}} price', { cur: currency }),
+        ),
+      );
     save.mutate({ amount: m }, { onSuccess: onDone, onError: setErr });
   };
   const freqKnown = FREQS.some(([r]) => r === rrule);
@@ -398,9 +403,9 @@ function SubscriptionForm({
       <Field label={t('subscriptions.page.billing', 'Billing')}>
         <Select value={rrule} onChange={(e) => setRrule(e.target.value)}>
           {!freqKnown && <option value={rrule}>{describeRRule(rrule)}</option>}
-          {FREQS.map(([r, l]) => (
+          {FREQS.map(([r, k, l]) => (
             <option key={r} value={r}>
-              {l}
+              {t(`subscriptions.freq.${k}`, l)}
             </option>
           ))}
         </Select>

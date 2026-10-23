@@ -417,7 +417,7 @@ function ServerBackups() {
               return (
                 <tr key={b.id}>
                   <td>{b.createdAt ? fmt.dateTime(b.createdAt) : '—'}</td>
-                  <td>{b.kind}</td>
+                  <td>{b.kind && t(`backup.kind.${b.kind}`, b.kind)}</td>
                   <td>{formatBytes(b.sizeBytes)}</td>
                   <td>
                     {alg && alg !== 'none' ? (

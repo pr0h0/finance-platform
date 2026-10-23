@@ -76,7 +76,7 @@ export function Coverage({ refs }: { refs: Refs }) {
               aria-hidden
               className={`inline-block size-3 rounded-sm border border-line ${TONE[s]}`}
             />{' '}
-            {LABEL[s]}
+            {t(`import.coverage.status.${s}`, LABEL[s])}
           </li>
         ))}
       </ul>
@@ -131,13 +131,13 @@ export function Coverage({ refs }: { refs: Refs }) {
                                   '{{key}}: {{v1}} ({{v2}} of {{v3}} days)',
                                   {
                                     key: key,
-                                    v1: LABEL[m.status],
+                                    v1: t(`import.coverage.status.${m.status}`, LABEL[m.status]),
                                     v2: m.days.complete + m.days.unverified,
                                     v3: Object.values(m.days).reduce((a, b) => a + b, 0),
                                   },
                                 )}
                                 role="img"
-                                aria-label={`${key}: ${LABEL[m.status]}`}
+                                aria-label={`${key}: ${t(`import.coverage.status.${m.status}`, LABEL[m.status])}`}
                               />
                             ) : (
                               <span className="block size-6" />

@@ -19,7 +19,6 @@ Native, in order:
 6. Push notifications when the app is closed (FCM/APNs from the server's notification job).
 
 Web/backend, highest value next:
-1. Remaining English outside JSX (toasts in `.ts` modules, option-label arrays, enum values such as account
-   types, server insights and error details).
-2. Firefox E2E stalls under parallel load (see known-issues).
-3. Raiffeisen BiH: other products/currencies once real samples exist (only the KM "IZVOD" layout is known).
+1. Server-generated text has no codes yet, so it stays English in Bosnian: notification titles/bodies and
+   API `details.fields` messages (the rest of the UI is translated, 2026-10-23).
+2. Raiffeisen BiH: other products/currencies once real samples exist (only the KM "IZVOD" layout is known).

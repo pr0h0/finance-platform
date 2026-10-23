@@ -135,11 +135,13 @@ function HouseholdCard({ h, myUserId }: { h: Household; myUserId?: string }) {
                       }
                     >
                       {HROLES.map((r) => (
-                        <option key={r}>{r}</option>
+                        <option key={r} value={r}>
+                          {t(`role.${r}`, r)}
+                        </option>
                       ))}
                     </Select>
                   ) : (
-                    m.role
+                    t(`role.${m.role}`, m.role ?? '')
                   )}
                 </td>
                 <td>
@@ -177,7 +179,9 @@ function HouseholdCard({ h, myUserId }: { h: Household; myUserId?: string }) {
               onChange={(e) => setRole(e.target.value as (typeof HROLES)[number])}
             >
               {HROLES.filter((r) => r !== 'owner').map((r) => (
-                <option key={r}>{r}</option>
+                <option key={r} value={r}>
+                  {t(`role.${r}`, r)}
+                </option>
               ))}
             </Select>
           </Field>
@@ -358,7 +362,9 @@ function SharedProfile({ households }: { households: Household[] }) {
                         }
                       >
                         {PROLES.map((r) => (
-                          <option key={r}>{r}</option>
+                          <option key={r} value={r}>
+                            {t(`role.${r}`, r)}
+                          </option>
                         ))}
                       </Select>
                     ) : (

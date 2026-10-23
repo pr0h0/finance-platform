@@ -137,7 +137,10 @@ export function ForecastPanel({ snap }: { snap: Snapshot }) {
       }
     >
       <div className="space-y-4">
-        <ForecastSummary fc={fc} accountName={(id) => accName.get(id) ?? 'An account'} />
+        <ForecastSummary
+          fc={fc}
+          accountName={(id) => accName.get(id) ?? t('common.anAccount', 'An account')}
+        />
         <ChartFrame
           name="forecast"
           table={

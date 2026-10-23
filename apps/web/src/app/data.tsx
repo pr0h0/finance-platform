@@ -27,7 +27,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import { useT } from '../lib/i18n.ts';
+import { tNow, useT } from '../lib/i18n.ts';
 import { appFetch } from '../platform/native.ts';
 import { openStore } from '../platform/store.ts';
 import { type Mode, useApp } from './store.ts';
@@ -137,8 +137,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
         if (!cancelled)
           setFatal(
             e instanceof StorageUnavailableError
-              ? 'This browser does not allow local storage (private mode or blocked site data). The app needs IndexedDB to keep your data.'
-              : `Local database could not be opened: ${(e as Error).message}`,
+              ? tNow(
+                  'app.storageUnavailable',
+                  'This browser does not allow local storage (private mode or blocked site data). The app needs IndexedDB to keep your data.',
+                )
+              : tNow('app.storageOpenFailed', 'Local database could not be opened: {{message}}', {
+                  message: (e as Error).message,
+                }),
           );
         return;
       }

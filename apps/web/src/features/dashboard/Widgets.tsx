@@ -454,13 +454,14 @@ function Recent({ snap }: { snap: Snapshot }) {
 }
 
 function Largest({ snap }: { snap: Snapshot }) {
+  const t = useT();
   return (
     <TxList
       snap={snap}
       items={largestExpenses(snap).map((x) => ({
         id: x.t.id,
         date: x.t.bookingDate,
-        label: x.t.description || x.t.payee || 'Expense',
+        label: x.t.description || x.t.payee || t('dashboard.widgets.expense', 'Expense'),
         amount: fromMinor(-toMinor(x.native), x.native.currency),
       }))}
     />
@@ -596,7 +597,7 @@ function Coverage({ snap }: { snap: Snapshot }) {
             {r.months.map((m) => (
               <span
                 key={m.month}
-                title={`${f.month(m.month)}: ${m.imported ? 'imported' : 'no import'}`}
+                title={`${f.month(m.month)}: ${m.imported ? t('dashboard.widgets.imported', 'imported') : t('dashboard.widgets.noImport', 'no import')}`}
                 className={`inline-block size-3 rounded-sm ${m.imported ? 'bg-pos' : 'bg-surface-2'}`}
               />
             ))}

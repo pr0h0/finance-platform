@@ -67,7 +67,8 @@ function Members({
               tx.payee ||
               t('transactions.duplicates.noDescription', '(no description)')}{' '}
             · <MoneyText value={primaryAmount(tx)} locale={locale} signed /> ·{' '}
-            {refs.accountName(tx.postings[0]?.accountId ?? '')} · {tx.source}
+            {refs.accountName(tx.postings[0]?.accountId ?? '')} ·{' '}
+            {t(`transaction.source.${tx.source}`, tx.source)}
           </li>
         );
       })}

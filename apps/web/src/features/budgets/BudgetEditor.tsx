@@ -74,17 +74,31 @@ export function BudgetEditor({
     for (const l of lines) {
       if (!l.amount.trim()) continue;
       const m = parseMoneyInput(l.amount, currency, f.parseDecimal);
-      if (!m) return setErr(new Error(`Invalid ${currency} amount: ${l.amount}`));
+      if (!m)
+        return setErr(
+          new Error(
+            t('budgets.editor.invalidAmount', 'Invalid {{cur}} amount: {{amount}}', {
+              cur: currency,
+              amount: l.amount,
+            }),
+          ),
+        );
       allocs.push({ categoryId: l.categoryId || null, amount: m });
     }
     if (!allocs.length)
-      return setErr(new Error('Add at least one limit (overall or per category)'));
+      return setErr(
+        new Error(t('budgets.editor.noLimits', 'Add at least one limit (overall or per category)')),
+      );
     const ts = thresholds
       .split(/[,\s]+/)
       .filter(Boolean)
       .map((x) => Number(x));
     if (ts.some((x) => !Number.isFinite(x) || x <= 0 || x > 500))
-      return setErr(new Error('Thresholds are percentages, e.g. 80, 100'));
+      return setErr(
+        new Error(
+          t('budgets.editor.thresholdsInvalid', 'Thresholds are percentages, e.g. 80, 100'),
+        ),
+      );
     save.mutate(
       {
         name,

@@ -90,7 +90,9 @@ function Users() {
                     {u.displayName && <span className="text-muted">({u.displayName})</span>}
                   </td>
                   <td>
-                    <Badge tone={u.status === 'active' ? 'pos' : 'warn'}>{u.status}</Badge>
+                    <Badge tone={u.status === 'active' ? 'pos' : 'warn'}>
+                      {u.status && t(`admin.userStatus.${u.status}`, u.status)}
+                    </Badge>
                   </td>
                   <td>
                     {u.isAdmin ? (

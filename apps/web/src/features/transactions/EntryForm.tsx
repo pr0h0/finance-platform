@@ -237,7 +237,7 @@ export function EntryForm({
               onChange={() => up({ kind: k })}
               className="sr-only"
             />
-            {k}
+            {t(`transaction.kind.${k}`, k)}
           </label>
         ))}
       </fieldset>
@@ -360,9 +360,9 @@ export function EntryForm({
           <div className="flex flex-wrap gap-3 text-sm">
             {(
               [
-                ['auto', 'Use stored rate'],
-                ['received', 'Amount received (bank)'],
-                ['rate', 'Manual rate'],
+                ['auto', t('transactions.entryForm.settleAuto', 'Use stored rate')],
+                ['received', t('transactions.entryForm.settleReceived', 'Amount received (bank)')],
+                ['rate', t('transactions.entryForm.settleRate', 'Manual rate')],
               ] as const
             ).map(([v, l]) => (
               <label key={v} className="flex items-center gap-1">

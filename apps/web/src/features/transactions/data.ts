@@ -8,7 +8,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { qk, useApi, useData, useFinance, useProfile } from '../../app/data.tsx';
 import { useApp } from '../../app/store.ts';
-import { errorText } from '../../lib/i18n.ts';
+import { errorText, useT } from '../../lib/i18n.ts';
 
 export { qk };
 
@@ -57,15 +57,16 @@ export function useRefs() {
   const categories = useEntities('categories');
   const merchants = useEntities('merchants');
   const tags = useEntities('tags');
+  const t = useT();
   return useMemo(() => {
     const acc = new Map((accounts.data ?? []).map((a) => [a.id, a]));
     const cat = new Map((categories.data ?? []).map((c) => [c.id, c]));
     const mer = new Map((merchants.data ?? []).map((m) => [m.id, m]));
     const tag = new Map((tags.data ?? []).map((t) => [t.id, t]));
     const categoryLabel = (id: string | null) => {
-      if (!id) return 'Uncategorized';
+      if (!id) return t('transaction.uncategorized', 'Uncategorized');
       const c = cat.get(id);
-      if (!c) return 'Unknown category';
+      if (!c) return t('transactions.refs.unknownCategory', 'Unknown category');
       const p = c.parentId ? cat.get(c.parentId) : undefined;
       return p ? `${p.name} / ${c.name}` : c.name;
     };
@@ -79,7 +80,8 @@ export function useRefs() {
       category: cat,
       merchant: mer,
       tag: tag,
-      accountName: (id: string) => acc.get(id)?.name ?? 'Unknown account',
+      accountName: (id: string) =>
+        acc.get(id)?.name ?? t('transactions.refs.unknownAccount', 'Unknown account'),
       categoryLabel,
       merchantName: (id: string | null) => (id ? (mer.get(id)?.name ?? '') : ''),
       tagName: (id: string) => tag.get(id)?.name ?? '',
@@ -98,6 +100,7 @@ export function useRefs() {
     categories.isLoading,
     merchants.isLoading,
     tags.isLoading,
+    t,
   ]);
 }
 export type Refs = ReturnType<typeof useRefs>;

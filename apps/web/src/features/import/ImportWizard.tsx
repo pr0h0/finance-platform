@@ -443,7 +443,7 @@ export function ImportWizard({
                         : 'neutral'
                 }
               >
-                {j.status}
+                {t(`import.jobStatus.${j.status}`, j.status)}
               </Badge>
               {(j.status === 'queued' || j.status === 'error' || j.status === 'parsed') && (
                 <Button
@@ -495,7 +495,8 @@ export function ImportWizard({
               locale={locale}
               onChange={(choices) => update(j.key, { choices })}
               splitTemplateName={(id) =>
-                splitTemplates.data?.find((t) => t.id === id)?.name ?? 'split template'
+                splitTemplates.data?.find((t) => t.id === id)?.name ??
+                t('import.wizard.splitTemplate', 'split template')
               }
               onSaveMerchant={async (name, categoryId) => {
                 try {

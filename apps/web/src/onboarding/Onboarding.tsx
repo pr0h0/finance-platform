@@ -548,7 +548,7 @@ function ServerProfile() {
           >
             <span>
               {p.name} <span className="text-muted">{p.baseCurrency}</span>{' '}
-              {p.role && <Badge>{p.role}</Badge>}{' '}
+              {p.role && <Badge>{t(`role.${p.role}`, p.role)}</Badge>}{' '}
               {p.privacyMode === 'e2ee' && <Badge tone="accent">E2EE</Badge>}
             </span>
             <Button

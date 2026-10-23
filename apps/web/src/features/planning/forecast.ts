@@ -18,6 +18,7 @@ import {
   type ScenarioAdjustment,
   whatIf,
 } from '@finplat/forecasting';
+import { tNow } from '../../lib/i18n.ts';
 import type { Snapshot } from '../analytics/snapshot.ts';
 
 export function forecastInput(
@@ -54,7 +55,10 @@ export function forecastInput(
           confidence: 'certain',
           source: t.kind === 'transfer' || t.kind === 'fx' ? 'transfer' : 'planned',
           sourceId: t.id,
-          description: t.description || t.payee || 'Booked transaction',
+          description:
+            t.description ||
+            t.payee ||
+            tNow('planning.forecast.bookedTransaction', 'Booked transaction'),
         });
   }
   const planned = eventsFromPlans(

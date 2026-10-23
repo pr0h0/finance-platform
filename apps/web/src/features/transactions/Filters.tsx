@@ -31,7 +31,7 @@ export function Filters({
     k: keyof TxFilter,
     label: string,
     opts: { id: string; label: string }[],
-    all = 'All',
+    all = t('common.all', 'All'),
   ) => (
     <label className="flex min-w-36 flex-1 flex-col gap-1 text-xs text-muted">
       {label}

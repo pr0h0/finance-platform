@@ -43,7 +43,9 @@ export function errorText(e: unknown, lang = useApp.getState().prefs.language): 
   if (err.code) {
     const fields = (err.details as { fields?: Record<string, string> } | undefined)?.fields;
     const base = errorMessage(err.code, lang, err.message ?? '');
-    if (base === errorMessage('unknown', lang) && err.message) return err.message;
+    // App-side codes (import worker): translated by `error.<code>` with the thrown English as default.
+    if (base === errorMessage('unknown', lang) && err.message)
+      return messages[lang]?.[`error.${err.code}`] ?? err.message;
     if (fields && Object.keys(fields).length)
       return `${base} ${Object.entries(fields)
         .map(([k, v]) => `${k}: ${v}`)

@@ -131,7 +131,7 @@ export function OccurrenceDetail({
           <Button
             onClick={() => {
               const m = parseMoneyInput(amount, row.amount.currency, f.parseDecimal);
-              if (!m) return setErr(new Error('Enter a valid amount'));
+              if (!m) return setErr(new Error(t('common.validAmount', 'Enter a valid amount')));
               go({
                 status: 'pending',
                 amountOverride: m.amount === row.plan.amount.amount ? null : m,

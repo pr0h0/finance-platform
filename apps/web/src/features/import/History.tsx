@@ -39,7 +39,10 @@ export function History({
     if (
       sha !== b.fileSha256 &&
       !window.confirm(
-        'This is not the same file that was imported (different SHA-256). Reprocess anyway?',
+        t(
+          'import.history.reprocessDifferentFile',
+          'This is not the same file that was imported (different SHA-256). Reprocess anyway?',
+        ),
       )
     )
       return;
@@ -151,7 +154,11 @@ export function History({
                           size="sm"
                           onClick={() =>
                             window.confirm(
-                              `Roll back ${b.fileName}? Its transactions are removed; the raw records stay as evidence.`,
+                              t(
+                                'import.history.rollbackConfirm',
+                                'Roll back {{name}}? Its transactions are removed; the raw records stay as evidence.',
+                                { name: b.fileName },
+                              ),
                             ) && rollback.mutateAsync(b.id).catch((e) => setErr(describeError(e)))
                           }
                         >

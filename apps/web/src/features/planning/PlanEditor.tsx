@@ -76,7 +76,10 @@ export function PlanEditor({
     e.preventDefault();
     setErr(null);
     const amt = parseMoneyInput(amount, currency, f.parseDecimal);
-    if (!amt) return setErr(new Error(`Enter a valid ${currency} amount`));
+    if (!amt)
+      return setErr(
+        new Error(t('common.validAmountIn', 'Enter a valid {{cur}} amount', { cur: currency })),
+      );
     const opt = (s: string) => (s.trim() ? parseMoneyInput(s, currency, f.parseDecimal) : null);
     let rrule: string | null;
     try {

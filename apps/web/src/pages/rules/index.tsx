@@ -12,35 +12,45 @@ import {
   ErrorText,
   PageHeader,
 } from '../../features/transactions/ui.tsx';
-import { useT } from '../../lib/i18n.ts';
+import { tNow, useT } from '../../lib/i18n.ts';
 
 function summary(r: D.CategorizationRule, refs: ReturnType<typeof useRefs>) {
   const c = r.conditions
     .map((x) => {
-      if (x.field === 'accountId') return `account is ${refs.accountName(x.value)}`;
-      if (x.field === 'merchantId') return `merchant is ${refs.merchantName(x.value)}`;
+      if (x.field === 'accountId')
+        return tNow('rules.summary.accountIs', 'account is {{name}}', {
+          name: refs.accountName(x.value),
+        });
+      if (x.field === 'merchantId')
+        return tNow('rules.summary.merchantIs', 'merchant is {{name}}', {
+          name: refs.merchantName(x.value),
+        });
       return `${x.field} ${x.op.replace('_', ' ')} “${x.value}”`;
     })
-    .join(' and ');
+    .join(tNow('rules.summary.and', ' and '));
   const a = r.actions
     .map((x) => {
       switch (x.type) {
         case 'set_category':
-          return `category → ${refs.categoryLabel(x.categoryId)}`;
+          return tNow('rules.summary.category', 'category → {{name}}', {
+            name: refs.categoryLabel(x.categoryId),
+          });
         case 'set_merchant':
-          return `merchant → ${refs.merchantName(x.merchantId)}`;
+          return tNow('rules.summary.merchant', 'merchant → {{name}}', {
+            name: refs.merchantName(x.merchantId),
+          });
         case 'add_tag':
-          return `tag + ${refs.tagName(x.tagId)}`;
+          return tNow('rules.summary.tag', 'tag + {{name}}', { name: refs.tagName(x.tagId) });
         case 'set_description':
-          return `description → “${x.value}”`;
+          return tNow('rules.summary.description', 'description → “{{value}}”', { value: x.value });
         case 'apply_split_template':
-          return 'apply split template';
+          return tNow('rules.summary.applySplitTemplate', 'apply split template');
         default:
-          return 'exclude from reports';
+          return tNow('rules.summary.excludeFromReports', 'exclude from reports');
       }
     })
     .join(', ');
-  return `If ${c}: ${a}`;
+  return tNow('rules.summary.if', 'If {{conditions}}: {{actions}}', { conditions: c, actions: a });
 }
 
 export default function RulesPage() {

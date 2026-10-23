@@ -417,7 +417,7 @@ function AddRate() {
                     {r.baseCurrency}/{r.quoteCurrency}
                   </td>
                   <td className="text-right tabular-nums">{r.rate}</td>
-                  <td>{r.source}</td>
+                  <td>{t(`currency.rateSource.${r.source}`, r.source)}</td>
                 </tr>
               ))}
             </tbody>

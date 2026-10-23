@@ -104,8 +104,8 @@ export default function BudgetsPage() {
                 <span>
                   {tpl.name}{' '}
                   <span className="text-xs text-muted">
-                    ({tpl.periodType}, {allocFor(tpl.id).length}{' '}
-                    {t('budgets.page.limits', 'limits)')}
+                    ({t(`budget.period.${tpl.periodType}`, tpl.periodType)},{' '}
+                    {allocFor(tpl.id).length} {t('budgets.page.limits', 'limits)')}
                   </span>
                 </span>
                 <span className="flex gap-1">

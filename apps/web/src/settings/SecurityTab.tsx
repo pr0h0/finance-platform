@@ -19,16 +19,18 @@ import {
 } from '../components/ui/index.tsx';
 import { toast } from '../components/ui/toast.tsx';
 import { useFormat } from '../lib/format.ts';
-import { useT } from '../lib/i18n.ts';
+import { tNow, useT } from '../lib/i18n.ts';
 import { addPasskey, passkeysSupported } from '../lib/passkeys.ts';
 import { deviceName } from '../onboarding/connect.tsx';
 import { hashSecret } from '../shell/AppLock.tsx';
 
 /** PIN: 4–12 digits. Password: at least 8 characters. Returns an error message or null. */
 export function validateLockSecret(kind: 'pin' | 'password', a: string, b: string): string | null {
-  if (kind === 'pin' && !/^\d{4,12}$/.test(a)) return 'The PIN must be 4–12 digits.';
-  if (kind === 'password' && a.length < 8) return 'The password must have at least 8 characters.';
-  if (a !== b) return 'The two entries do not match.';
+  if (kind === 'pin' && !/^\d{4,12}$/.test(a))
+    return tNow('security.lock.pinInvalid', 'The PIN must be 4–12 digits.');
+  if (kind === 'password' && a.length < 8)
+    return tNow('security.lock.passwordShort', 'The password must have at least 8 characters.');
+  if (a !== b) return tNow('security.lock.mismatch', 'The two entries do not match.');
   return null;
 }
 

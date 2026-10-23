@@ -9,9 +9,13 @@ import {
   CONFIDENCE_LEVELS,
   GOAL_KINDS,
   GOAL_STATUSES,
+  HOUSEHOLD_ROLES,
   OCCURRENCE_STATUSES,
   PRIORITIES,
+  PROFILE_ROLES,
+  RATE_SOURCES,
   ROLLOVER_POLICIES,
+  SUBSCRIPTION_STATUSES,
   TRANSACTION_KINDS,
   TRANSACTION_SOURCES,
   TRANSACTION_STATUSES,
@@ -256,6 +260,19 @@ test('runtime-built keys have Bosnian translations', () => {
     ...['monthly', 'quarterly', 'annual', 'custom'].map((k) => `reports.title.${k}`),
     ...['month', '3m', '6m', '12m', 'ytd', 'custom'].map((k) => `analytics.preset.${k}`),
     ...WIDGETS.map((w) => w.titleKey),
+    ...SUBSCRIPTION_STATUSES.map((k) => `subscription.status.${k}`),
+    ...[...PROFILE_ROLES, ...HOUSEHOLD_ROLES].map((k) => `role.${k}`),
+    ...RATE_SOURCES.map((k) => `currency.rateSource.${k}`),
+    ...['calendar', 'list', 'timeline'].map((k) => `planning.view.${k}`),
+    ...['queued', 'parsing', 'parsed', 'error', 'staged', 'committed'].map(
+      (k) => `import.jobStatus.${k}`,
+    ),
+    ...['complete', 'unverified', 'partial', 'conflicting', 'missing'].map(
+      (k) => `import.coverage.status.${k}`,
+    ),
+    ...['pending', 'approved', 'applied', 'rejected', 'failed', 'expired'].map(
+      (k) => `mcp.proposalStatus.${k}`,
+    ),
     ...createRegistry()
       .manifests()
       .flatMap((m) => (m.limitations ?? []).map((l) => `importer.limitation:${l}`)),

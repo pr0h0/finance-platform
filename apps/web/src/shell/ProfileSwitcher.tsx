@@ -32,7 +32,7 @@ export function ProfileSwitcher() {
                   E2EE{locked.has(p.id) ? t('shell.profileSwitcher.locked', '· locked') : ''}
                 </Badge>
               )}
-              {p.role && p.role !== 'owner' && <Badge>{p.role}</Badge>}
+              {p.role && p.role !== 'owner' && <Badge>{t(`role.${p.role}`, p.role)}</Badge>}
             </Menu.Item>
           ))}
           <Menu.Separator />

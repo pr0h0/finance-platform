@@ -76,7 +76,7 @@ export function WhatIf({ snap }: { snap: Snapshot }) {
       return setD(blank);
     }
     const acc = accounts.find((a) => a.id === d.accountId);
-    if (!acc) return setErr(new Error('Choose an account'));
+    if (!acc) return setErr(new Error(t('common.chooseAccount', 'Choose an account')));
     const m = parseMoneyInput(d.amount, acc.currency, f.parseDecimal);
     if (!m || toMinor(m) <= 0n)
       return setErr(
@@ -106,7 +106,17 @@ export function WhatIf({ snap }: { snap: Snapshot }) {
     ]);
     setLabels([
       ...labels,
-      `${desc}: ${f.money(signed)} ${d.recurring ? 'monthly from' : 'on'} ${f.date(d.date)}`,
+      d.recurring
+        ? t('planning.whatIf.labelMonthly', '{{desc}}: {{amount}} monthly from {{date}}', {
+            desc,
+            amount: f.money(signed),
+            date: f.date(d.date),
+          })
+        : t('planning.whatIf.labelOnce', '{{desc}}: {{amount}} on {{date}}', {
+            desc,
+            amount: f.money(signed),
+            date: f.date(d.date),
+          }),
     ]);
     setD(blank);
   };

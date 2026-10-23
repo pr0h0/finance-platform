@@ -91,7 +91,7 @@ export function ProfilesTab() {
                   </td>
                   <td>{p.baseCurrency}</td>
                   <td className="space-x-1">
-                    {p.role && <Badge>{p.role}</Badge>}
+                    {p.role && <Badge>{t(`role.${p.role}`, p.role)}</Badge>}
                     {p.privacyMode === 'e2ee' && <Badge tone="accent">E2EE</Badge>}
                     {p.householdId && <Badge>{t('profiles.household', 'household')}</Badge>}
                   </td>
