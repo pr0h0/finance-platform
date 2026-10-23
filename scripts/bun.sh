@@ -6,7 +6,7 @@ finplat_prepare_volumes finplat_bun
 tty=(); [ -t 0 ] && tty=(-it)
 workdir="/repo${BUN_WORKDIR:+/$BUN_WORKDIR}"
 # shellcheck disable=SC2046
-dockerx run --rm "${tty[@]}" --user 1000:1000 $(finplat_network_args) \
+dockerx run --rm ${tty[@]+"${tty[@]}"} --user 1000:1000 $(finplat_network_args) \
   -v "$FINPLAT_ROOT:/repo" -w "$workdir" \
   -v finplat_bun:/cache/bun -e BUN_INSTALL_CACHE_DIR=/cache/bun -e HOME=/tmp \
   ${BUN_PORTS:+-p $BUN_PORTS} ${FINPLAT_API_URL:+-e FINPLAT_API_URL=$FINPLAT_API_URL} \

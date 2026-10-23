@@ -607,7 +607,7 @@ function ComparisonSection({ s, f }: P) {
               <tr className="border-b border-line text-left text-xs text-muted">
                 <th className="py-1">{t('transaction.category', 'Category')}</th>
                 <th className="text-right">{t('analytics.page.now', 'Now')}</th>
-                <th className="text-right">{t('analytics.page.before', 'Before')}</th>
+                <th className="text-right max-sm:hidden">{t('analytics.page.before', 'Before')}</th>
                 <th className="text-right">{t('lock.change', 'Change')}</th>
               </tr>
             </thead>
@@ -618,7 +618,7 @@ function ComparisonSection({ s, f }: P) {
                   <td className="text-right">
                     <Amount value={r.current} />
                   </td>
-                  <td className="text-right">
+                  <td className="text-right max-sm:hidden">
                     <Amount value={r.previous} />
                   </td>
                   <td

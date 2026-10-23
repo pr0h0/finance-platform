@@ -350,25 +350,27 @@ export function MappingEditor() {
 
         {preview && (
           <div className="max-h-64 overflow-auto rounded-md border border-line">
-            <table className="text-xs">
-              <tbody>
-                {preview.rows.map((r, i) => (
-                  <tr
-                    // biome-ignore lint/suspicious/noArrayIndexKey: preview rows are positional
-                    key={i}
-                    className={`border-b border-line ${i < skip ? 'opacity-40' : i === skip && tpl.header !== false ? 'bg-surface-2 font-semibold' : ''}`}
-                  >
-                    <td className="px-1 text-muted tabular-nums">{i + 1}</td>
-                    {r.map((c, j) => (
-                      // biome-ignore lint/suspicious/noArrayIndexKey: cells are positional
-                      <td key={j} className="max-w-48 truncate px-1 whitespace-nowrap">
-                        {c}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <div className="overflow-x-auto">
+              <table className="text-xs">
+                <tbody>
+                  {preview.rows.map((r, i) => (
+                    <tr
+                      // biome-ignore lint/suspicious/noArrayIndexKey: preview rows are positional
+                      key={i}
+                      className={`border-b border-line ${i < skip ? 'opacity-40' : i === skip && tpl.header !== false ? 'bg-surface-2 font-semibold' : ''}`}
+                    >
+                      <td className="px-1 text-muted tabular-nums">{i + 1}</td>
+                      {r.map((c, j) => (
+                        // biome-ignore lint/suspicious/noArrayIndexKey: cells are positional
+                        <td key={j} className="max-w-48 truncate px-1 whitespace-nowrap">
+                          {c}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 

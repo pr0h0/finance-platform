@@ -35,7 +35,13 @@ fn db_path(app: &AppHandle, name: &str) -> Result<PathBuf, String> {
     // store names look like "finplat-local" or "finplat@fin.example.org": keep a safe file name
     let safe: String = name
         .chars()
-        .map(|c| if c.is_ascii_alphanumeric() || "@.-_".contains(c) { c } else { '_' })
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || "@.-_".contains(c) {
+                c
+            } else {
+                '_'
+            }
+        })
         .collect();
     Ok(dir.join(format!("{safe}.sqlite3")))
 }
@@ -46,7 +52,10 @@ fn with_db<T>(
     name: &str,
     f: impl FnOnce(&mut Connection) -> rusqlite::Result<T>,
 ) -> Result<T, String> {
-    let mut map = stores.0.lock().map_err(|_| "store lock poisoned".to_string())?;
+    let mut map = stores
+        .0
+        .lock()
+        .map_err(|_| "store lock poisoned".to_string())?;
     if !map.contains_key(name) {
         let c = Connection::open(db_path(app, name)?).map_err(|e| e.to_string())?;
         c.execute_batch(
@@ -65,12 +74,20 @@ fn with_db<T>(
 /// The whole store as {"version","seq","tables":{table:[row,...]}} (a JSON string the web app parses
 /// with its binary reviver), or null for a store that was never written.
 #[tauri::command]
-pub fn store_load(app: AppHandle, stores: State<Stores>, name: String) -> Result<Option<String>, String> {
+pub fn store_load(
+    app: AppHandle,
+    stores: State<Stores>,
+    name: String,
+) -> Result<Option<String>, String> {
     with_db(&app, &stores, &name, |c| {
         let version: Option<String> = c
-            .query_row("SELECT value FROM meta WHERE key = 'version'", [], |r| r.get(0))
+            .query_row("SELECT value FROM meta WHERE key = 'version'", [], |r| {
+                r.get(0)
+            })
             .optional()?;
-        let Some(version) = version else { return Ok(None) };
+        let Some(version) = version else {
+            return Ok(None);
+        };
         let seq: String = c
             .query_row("SELECT value FROM meta WHERE key = 'seq'", [], |r| r.get(0))
             .optional()?
@@ -98,11 +115,17 @@ pub fn store_load(app: AppHandle, stores: State<Stores>, name: String) -> Result
 
 /// Applies one write transaction of the web app atomically.
 #[tauri::command]
-pub fn store_commit(app: AppHandle, stores: State<Stores>, name: String, commit: Commit) -> Result<(), String> {
+pub fn store_commit(
+    app: AppHandle,
+    stores: State<Stores>,
+    name: String,
+    commit: Commit,
+) -> Result<(), String> {
     with_db(&app, &stores, &name, |c| {
         let tx = c.transaction()?;
         {
-            let mut put = tx.prepare_cached("INSERT OR REPLACE INTO rows (tbl, k, json) VALUES (?1, ?2, ?3)")?;
+            let mut put = tx
+                .prepare_cached("INSERT OR REPLACE INTO rows (tbl, k, json) VALUES (?1, ?2, ?3)")?;
             let mut del = tx.prepare_cached("DELETE FROM rows WHERE tbl = ?1 AND k = ?2")?;
             for ch in &commit.changes {
                 let k = ch.key.to_string();

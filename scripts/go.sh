@@ -9,7 +9,7 @@ if [ -z "${TEST_DATABASE_URL:-}" ] && finplat_dev_up; then
 fi
 tty=(); [ -t 0 ] && tty=(-it)
 # shellcheck disable=SC2046
-exec_args=(run --rm "${tty[@]}" --user 1000:1000 $(finplat_network_args)
+exec_args=(run --rm ${tty[@]+"${tty[@]}"} --user 1000:1000 $(finplat_network_args)
   -v "$FINPLAT_ROOT:/repo" -w /repo/apps/api
   -v finplat_gomod:/cache/go -v finplat_gobuild:/cache/gobuild
   -e GOCACHE=/cache/gobuild -e GOPATH=/cache/go -e HOME=/tmp -e GOFLAGS=-buildvcs=false

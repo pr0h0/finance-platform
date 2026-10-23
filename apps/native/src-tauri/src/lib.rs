@@ -30,6 +30,24 @@ fn show_main(app: &tauri::AppHandle) {
 #[cfg(desktop)]
 const QUICK_ADD_SHORTCUT: &str = "CommandOrControl+Shift+E";
 
+/// Polls the test server for an expression, evaluates it, posts the result back. Short polls: a
+/// response held open for seconds never reaches the page in WKWebView.
+#[cfg(debug_assertions)]
+const DRIVER: &str = r#"async (u) => {
+  if (window.__finplatDriver) return;
+  window.__finplatDriver = true;
+  for (;;) {
+    try {
+      const r = await fetch(u + '/next');
+      if (r.status !== 200) { await new Promise((r) => setTimeout(r, 100)); continue; }
+      const { id, expr } = await r.json();
+      let body;
+      try { body = { id, value: await (0, eval)(expr) }; } catch (e) { body = { id, error: String(e && e.stack || e) }; }
+      await fetch(u + '/result', { method: 'POST', body: JSON.stringify(body) });
+    } catch { await new Promise((r) => setTimeout(r, 500)); }
+  }
+}"#;
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let mut builder = tauri::Builder::default();
@@ -37,10 +55,18 @@ pub fn run() {
     #[cfg(desktop)]
     {
         // A second launch focuses the running app instead of opening another database connection.
+        // A test-driven debug build runs beside an installed app instead of handing over to it.
+        if !(cfg!(debug_assertions) && std::env::var("FINPLAT_DRIVER").is_ok()) {
+            builder = builder.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+                show_main(app)
+            }));
+        }
         builder = builder
-            .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| show_main(app)))
             // Settings → General → "Start at login" (off by default)
-            .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, None))
+            .plugin(tauri_plugin_autostart::init(
+                tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+                None,
+            ))
             .plugin(
                 tauri_plugin_global_shortcut::Builder::new()
                     .with_handler(|app, _shortcut, event| {
@@ -65,6 +91,16 @@ pub fn run() {
         // where the user picked in the dialog (no static fs scope in capabilities).
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
+        .on_page_load(|_webview, _payload| {
+            // Debug builds only: tests/native/apple-smoke.ts drives the app through a local test
+            // server (macOS and the iOS simulator have no WebDriver/CDP for WKWebView).
+            #[cfg(debug_assertions)]
+            if _payload.event() == tauri::webview::PageLoadEvent::Finished {
+                if let Ok(url) = std::env::var("FINPLAT_DRIVER") {
+                    let _ = _webview.eval(format!("({DRIVER})({url:?})"));
+                }
+            }
+        })
         .manage(store::Stores::default())
         .invoke_handler(tauri::generate_handler![
             store::store_load,
@@ -80,8 +116,15 @@ pub fn run() {
                 use tauri::menu::{Menu, MenuItem};
                 use tauri::tray::TrayIconBuilder;
                 use tauri_plugin_global_shortcut::GlobalShortcutExt;
-                let open = MenuItem::with_id(app, "open", "Open Finance Platform", true, None::<&str>)?;
-                let add = MenuItem::with_id(app, "quick_add", "Add transaction", true, Some(QUICK_ADD_SHORTCUT))?;
+                let open =
+                    MenuItem::with_id(app, "open", "Open Finance Platform", true, None::<&str>)?;
+                let add = MenuItem::with_id(
+                    app,
+                    "quick_add",
+                    "Add transaction",
+                    true,
+                    Some(QUICK_ADD_SHORTCUT),
+                )?;
                 let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
                 let menu = Menu::with_items(app, &[&open, &add, &quit])?;
                 let mut tray = TrayIconBuilder::with_id("main")

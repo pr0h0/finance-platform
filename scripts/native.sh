@@ -19,7 +19,7 @@ fi
 finplat_prepare_volumes finplat_cargo finplat_cargo_target finplat_bun finplat_gradle
 tty=(); [ -t 0 ] && tty=(-it)
 run() {
-  dockerx run --rm "${tty[@]}" --user 1000:1000 \
+  dockerx run --rm ${tty[@]+"${tty[@]}"} --user 1000:1000 \
     -v "$FINPLAT_ROOT:/repo" -w /repo/apps/native -e HOME=/tmp \
     -v finplat_cargo:/cache/cargo -v finplat_cargo_target:/cache/target -v finplat_gradle:/cache/gradle \
     -v finplat_bun:/cache/bun -e BUN_INSTALL_CACHE_DIR=/cache/bun -e CI=true \

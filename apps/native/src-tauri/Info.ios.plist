@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Merged by `tauri ios build/dev` into gen/apple's Info.plist: permission prompts iOS requires. -->
+<plist version="1.0">
+<dict>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Unlock Finance Platform with Face ID.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Take photos of receipts to attach to transactions.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Attach receipt photos to transactions.</string>
+</dict>
+</plist>

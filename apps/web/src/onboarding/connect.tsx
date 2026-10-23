@@ -195,6 +195,8 @@ export interface SignedIn {
   isAdmin: boolean;
   /** native app: this device's bearer token */
   token?: string;
+  /** the account was created in this step (it holds only the server's default profile) */
+  registered?: boolean;
 }
 
 export function deviceName(ua = globalThis.navigator?.userAgent ?? ''): string {
@@ -312,6 +314,7 @@ export function AuthStep({
           email: res.user?.email ?? email,
           isAdmin: !!res.user?.isAdmin,
           ...(res.token ? { token: res.token } : {}),
+          registered: tab === 'register',
         });
       } else await enroll(api, await api.login({ email, password }));
     } catch (x) {
@@ -332,6 +335,7 @@ export function AuthStep({
       deviceId: dev.id,
       email: res.user?.email ?? email,
       isAdmin: !!res.user?.isAdmin,
+      registered: tab === 'register',
     });
   }
 

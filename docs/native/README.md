@@ -5,7 +5,7 @@ Android and iOS** around the same React web app (`apps/web`). Read this file fir
 native work on another machine or in a new session: it says what is done, what was verified where,
 and what is left per platform.
 
-Last updated: 2026-10-23.
+Last updated: 2026-10-23 (macOS and iOS tested on a Mac).
 
 ## Status per platform
 
@@ -14,14 +14,12 @@ Last updated: 2026-10-23.
 | Linux | ✅ `.deb`, `.rpm`, `.AppImage` (docker: `scripts/native.sh linux build`; also GitHub Actions) | ✅ two automated smoke tests drive the real binary: local mode (`scripts/native-test.sh`) and connected mode against a real server (`scripts/native-test.sh linux-connected`) | this Linux server, Xvfb + WebDriver | a real desktop session: tray icon, global shortcut, OS notifications |
 | Android | ✅ signed per-ABI `.apk` + `.aab` (docker: `scripts/native.sh android build`; GitHub Actions unsigned) | ✅ automated smoke test in an emulator (`scripts/native-test.sh android`): local mode, restart, back button | this Linux server, Android 15 emulator (KVM) | a real phone: biometrics, camera, notifications, connected mode (checklist) |
 | Windows | ✅ `.msi` + setup `.exe` (GitHub Actions `native`, 2026-10-23) | ⬜ not run on Windows yet | — | install on Windows/VM, checklist below; code signing |
-| macOS | ✅ universal `.dmg` (GitHub Actions `native`, 2026-10-23) | ⬜ not run on a Mac yet | — | checklist below; signing/notarization |
-| iOS | ✅ simulator `.app` compiles (GitHub Actions `native`, 2026-10-23) | ⬜ not run in a simulator or on an iPhone yet | — | `tauri ios init` on a Mac (commit `gen/apple`), simulator + iPhone, checklist below |
+| macOS | ✅ `.app` on a Mac (`bunx tauri build`), universal `.dmg` on GitHub Actions | ✅ automated smoke tests (`bun tests/native/apple-smoke.ts macos`): local mode (quit, relaunch, data kept) and connected mode against a local server (register, sync, token in the Keychain, macos device, signed in after restart) | MacBook (Apple Silicon, macOS 26.5), 2026-10-23 | tray / shortcut by hand, signing/notarization |
+| iOS | ✅ simulator `.app` (`bunx tauri ios build --debug --target aarch64-sim`); `gen/apple` committed | ✅ automated smoke tests in the simulator (`bun tests/native/apple-smoke.ts ios`): local and connected mode (Keychain, ios device); used by hand connected to fin.pr0h0.me: sync, all pages fit the screen (safe areas OK) | iPhone 17 / 17 Pro simulators, iOS 26.5, 2026-10-23 | a real iPhone (Personal Team), Face ID, camera |
 
 ✅ = done and checked, ⬜ = open. GitHub artifacts: Actions → **native** → the run → Artifacts
 (`finplat-linux`, `finplat-windows`, `finplat-macos`, `finplat-android`, `finplat-ios-simulator`).
 The workflow runs only on "Run workflow" or a `v*` tag (macOS minutes count 10× on a private repo).
-
-✅ = done and checked, ⬜ = open.
 
 ## How it works
 
@@ -183,6 +181,10 @@ download the `finplat-windows` artifact, install it in a VM.
 ### macOS (needs a Mac)
 
 1. Install Xcode (App Store) and run it once, then `xcode-select --install`, Rust, Bun.
+   **Rust 1.85 or newer** (dependencies use edition 2024; the docker images use 1.90). If your default
+   is older and you do not want to change it: `rustup toolchain install 1.90` and
+   `rustup override set 1.90` **in `apps/native`** (not only `src-tauri`: the iOS build runs cargo
+   from `apps/native`).
 2. `bun install`, then `cd apps/native && bunx tauri dev`.
 3. Release: `bunx tauri build --target universal-apple-darwin` (needs
    `rustup target add aarch64-apple-darwin x86_64-apple-darwin`) → `.app` and `.dmg`.
@@ -191,15 +193,73 @@ download the `finplat-windows` artifact, install it in a VM.
 ### iOS (needs a Mac with Xcode)
 
 1. `rustup target add aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios`
-2. `cd apps/native && bunx tauri ios init` (creates `src-tauri/gen/apple`; commit it).
-3. Simulator: `bunx tauri ios dev` (pick a simulator).
-4. Your iPhone: Xcode → Settings → Accounts → add your Apple ID (free "Personal Team"); on the
+2. Xcode needs the **iOS platform of its own SDK version** (Xcode 26.5 → iOS 26.5 simulator,
+   ~8.5 GB): `xcodebuild -downloadPlatform iOS` (or Xcode → Settings → Components). Without it every
+   iOS build fails with "Simulator SDK … is not installed".
+3. `src-tauri/gen/apple` is generated and committed (2026-10-23). Regenerate only when Tauri asks:
+   `bunx tauri ios init`. It installs Homebrew packages by itself (`xcodegen`, `libimobiledevice`
+   and its `openssl@4`, which relinks the `openssl` command: `brew unlink openssl@4 && brew link
+   openssl@3` puts it back) and needs CocoaPods (`brew install cocoapods`; the gem install wants sudo).
+   iOS permission texts (Face ID, camera, photos) live in `src-tauri/Info.ios.plist`, merged at build.
+4. Simulator: `bunx tauri ios dev` (pick a simulator), or build once and install:
+   `bunx tauri ios build --debug --target aarch64-sim` →
+   `src-tauri/gen/apple/build/arm64-sim/Finance Platform.app`;
+   `xcrun simctl install booted "<that .app>"` and `xcrun simctl launch booted me.pr0h0.finplat`.
+   Installing over an existing install keeps its data; `xcrun simctl uninstall booted
+   me.pr0h0.finplat` wipes it.
+5. Your iPhone: Xcode → Settings → Accounts → add your Apple ID (free "Personal Team"); on the
    iPhone Settings → Privacy & Security → Developer Mode on; connect by cable; then
    `bunx tauri ios dev --host` and pick the phone (Mac and phone on the same Wi-Fi), or
    `bunx tauri ios dev --open` and press Run in Xcode. First run: trust the developer on the phone
    (Settings → General → VPN & Device Management). Free-account installs expire after 7 days.
-5. Release / TestFlight: Apple Developer Program ($99/year), set `bundle > iOS > developmentTeam`
+6. Release / TestFlight: Apple Developer Program ($99/year), set `bundle > iOS > developmentTeam`
    in `tauri.conf.json`, `bunx tauri ios build --export-method app-store-connect`.
+
+### Automated smoke tests on a Mac (macOS app, iOS simulator)
+
+WKWebView has no WebDriver or CDP, so **debug builds** run a tiny page driver (`DRIVER` in
+`src-tauri/src/lib.rs`, only when `FINPLAT_DRIVER` is set; not compiled into release builds): it polls
+the test's local HTTP server for an expression, evaluates it and posts the result back.
+`tests/native/apple-smoke.ts` runs the same scenario as Linux/Android (`tests/native/page.ts`):
+
+```bash
+cd apps/native && bunx tauri build --debug --no-bundle && cd ../..
+bun tests/native/apple-smoke.ts macos            # throwaway HOME: your real app data is untouched
+
+cd apps/native && bunx tauri ios build --debug --target aarch64-sim && cd ../..
+xcrun simctl boot "iPhone 17 Pro"                # any simulator of the installed iOS runtime
+SIM=booted APP="$PWD/apps/native/src-tauri/gen/apple/build/arm64-sim/Finance Platform.app" \
+  bun tests/native/apple-smoke.ts ios            # reinstalls the app: wipes the simulator's app data
+```
+
+With `SERVER=http://localhost:3811` it runs the connected scenario instead (register, sync, token in
+the Keychain and not in localStorage, device platform on the server, still signed in after a
+restart). Debug builds keep the token under their own Keychain service `me.pr0h0.finplat.debug`
+(`secret.rs`; the test deletes it afterwards) and, when test-driven (`FINPLAT_DRIVER`), skip the
+single-instance plugin: tests run beside an installed copy of the app without touching it. Use a
+simulator you do not use by hand for `ios` (the test reinstalls the app).
+Start a throwaway server first: the E2E stack published on 127.0.0.1:3811 (no `.env` needed):
+
+```bash
+cat > /tmp/compose.mac.yml <<'YML'
+services:
+  api:
+    env_file: !reset []
+    environment: { PUBLIC_URL: http://localhost:3811, ALLOWED_ORIGINS: http://localhost:3811 }
+  gateway:
+    ports: !override ["127.0.0.1:3811:8080"]
+YML
+POSTGRES_PASSWORD=e2e-local docker compose -p finplat-e2e -f docker-compose.yml \
+  -f docker-compose.e2e.yml -f /tmp/compose.mac.yml up -d --build --wait
+```
+
+The browser E2E suite runs on a Mac too (`scripts/e2e.sh`; Docker Desktop, a `.env` with at least
+`POSTGRES_PASSWORD`, which is gitignored). If Docker commands hang while `docker version` answers,
+Docker Desktop's VM is down: quit Docker Desktop completely and start it again (it may ask for the
+admin password).
+
+Screenshots go to `tests/native/results/` (iOS always; macOS only if the terminal has the Screen
+Recording permission).
 
 ## Checklists for final testing on each OS
 
@@ -254,7 +314,5 @@ Updates: `tauri-plugin-updater` with GitHub Releases is the planned path (not ad
 - Desktop: close-to-tray option; scheduled automatic backups to a chosen folder (needs a persisted
   fs scope for that folder).
 - Android: share a statement/receipt from another app into Finance Platform (share target).
-- iOS: safe-area insets (notch / home indicator) come from `viewport-fit=cover` + CSS `env()`:
-  header and onboarding pad by `safe-area-inset-top`, the bottom navigation by
-  `safe-area-inset-bottom`. Not seen on an iPhone yet: check the header, dialogs and the mobile
-  menu drawer on a simulator with a notch.
+- macOS: unsigned (ad-hoc signed) builds may ask for Keychain access again after every update (the
+  item's access list is tied to the binary's signature); a Developer ID signature fixes it.
