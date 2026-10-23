@@ -14,8 +14,8 @@ Last updated: 2026-10-23 (macOS and iOS tested on a Mac).
 | Linux | ✅ `.deb`, `.rpm`, `.AppImage` (docker: `scripts/native.sh linux build`; also GitHub Actions) | ✅ two automated smoke tests drive the real binary: local mode (`scripts/native-test.sh`) and connected mode against a real server (`scripts/native-test.sh linux-connected`) | this Linux server, Xvfb + WebDriver | a real desktop session: tray icon, global shortcut, OS notifications |
 | Android | ✅ signed per-ABI `.apk` + `.aab` (docker: `scripts/native.sh android build`; GitHub Actions unsigned) | ✅ automated smoke test in an emulator (`scripts/native-test.sh android`): local mode, restart, back button | this Linux server, Android 15 emulator (KVM) | a real phone: biometrics, camera, notifications, connected mode (checklist) |
 | Windows | ✅ `.msi` + setup `.exe` (GitHub Actions `native`, 2026-10-23) | ⬜ not run on Windows yet | — | install on Windows/VM, checklist below; code signing |
-| macOS | ✅ `.app` on a Mac (`bunx tauri build`), universal `.dmg` on GitHub Actions | ✅ automated smoke test (`bun tests/native/apple-smoke.ts macos`): local mode, quit, relaunch, data kept | MacBook (Apple Silicon, macOS 26.5), 2026-10-23 | connected-mode test (written, not run yet: needs the docker server stack), tray / shortcut / Keychain prompt by hand, signing/notarization |
-| iOS | ✅ simulator `.app` (`bunx tauri ios build --debug --target aarch64-sim`); `gen/apple` committed | ✅ automated smoke test in the simulator (`bun tests/native/apple-smoke.ts ios`); used by hand connected to fin.pr0h0.me: sync, all pages fit the screen (safe areas OK) | iPhone 17 Pro simulator, iOS 26.5, 2026-10-23 | a real iPhone (Personal Team), Face ID, camera, connected-mode test |
+| macOS | ✅ `.app` on a Mac (`bunx tauri build`), universal `.dmg` on GitHub Actions | ✅ automated smoke tests (`bun tests/native/apple-smoke.ts macos`): local mode (quit, relaunch, data kept) and connected mode against a local server (register, sync, token in the Keychain, macos device, signed in after restart) | MacBook (Apple Silicon, macOS 26.5), 2026-10-23 | tray / shortcut by hand, signing/notarization |
+| iOS | ✅ simulator `.app` (`bunx tauri ios build --debug --target aarch64-sim`); `gen/apple` committed | ✅ automated smoke tests in the simulator (`bun tests/native/apple-smoke.ts ios`): local and connected mode (Keychain, ios device); used by hand connected to fin.pr0h0.me: sync, all pages fit the screen (safe areas OK) | iPhone 17 / 17 Pro simulators, iOS 26.5, 2026-10-23 | a real iPhone (Personal Team), Face ID, camera |
 
 ✅ = done and checked, ⬜ = open. GitHub artifacts: Actions → **native** → the run → Artifacts
 (`finplat-linux`, `finplat-windows`, `finplat-macos`, `finplat-android`, `finplat-ios-simulator`).
@@ -229,7 +229,10 @@ SIM=booted APP="$PWD/apps/native/src-tauri/gen/apple/build/arm64-sim/Finance Pla
 
 With `SERVER=http://localhost:3811` it runs the connected scenario instead (register, sync, token in
 the Keychain and not in localStorage, device platform on the server, still signed in after a
-restart; on macOS it deletes its Keychain item afterwards, which is the same item the real app uses).
+restart). Debug builds keep the token under their own Keychain service `me.pr0h0.finplat.debug`
+(`secret.rs`; the test deletes it afterwards) and, when test-driven (`FINPLAT_DRIVER`), skip the
+single-instance plugin: tests run beside an installed copy of the app without touching it. Use a
+simulator you do not use by hand for `ios` (the test reinstalls the app).
 Start a throwaway server first: the E2E stack published on 127.0.0.1:3811 (no `.env` needed):
 
 ```bash
@@ -244,6 +247,11 @@ YML
 POSTGRES_PASSWORD=e2e-local docker compose -p finplat-e2e -f docker-compose.yml \
   -f docker-compose.e2e.yml -f /tmp/compose.mac.yml up -d --build --wait
 ```
+
+The browser E2E suite runs on a Mac too (`scripts/e2e.sh`; Docker Desktop, a `.env` with at least
+`POSTGRES_PASSWORD`, which is gitignored). If Docker commands hang while `docker version` answers,
+Docker Desktop's VM is down: quit Docker Desktop completely and start it again (it may ask for the
+admin password).
 
 Screenshots go to `tests/native/results/` (iOS always; macOS only if the terminal has the Screen
 Recording permission).

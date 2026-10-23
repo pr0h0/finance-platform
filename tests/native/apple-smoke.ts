@@ -6,11 +6,11 @@
 // With SERVER (a test server, e.g. http://localhost:3811) it runs the connected scenario of
 // smoke-connected.ts instead: register, sync, token in the Keychain, still signed in after a restart.
 //   macos: the debug binary with a throwaway HOME (the real app data is not touched; the Keychain
-//          is the real one: the test removes its item afterwards)
+//          item is the debug builds' own (me.pr0h0.finplat.debug), removed afterwards)
 //   ios:   the debug .app installed fresh on a booted simulator (SIM = its udid, APP = the .app)
 import { execSync, spawn } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, mkdirSync, mkdtempSync, symlinkSync } from 'node:fs';
+import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { check, checkRestored, onboardLocal, Page, sleep } from './page';
 
@@ -77,6 +77,9 @@ if (target === 'macos') {
   if (!existsSync(bin)) throw new Error(`missing ${bin}: bunx tauri build --debug --no-bundle`);
   // HOME and CFFIXED_USER_HOME move both Tauri's app data dir and WebKit's storage
   const home = mkdtempSync(join(tmpdir(), 'finplat-mac-'));
+  // …but the real login keychain (the debug build's item is its own: me.pr0h0.finplat.debug)
+  mkdirSync(join(home, 'Library'), { recursive: true });
+  symlinkSync(join(homedir(), 'Library/Keychains'), join(home, 'Library/Keychains'));
   let proc: ReturnType<typeof spawn> | null = null;
   app = {
     start: () => {
@@ -106,7 +109,9 @@ if (target === 'macos') {
     proc?.kill('SIGKILL');
     // the token the connected scenario stored (same item the real app uses: service + key)
     if (SERVER)
-      execSync('security delete-generic-password -s me.pr0h0.finplat >/dev/null 2>&1 || true');
+      execSync(
+        'security delete-generic-password -s me.pr0h0.finplat.debug >/dev/null 2>&1 || true',
+      );
   });
   console.log(`app data in ${home}`);
 } else {
@@ -149,7 +154,7 @@ async function connectedScenario() {
   await p.click('^Check server$');
   await p.clickEl('label', 'I trust');
   await p.click('^Continue$');
-  await p.clickEl('[role=tab]', '^Create account$');
+  await p.tab('^Create account$');
   await p.fill('Email', EMAIL);
   await p.fill('Password', PASSWORD);
   await p.clickEl('[role=tabpanel] button', '^Create account$');
@@ -166,7 +171,10 @@ async function connectedScenario() {
   await p.click('^Next$');
   await p.click('[Dd]ashboard|[Ff]inish|[Dd]one');
   await p.heading('Dashboard');
-  await p.clickEl('a', '^Sync status$');
+  // the sidebar link is not on a phone layout: route directly
+  await p.eval(
+    `(history.pushState({}, '', '/sync'), dispatchEvent(new PopStateEvent('popstate')))`,
+  );
   await p.click('^Sync now$');
   await p.until(mainHas('Waiting to upload\\s*0'), 'outbox empty after sync');
   await p.until(`!${mainHas('Never synchronized')}`, 'a completed sync');

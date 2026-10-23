@@ -18,10 +18,10 @@ tty=(); [ -t 0 ] && tty=(-it)
 admin='{"email":"admin@e2e.test","password":"correct horse battery staple","displayName":"E2E admin"}'
 dockerx run --rm --network finplat-e2e_default -e "ADMIN=$admin" oven/bun:1.4 bun -e 'const r = await fetch("http://api:8080/api/v1/auth/register", { method: "POST", headers: { "Content-Type": "application/json" }, body: process.env.ADMIN }); if (r.status !== 201 && r.status !== 409) { console.error(r.status, await r.text()); process.exit(1); }'
 # client sync engine + TS engine vs the real Go API (packages/sync-client/src/real-server.test.ts)
-dockerx run --rm "${tty[@]}" --user 1000:1000 --network finplat-e2e_default \
+dockerx run --rm ${tty[@]+"${tty[@]}"} --user 1000:1000 --network finplat-e2e_default \
   -v "$FINPLAT_ROOT:/repo" -w /repo -v finplat_bun:/cache/bun -e BUN_INSTALL_CACHE_DIR=/cache/bun -e HOME=/tmp \
   -e FINPLAT_API_URL=http://api:8080 oven/bun:1.4 bun test packages/sync-client/src/real-server.test.ts
-dockerx run --rm "${tty[@]}" --user 1000:1000 --network container:finplat-e2e-gateway-1 --ipc host \
+dockerx run --rm ${tty[@]+"${tty[@]}"} --user 1000:1000 --network container:finplat-e2e-gateway-1 --ipc host \
   -v "$FINPLAT_ROOT:/repo" -w /repo/tests/e2e -e HOME=/tmp \
   -e E2E_BASE_URL=http://localhost:8080 ${CI:+-e CI=1} \
   mcr.microsoft.com/playwright:v1.63.0-noble node node_modules/@playwright/test/cli.js test "$@"

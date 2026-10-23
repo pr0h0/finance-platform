@@ -55,10 +55,18 @@ pub fn run() {
     #[cfg(desktop)]
     {
         // A second launch focuses the running app instead of opening another database connection.
+        // A test-driven debug build runs beside an installed app instead of handing over to it.
+        if !(cfg!(debug_assertions) && std::env::var("FINPLAT_DRIVER").is_ok()) {
+            builder = builder.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+                show_main(app)
+            }));
+        }
         builder = builder
-            .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| show_main(app)))
             // Settings → General → "Start at login" (off by default)
-            .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, None))
+            .plugin(tauri_plugin_autostart::init(
+                tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+                None,
+            ))
             .plugin(
                 tauri_plugin_global_shortcut::Builder::new()
                     .with_handler(|app, _shortcut, event| {
@@ -108,8 +116,15 @@ pub fn run() {
                 use tauri::menu::{Menu, MenuItem};
                 use tauri::tray::TrayIconBuilder;
                 use tauri_plugin_global_shortcut::GlobalShortcutExt;
-                let open = MenuItem::with_id(app, "open", "Open Finance Platform", true, None::<&str>)?;
-                let add = MenuItem::with_id(app, "quick_add", "Add transaction", true, Some(QUICK_ADD_SHORTCUT))?;
+                let open =
+                    MenuItem::with_id(app, "open", "Open Finance Platform", true, None::<&str>)?;
+                let add = MenuItem::with_id(
+                    app,
+                    "quick_add",
+                    "Add transaction",
+                    true,
+                    Some(QUICK_ADD_SHORTCUT),
+                )?;
                 let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
                 let menu = Menu::with_items(app, &[&open, &add, &quit])?;
                 let mut tray = TrayIconBuilder::with_id("main")

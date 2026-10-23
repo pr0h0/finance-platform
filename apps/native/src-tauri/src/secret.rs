@@ -4,7 +4,11 @@
 // also does when a Linux session has no Secret Service).
 #[cfg(not(target_os = "android"))]
 mod imp {
+    // Debug builds use their own item, so tests and dev runs never touch the installed app's token.
+    #[cfg(not(debug_assertions))]
     const SERVICE: &str = "me.pr0h0.finplat";
+    #[cfg(debug_assertions)]
+    const SERVICE: &str = "me.pr0h0.finplat.debug";
     fn entry(key: &str) -> Result<keyring::Entry, String> {
         keyring::Entry::new(SERVICE, key).map_err(|e| e.to_string())
     }

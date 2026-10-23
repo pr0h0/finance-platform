@@ -7,8 +7,8 @@ integrations (102) are deferred indefinitely.
 
 Native, in order:
 1. Mac (2026-10-23): macOS app and iOS simulator build and pass the smoke test; `gen/apple` committed.
-   Left: run the connected-mode test (`SERVER=… bun tests/native/apple-smoke.ts macos|ios`, docs/native/
-   README.md), a real iPhone (free Personal Team, 7-day installs), tray/shortcut by hand, signing.
+   Connected mode (Keychain) tested on both. Left: a real iPhone (free Personal Team, 7-day installs),
+   tray/shortcut by hand, signing.
 2. On Windows: install the `finplat-windows` artifact (or `bunx tauri dev`), tick the checklist.
 3. Android on a real phone: `apps/native/dist/android/app-arm64-release.apk`, checklist (biometrics,
    camera, notifications, connected mode against fin.pr0h0.me).

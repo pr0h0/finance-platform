@@ -55,6 +55,14 @@ export abstract class Page {
     await this.until(e, `${sel} /${re}/`);
     await this.eval(`${e}.click()`);
   }
+  /** Selects a tab: Radix tabs switch on mousedown, not click. */
+  async tab(re: string) {
+    const e = `el('[role=tab]', ${JSON.stringify(re)})`;
+    await this.until(e, `tab /${re}/`);
+    await this.eval(
+      `${e}.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }))`,
+    );
+  }
   async fill(label: string, value: string) {
     await this.until(`byLabel(${JSON.stringify(label)})`, `field "${label}"`);
     await this.eval(`setValue(byLabel(${JSON.stringify(label)}), ${JSON.stringify(value)})`);
