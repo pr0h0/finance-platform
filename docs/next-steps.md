@@ -1,13 +1,14 @@
 Backend (Phase 1) and the web app (Phase 2) are built; `scripts/ci.sh` and `scripts/e2e.sh` (Chromium,
 Firefox, WebKit) pass. Native apps (Phases 3–4) started 2026-10-23: one Tauri 2 project (`apps/native`)
-for Linux, Windows, macOS, Android and iOS. Linux and Android are built and smoke-tested here (docker,
-Xvfb, Android emulator); Windows, macOS and iOS build on GitHub Actions (`native` workflow) and wait
-for testing on real machines. **Start with docs/native/README.md** for native work. Automatic bank
+for Linux, Windows, macOS, Android and iOS. Linux and Android are built and smoke-tested on the Linux
+server (docker, Xvfb, Android emulator), macOS and iOS (simulator) on a Mac; Windows builds on GitHub
+Actions (`native` workflow) and waits for a Windows machine. **Start with docs/native/README.md** for native work. Automatic bank
 integrations (102) are deferred indefinitely.
 
 Native, in order:
-1. On a Mac: `bunx tauri ios init` (commit `src-tauri/gen/apple`), run the simulator and an iPhone,
-   then the macOS app; tick the checklists in docs/native/README.md.
+1. Mac (2026-10-23): macOS app and iOS simulator build and pass the smoke test; `gen/apple` committed.
+   Left: run the connected-mode test (`SERVER=… bun tests/native/apple-smoke.ts macos|ios`, docs/native/
+   README.md), a real iPhone (free Personal Team, 7-day installs), tray/shortcut by hand, signing.
 2. On Windows: install the `finplat-windows` artifact (or `bunx tauri dev`), tick the checklist.
 3. Android on a real phone: `apps/native/dist/android/app-arm64-release.apk`, checklist (biometrics,
    camera, notifications, connected mode against fin.pr0h0.me).

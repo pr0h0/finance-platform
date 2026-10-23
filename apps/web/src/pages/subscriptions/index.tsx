@@ -120,11 +120,15 @@ export default function SubscriptionsPage() {
                 <tr className="border-b border-line text-left text-xs text-muted">
                   <th className="py-1">{t('account.name', 'Name')}</th>
                   <th>{t('subscriptions.page.price', 'Price')}</th>
-                  <th>{t('subscriptions.page.billing', 'Billing')}</th>
+                  <th className="max-sm:hidden">{t('subscriptions.page.billing', 'Billing')}</th>
                   <th>{t('subscriptions.page.nextPayment', 'Next payment')}</th>
                   <th>{t('sync.status', 'Status')}</th>
-                  <th className="text-right">{t('subscriptions.page.perMonth', 'Per month')}</th>
-                  <th className="text-right">{t('subscriptions.page.perYear', 'Per year')}</th>
+                  <th className="text-right max-sm:hidden">
+                    {t('subscriptions.page.perMonth', 'Per month')}
+                  </th>
+                  <th className="text-right max-sm:hidden">
+                    {t('subscriptions.page.perYear', 'Per year')}
+                  </th>
                   <th />
                 </tr>
               </thead>
@@ -151,7 +155,7 @@ export default function SubscriptionsPage() {
                     <td>
                       <Amount value={r.plan?.amount} />
                     </td>
-                    <td className="text-xs">
+                    <td className="text-xs max-sm:hidden">
                       {r.schedule ? describeRRule(r.schedule.rrule) : '—'}
                     </td>
                     <td>{r.next ? f.date(r.next.date) : '—'}</td>
@@ -174,10 +178,10 @@ export default function SubscriptionsPage() {
                         </span>
                       )}
                     </td>
-                    <td className="text-right">
+                    <td className="text-right max-sm:hidden">
                       <Amount value={r.cost?.monthly} />
                     </td>
-                    <td className="text-right">
+                    <td className="text-right max-sm:hidden">
                       <Amount value={r.cost?.annual} />
                     </td>
                     <td className="text-right">

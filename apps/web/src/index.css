@@ -68,6 +68,11 @@ body {
   :where(td, th) + :where(td, th) {
     padding-left: 0.75rem;
   }
+  @media (width < 40rem) {
+    :where(td, th) + :where(td, th) {
+      padding-left: 0.5rem;
+    }
+  }
 }
 
 :focus-visible {
