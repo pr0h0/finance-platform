@@ -7,7 +7,7 @@ FROM oven/bun:1.4 AS bun
 FROM rust:1.90-bookworm AS linux
 RUN apt-get update && apt-get install -y --no-install-recommends \
       libwebkit2gtk-4.1-dev libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev \
-      build-essential curl wget file patchelf rpm xdg-utils \
+      build-essential curl wget file patchelf rpm xdg-utils libdbus-1-dev pkg-config \
     && rm -rf /var/lib/apt/lists/*
 COPY --from=bun /usr/local/bin/bun /usr/local/bin/bun
 RUN ln -s /usr/local/bin/bun /usr/local/bin/bunx
@@ -18,9 +18,11 @@ ENV PATH=/usr/local/cargo/bin:$PATH
 # target linux-test: runs the built app under a virtual display and drives it over WebDriver
 # (tauri-driver + WebKitWebDriver): tests/native/smoke.ts
 FROM linux AS linux-test
-RUN apt-get update && apt-get install -y --no-install-recommends xvfb xauth webkit2gtk-driver dbus-x11 \
+RUN apt-get update && apt-get install -y --no-install-recommends xvfb xauth webkit2gtk-driver dbus-x11 gnome-keyring \
     && rm -rf /var/lib/apt/lists/*
 RUN CARGO_HOME=/usr/local/cargo cargo install tauri-driver --locked --version 2.0.4 && rm -rf /usr/local/cargo/registry
+# D-Bus (Secret Service for the keychain test) needs a passwd entry for the uid the tests run as
+RUN useradd -u 1000 -M -d /tmp/home tester
 
 FROM linux AS android
 RUN apt-get update && apt-get install -y --no-install-recommends openjdk-17-jdk-headless unzip \

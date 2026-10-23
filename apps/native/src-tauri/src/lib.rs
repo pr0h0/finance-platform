@@ -1,9 +1,11 @@
 // Native shell for the shared web app (PLAN §37-39): one Tauri 2 project for Linux, Windows, macOS,
 // Android and iOS. The UI is apps/web (bundled); this crate adds what a browser cannot do:
 //   - durable local SQLite storage behind packages/storage's MemoryStore (store_* commands),
+//   - the server token in the OS credential store (secret_* commands, secret.rs),
 //   - HTTP without CORS to any compatible server (tauri-plugin-http), native notifications,
 //   - saving exports/backups through the OS save dialog (dialog + fs plugins),
 //   - desktop: system tray and a global "add transaction" shortcut; mobile: biometric unlock.
+mod secret;
 mod store;
 
 #[cfg(desktop)]
@@ -67,7 +69,10 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             store::store_load,
             store::store_commit,
-            store::store_destroy
+            store::store_destroy,
+            secret::secret_get,
+            secret::secret_set,
+            secret::secret_delete
         ])
         .setup(|app| {
             #[cfg(desktop)]

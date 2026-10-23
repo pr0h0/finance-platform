@@ -46,6 +46,14 @@ try {
   await app.until(mainHas('Waiting to upload\\s*0'), 'outbox empty after sync', 30_000);
   await app.until(`return !${mainHas('Never synchronized').slice(7)}`, 'a completed sync', 30_000);
   check(true, 'synced from the native app');
+  if (process.env.KEYCHAIN) {
+    // the test runs with a Secret Service (gnome-keyring): the token must not sit in localStorage
+    const stored = await app.exec<string>(`return localStorage.getItem('finplat:app') || ''`);
+    check(
+      stored.includes('"connection"') && !stored.includes('"token"'),
+      'token kept in the OS credential store, not in localStorage',
+    );
+  }
   await app.shot('connected-1-sync');
 } finally {
   await app.quit().catch(() => undefined);

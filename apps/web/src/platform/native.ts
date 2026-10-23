@@ -28,6 +28,7 @@ export async function initNative(): Promise<void> {
     : 'other';
   document.documentElement.dataset.platform = platform;
   if (platform === 'android') await handleAndroidBack();
+  await initKeychain();
   // Links to other sites open in the system browser: inside the app window they would replace the app.
   document.addEventListener(
     'click',
@@ -90,6 +91,43 @@ async function handleAndroidBack() {
       dispatchEvent(new PopStateEvent('popstate', { state: history.state }));
     } else void exit(0);
   });
+}
+
+// ------------------------------------------------------------ OS credential store
+
+// The server's bearer token lives in the OS credential store (Keychain, Credential Manager, Secret
+// Service) when there is one; app/store.ts then keeps it out of localStorage. Without a usable store
+// (Android, a Linux session without Secret Service) it stays in the app's private storage.
+const TOKEN_KEY = 'server-token';
+let keychain = false;
+let keychainToken: string | undefined;
+
+async function secret<T>(cmd: string, args: Record<string, unknown>) {
+  return (await import('@tauri-apps/api/core')).invoke<T>(cmd, args);
+}
+
+async function initKeychain() {
+  if (platform === 'android' || platform === 'other') return;
+  try {
+    keychainToken = (await secret<string | null>('secret_get', { key: TOKEN_KEY })) ?? undefined;
+    keychain = true;
+  } catch {
+    keychain = false; // no credential store: keep using app storage
+  }
+}
+
+/** True when the token is kept in the OS credential store instead of localStorage. */
+export const keychainInUse = () => keychain;
+/** The token read from the credential store at start (app/store.ts puts it back into the state). */
+export const keychainServerToken = () => keychainToken;
+/** Stores (or with undefined removes) the token in the credential store. */
+export function saveServerToken(token: string | undefined): void {
+  if (!keychain || token === keychainToken) return;
+  keychainToken = token;
+  const done = token
+    ? secret('secret_set', { key: TOKEN_KEY, value: token })
+    : secret('secret_delete', { key: TOKEN_KEY });
+  done.catch((e) => console.error('credential store', e));
 }
 
 // ------------------------------------------------------------ storage

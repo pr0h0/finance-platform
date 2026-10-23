@@ -3,6 +3,7 @@
 // data never goes here. Everything profile-scoped lives in the DataSource.
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
+import { keychainInUse, keychainServerToken, saveServerToken } from '../platform/native.ts';
 
 export type Mode = 'local' | 'remote';
 export type Theme = 'light' | 'dark' | 'system';
@@ -93,10 +94,33 @@ export const useApp = create<AppState>()(
     {
       name: 'finplat:app',
       version: 1,
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => ({
+        getItem: (name) => localStorage.getItem(name),
+        setItem: (name, value) => localStorage.setItem(name, withoutKeychainToken(value)),
+        removeItem: (name) => localStorage.removeItem(name),
+      })),
     },
   ),
 );
+
+/** Native app with an OS credential store: the server token goes there, not into localStorage. */
+function withoutKeychainToken(json: string): string {
+  if (!keychainInUse()) return json;
+  const v = JSON.parse(json) as { state?: { connection?: Connection | null } };
+  const c = v.state?.connection;
+  saveServerToken(c?.token);
+  if (c?.token) delete c.token;
+  return JSON.stringify(v);
+}
+
+/** Native app: put the token read from the OS credential store back into the state (main.tsx). */
+export function restoreKeychainToken() {
+  const token = keychainServerToken();
+  const c = useApp.getState().connection;
+  if (token && c && !c.token) useApp.setState({ connection: { ...c, token } });
+  // a token saved in localStorage before the credential store was used moves there now
+  else if (c?.token && keychainInUse()) useApp.setState({ connection: { ...c } });
+}
 
 /** IndexedDB name for a fresh connection to a server (one cache database per server). */
 export function storeNameFor(serverUrl: string): string {

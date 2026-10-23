@@ -31,7 +31,7 @@ case "$target" in
     # accepted for localhost).
     dockerx run --rm --user 1000:1000 --network container:finplat-e2e-gateway-1 -v "$FINPLAT_ROOT:/repo" -w /repo \
       -v finplat_cargo_target:/cache/target:ro -e HOME=/tmp/home "$image" \
-      bash -c 'mkdir -p $HOME && Xvfb :99 -screen 0 1280x900x24 >/dev/null 2>&1 & export DISPLAY=:99; sleep 1; tauri-driver --port 4444 >/tmp/driver.log 2>&1 & sleep 2; bun tests/native/smoke-connected.ts; rc=$?; [ $rc -eq 0 ] || tail -30 /tmp/driver.log; exit $rc' ;;
+      bash -c 'mkdir -p $HOME && dbus-run-session -- bash -c "echo test | gnome-keyring-daemon --unlock --components=secrets >/dev/null; Xvfb :99 -screen 0 1280x900x24 >/dev/null 2>&1 & export DISPLAY=:99; sleep 1; tauri-driver --port 4444 >/tmp/driver.log 2>&1 & sleep 2; KEYCHAIN=1 bun tests/native/smoke-connected.ts; rc=\$?; [ \$rc -eq 0 ] || tail -30 /tmp/driver.log; exit \$rc"' ;;
   android)
     apk=apps/native/src-tauri/gen/android/app/build/outputs/apk/universal/debug/app-universal-debug.apk
     [ -f "$FINPLAT_ROOT/$apk" ] || { echo "missing $apk: build the debug APK first" >&2; exit 1; }
