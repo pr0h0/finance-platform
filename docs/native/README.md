@@ -136,7 +136,14 @@ scripts/native.sh android build    # signed release: apps/native/dist/android/ap
 scripts/native.sh android run bunx tauri android build --debug --apk --target x86_64   # debug APK for the emulator
 scripts/native-test.sh android     # boots a headless Android 15 emulator (needs /dev/kvm), installs the debug APK,
                                    # drives its WebView over the DevTools protocol (screenshots: tests/native/results/)
+scripts/native-test.sh android-ui  # the same emulator in a window on your X11 desktop, debug APK installed and
+                                   # launched, to click around by hand (Ctrl+C stops it)
 ```
+
+**Docker Desktop has no `/dev/kvm`** (its containers run inside a VM), so the emulator cannot start
+there. Install Docker Engine next to it (`sudo apt-get install docker-ce containerd.io`, from the
+Docker apt repository Desktop already uses) and point only these commands at it:
+`DOCKER_CONTEXT=default scripts/native-test.sh android`. Builds work on either engine.
 
 **Install on your phone:** copy `apps/native/dist/android/app-arm64-release.apk` to the phone (or
 `adb install` it), open it, allow "install unknown apps" for the file manager/browser once. Updates

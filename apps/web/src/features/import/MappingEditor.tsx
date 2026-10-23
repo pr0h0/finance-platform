@@ -784,35 +784,37 @@ export function MappingEditor() {
               {test.errors.length} {t('import.mappingEditor.errors', 'errors,')}{' '}
               {test.warnings.length} {t('import.mappingEditor.warnings', 'warnings.')}
             </p>
-            <table className="w-full text-xs">
-              <thead className="text-left text-muted">
-                <tr>
-                  <th className="font-medium">{t('import.mappingEditor.row', 'Row')}</th>
-                  <th className="font-medium">{t('transaction.date', 'Date')}</th>
-                  <th className="font-medium">{t('transaction.description', 'Description')}</th>
-                  <th className="text-right font-medium">{t('transaction.amount', 'Amount')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {test.records.slice(0, 20).map((r) => (
-                  <tr key={r.rowNumber} className="border-t border-line">
-                    <td>{r.rowNumber}</td>
-                    <td className="tabular-nums">{r.postingDate}</td>
-                    <td className="truncate">{r.description}</td>
-                    <td className="text-right">
-                      <MoneyText
-                        value={{
-                          amount: r.direction === 'debit' ? `-${r.amount}` : r.amount,
-                          currency: r.currency,
-                        }}
-                        locale={locale}
-                        signed
-                      />
-                    </td>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead className="text-left text-muted">
+                  <tr>
+                    <th className="font-medium">{t('import.mappingEditor.row', 'Row')}</th>
+                    <th className="font-medium">{t('transaction.date', 'Date')}</th>
+                    <th className="font-medium">{t('transaction.description', 'Description')}</th>
+                    <th className="text-right font-medium">{t('transaction.amount', 'Amount')}</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {test.records.slice(0, 20).map((r) => (
+                    <tr key={r.rowNumber} className="border-t border-line">
+                      <td>{r.rowNumber}</td>
+                      <td className="tabular-nums">{r.postingDate}</td>
+                      <td className="truncate">{r.description}</td>
+                      <td className="text-right">
+                        <MoneyText
+                          value={{
+                            amount: r.direction === 'debit' ? `-${r.amount}` : r.amount,
+                            currency: r.currency,
+                          }}
+                          locale={locale}
+                          signed
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
             {[...test.errors, ...test.warnings].slice(0, 10).map((e, i) => (
               // biome-ignore lint/suspicious/noArrayIndexKey: issues have no id
               <p key={i} className="text-xs text-warn">

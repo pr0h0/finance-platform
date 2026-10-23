@@ -73,3 +73,10 @@ body {
     animation: none !important;
   }
 }
+
+/* Numeric (right-aligned) table columns: a gap to the previous column, never wrapped. Wide tables
+   scroll inside their <div className="overflow-x-auto"> instead of spilling out of the card. */
+:where(td, th).text-right {
+  padding-left: 0.75rem;
+  white-space: nowrap;
+}

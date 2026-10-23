@@ -70,65 +70,71 @@ export function CalendarView({
     ),
   );
   return (
-    <table className="w-full table-fixed border-collapse text-xs">
-      <caption className="sr-only">
-        {t('planning.views.billCalendar', 'Bill calendar')} {f.month(month.slice(0, 7))}
-      </caption>
-      <thead>
-        <tr>
-          {names.map((n) => (
-            <th
-              key={n}
-              scope="col"
-              className="border border-line bg-surface-2 p-1 font-medium text-muted"
-            >
-              {n}
-            </th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {Array.from({ length: days.length / 7 }, (_, w) => (
-          <tr key={days[w * 7]}>
-            {days.slice(w * 7, w * 7 + 7).map((d) => {
-              const items = byDay.get(d) ?? [];
-              const out = d.slice(0, 7) !== month.slice(0, 7);
-              return (
-                <td
-                  key={d}
-                  className={`h-20 border border-line p-1 align-top ${out ? 'bg-surface-2' : 'bg-surface'}`}
-                >
-                  <button
-                    type="button"
-                    className={`mb-1 rounded px-1 ${d === today ? 'bg-accent text-accent-fg' : 'text-muted hover:bg-surface-2'}`}
-                    aria-label={t('planning.views.planSomethingOn', 'Plan something on {{date}}', {
-                      date: f.date(d),
-                    })}
-                    onClick={() => onNew(d)}
-                  >
-                    {Number(d.slice(8))}
-                  </button>
-                  <ul className="space-y-0.5">
-                    {items.map((r) => (
-                      <li key={`${r.plan.id}|${r.occurrenceDate}`}>
-                        <button
-                          type="button"
-                          onClick={() => onOpen(r)}
-                          className={`w-full truncate rounded px-1 text-left hover:bg-surface-2 ${tone(r)}`}
-                        >
-                          <span className="hidden md:inline">{r.plan.description} </span>
-                          <Amount value={r.amount} />
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </td>
-              );
-            })}
+    <div className="overflow-x-auto">
+      <table className="w-full table-fixed border-collapse text-xs">
+        <caption className="sr-only">
+          {t('planning.views.billCalendar', 'Bill calendar')} {f.month(month.slice(0, 7))}
+        </caption>
+        <thead>
+          <tr>
+            {names.map((n) => (
+              <th
+                key={n}
+                scope="col"
+                className="border border-line bg-surface-2 p-1 font-medium text-muted"
+              >
+                {n}
+              </th>
+            ))}
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {Array.from({ length: days.length / 7 }, (_, w) => (
+            <tr key={days[w * 7]}>
+              {days.slice(w * 7, w * 7 + 7).map((d) => {
+                const items = byDay.get(d) ?? [];
+                const out = d.slice(0, 7) !== month.slice(0, 7);
+                return (
+                  <td
+                    key={d}
+                    className={`h-20 border border-line p-1 align-top ${out ? 'bg-surface-2' : 'bg-surface'}`}
+                  >
+                    <button
+                      type="button"
+                      className={`mb-1 rounded px-1 ${d === today ? 'bg-accent text-accent-fg' : 'text-muted hover:bg-surface-2'}`}
+                      aria-label={t(
+                        'planning.views.planSomethingOn',
+                        'Plan something on {{date}}',
+                        {
+                          date: f.date(d),
+                        },
+                      )}
+                      onClick={() => onNew(d)}
+                    >
+                      {Number(d.slice(8))}
+                    </button>
+                    <ul className="space-y-0.5">
+                      {items.map((r) => (
+                        <li key={`${r.plan.id}|${r.occurrenceDate}`}>
+                          <button
+                            type="button"
+                            onClick={() => onOpen(r)}
+                            className={`w-full truncate rounded px-1 text-left hover:bg-surface-2 ${tone(r)}`}
+                          >
+                            <span className="hidden md:inline">{r.plan.description} </span>
+                            <Amount value={r.amount} />
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
@@ -275,32 +281,34 @@ export function AnnualPlanCard({ snap }: { snap: Snapshot }) {
       <ChartFrame
         name="annual-plan"
         table={
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="text-left text-muted">
-                <th>{t('planning.views.month', 'Month')}</th>
-                <th>{t('transaction.kind.income', 'Income')}</th>
-                <th>{t('reports.page.expenses', 'Expenses')}</th>
-                <th>{t('planning.views.setAsideMonthly', 'Set aside monthly')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {a.months.map((m) => (
-                <tr key={m.month}>
-                  <td>{f.month(m.month)}</td>
-                  <td>
-                    <Amount value={m.income} />
-                  </td>
-                  <td>
-                    <Amount value={m.expense} />
-                  </td>
-                  <td>
-                    <Amount value={m.smoothed} />
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="text-left text-muted">
+                  <th>{t('planning.views.month', 'Month')}</th>
+                  <th>{t('transaction.kind.income', 'Income')}</th>
+                  <th>{t('reports.page.expenses', 'Expenses')}</th>
+                  <th>{t('planning.views.setAsideMonthly', 'Set aside monthly')}</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {a.months.map((m) => (
+                  <tr key={m.month}>
+                    <td>{f.month(m.month)}</td>
+                    <td>
+                      <Amount value={m.income} />
+                    </td>
+                    <td>
+                      <Amount value={m.expense} />
+                    </td>
+                    <td>
+                      <Amount value={m.smoothed} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         }
       >
         <MoneyChart
