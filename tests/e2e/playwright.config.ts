@@ -29,7 +29,22 @@ export default defineConfig({
   },
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'] }, testIgnore: ADMIN },
-    { name: 'firefox', use: { ...devices['Desktop Firefox'] }, testIgnore: ADMIN },
+    {
+      // Firefox (Juggler) sometimes never reports DOMContentLoaded for the first navigation of a new
+      // context although every resource arrived (docs/known-issues.md). More connections per server
+      // (the app keeps an SSE stream and polls open in other pages) cut it from ~1 in 4 to ~1 in 15;
+      // a stuck navigation fails after 30 s and the test is retried once (reported as flaky).
+      name: 'firefox',
+      retries: 1,
+      use: {
+        ...devices['Desktop Firefox'],
+        navigationTimeout: 30_000,
+        launchOptions: {
+          firefoxUserPrefs: { 'network.http.max-persistent-connections-per-server': 32 },
+        },
+      },
+      testIgnore: ADMIN,
+    },
     { name: 'webkit', use: { ...devices['Desktop Safari'] }, testIgnore: ADMIN },
     {
       name: 'admin',

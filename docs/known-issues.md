@@ -326,6 +326,11 @@ Full state and checklists: docs/native/README.md.
   for `domcontentloaded` instead of `load`, and CI runs keep one retry; retried tests are reported as flaky. Still failing in
   Firefox about half the time (even with Firefox alone): `activation.spec.ts` "E2EE profile … B and C", which opens
   three contexts; one hangs in `page.goto` before DOMContentLoaded. Chromium and WebKit pass it.
+  2026-10-23: traces of the hang show every resource received and no DOMContentLoaded reported (not the
+  app: no top-level await; bypassing CSP did not help). Raising Firefox's
+  `network.http.max-persistent-connections-per-server` to 32 (the app keeps an SSE stream and polls open in
+  other pages) cut it from ~1 in 4 to ~1 in 15 runs; the Firefox project now fails a navigation after 30 s
+  and retries once, also locally, so the hang shows as "flaky" instead of failing the suite.
 - Real bugs found by the new journeys and fixed: pdf.js worker (`.mjs`) served as octet-stream with nosniff, so every
   PDF import failed in the built app; Bosnian formatting in Chromium; the E2EE fresh-device crash; WebKit Blob
   storage; the "ready to work offline" prompt covering page buttons until closed.
