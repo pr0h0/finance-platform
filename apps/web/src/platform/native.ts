@@ -64,6 +64,14 @@ export async function setAutostart(on: boolean): Promise<void> {
   await (on ? a.enable() : a.disable());
 }
 
+/** Desktop: closing the window keeps the app running in the tray (only when a tray icon exists). */
+export async function closeToTray(): Promise<{ available: boolean; on: boolean }> {
+  return (await import('@tauri-apps/api/core')).invoke('close_to_tray_get');
+}
+export async function setCloseToTray(on: boolean): Promise<void> {
+  await (await import('@tauri-apps/api/core')).invoke('close_to_tray_set', { on });
+}
+
 /** fetch for the API: Rust-side HTTP in the native app, the browser's fetch on the web. */
 export const appFetch = ((input: RequestInfo | URL, init?: RequestInit) =>
   (httpFetch ?? fetch)(input, init)) as typeof fetch;

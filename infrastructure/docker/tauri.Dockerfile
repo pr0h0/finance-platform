@@ -14,6 +14,8 @@ RUN ln -s /usr/local/bin/bun /usr/local/bin/bunx
 ENV CARGO_HOME=/cache/cargo CARGO_TARGET_DIR=/cache/target APPIMAGE_EXTRACT_AND_RUN=1 NO_STRIP=true
 # rustup lives in the image (/usr/local/rustup); CARGO_HOME (registry, git) is a cache volume.
 ENV PATH=/usr/local/cargo/bin:$PATH
+# cargo fmt / cargo clippy for apps/native/src-tauri (scripts/native.sh linux check)
+RUN rustup component add rustfmt clippy
 
 # target linux-test: runs the built app under a virtual display and drives it over WebDriver
 # (tauri-driver + WebKitWebDriver): tests/native/smoke.ts

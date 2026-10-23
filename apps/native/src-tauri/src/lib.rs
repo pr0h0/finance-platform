@@ -4,9 +4,11 @@
 //   - the server token in the OS credential store (secret_* commands, secret.rs),
 //   - HTTP without CORS to any compatible server (tauri-plugin-http), native notifications,
 //   - saving exports/backups through the OS save dialog (dialog + fs plugins),
-//   - desktop: system tray and a global "add transaction" shortcut; mobile: biometric unlock.
+//   - desktop: system tray (optionally keeping the app there when its window closes) and a global
+//     "add transaction" shortcut; mobile: biometric unlock.
 mod secret;
 mod store;
+mod tray;
 
 #[cfg(desktop)]
 use tauri::{Emitter, Manager};
@@ -102,13 +104,17 @@ pub fn run() {
             }
         })
         .manage(store::Stores::default())
+        .manage(tray::Tray::default())
+        .on_window_event(tray::on_window_event)
         .invoke_handler(tauri::generate_handler![
             store::store_load,
             store::store_commit,
             store::store_destroy,
             secret::secret_get,
             secret::secret_set,
-            secret::secret_delete
+            secret::secret_delete,
+            tray::close_to_tray_get,
+            tray::close_to_tray_set
         ])
         .setup(|app| {
             #[cfg(desktop)]
@@ -140,8 +146,9 @@ pub fn run() {
                     tray = tray.icon(icon.clone());
                 }
                 // A desktop without a tray (some Linux sessions) still runs the app.
-                if let Err(e) = tray.build(app) {
-                    eprintln!("tray unavailable: {e}");
+                match tray.build(app) {
+                    Ok(_) => tray::ready(app.handle()),
+                    Err(e) => eprintln!("tray unavailable: {e}"),
                 }
                 // Global shortcuts can be taken by another app or unsupported (Wayland): not fatal.
                 if let Err(e) = app.global_shortcut().register(QUICK_ADD_SHORTCUT) {

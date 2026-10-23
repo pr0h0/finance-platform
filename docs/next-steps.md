@@ -14,13 +14,11 @@ Native, in order:
    camera, notifications, connected mode against fin.pr0h0.me).
 4. Desktop items of PLAN still open: auto-update with signed releases (tauri-plugin-updater + an update
    feed, e.g. on the server), E2EE keys in the OS keychain (the token already is), scheduled automatic
-   backups to a folder, local MCP bridge (131), close-to-tray.
+   backups to a folder, local MCP bridge (131). Close-to-tray is done (Settings → General).
 5. Push notifications when the app is closed (FCM/APNs from the server's notification job).
 
 Web/backend, highest value next:
-1. Upload device-entered exchange rates (connected imports already reach the server: E2E
-   `import-sync.spec.ts`).
-2. Remaining English outside JSX (toasts in `.ts` modules, option-label arrays, enum values such as account
+1. Remaining English outside JSX (toasts in `.ts` modules, option-label arrays, enum values such as account
    types, server insights and error details).
-3. Firefox E2E stalls under parallel load (see known-issues).
-4. Raiffeisen BiH: other products/currencies once real samples exist (only the KM "IZVOD" layout is known).
+2. Firefox E2E stalls under parallel load (see known-issues).
+3. Raiffeisen BiH: other products/currencies once real samples exist (only the KM "IZVOD" layout is known).

@@ -2,7 +2,7 @@
 # Tauri toolchain in docker (infrastructure/docker/tauri.Dockerfile); nothing is installed on the host.
 #   scripts/native.sh linux build            Linux bundles (.deb .rpm .AppImage) -> apps/native/dist/linux
 #   scripts/native.sh android build          Android .apk/.aab (debug-signed unless a keystore is set up) -> apps/native/dist/android
-#   scripts/native.sh linux check            cargo check of the Rust crate
+#   scripts/native.sh linux check            cargo fmt --check + clippy of the Rust crate
 #   scripts/native.sh <linux|android> run <cmd...>   any command in the toolchain (cwd apps/native)
 # macOS, iOS and Windows builds need their own OS: see docs/native/README.md (and .github/workflows/native.yml).
 set -euo pipefail
@@ -28,7 +28,7 @@ run() {
     "$image" "$@"
 }
 case "$cmd" in
-  check) run bash -c 'cd src-tauri && cargo check' ;;
+  check) run bash -c 'cd src-tauri && cargo fmt --check && cargo clippy --all-targets -- -D warnings' ;;
   build)
     case "$target" in
       linux)

@@ -6,7 +6,13 @@ import { Button, Card, Checkbox, ErrorBox, Field, Select } from '../components/u
 import { toast } from '../components/ui/toast.tsx';
 import { currencyCodes, currencyName } from '../lib/currencies.ts';
 import { useT } from '../lib/i18n.ts';
-import { autostartEnabled, isDesktopNative, setAutostart } from '../platform/native.ts';
+import {
+  autostartEnabled,
+  closeToTray,
+  isDesktopNative,
+  setAutostart,
+  setCloseToTray,
+} from '../platform/native.ts';
 import { PreferencesForm } from './PreferencesForm.tsx';
 
 export function GeneralTab() {
@@ -76,6 +82,11 @@ function DesktopCard() {
     mutationFn: setAutostart,
     onSuccess: () => qc.invalidateQueries({ queryKey: ['native', 'autostart'] }),
   });
+  const tray = useQuery({ queryKey: ['native', 'close-to-tray'], queryFn: closeToTray });
+  const toggleTray = useMutation({
+    mutationFn: setCloseToTray,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['native', 'close-to-tray'] }),
+  });
   return (
     <Card title={t('settings.desktop', 'Desktop app')}>
       <Checkbox
@@ -84,13 +95,24 @@ function DesktopCard() {
         disabled={on.isLoading || toggle.isPending}
         onChange={(e) => toggle.mutate(e.target.checked)}
       />
+      {tray.data?.available && (
+        <Checkbox
+          label={t(
+            'settings.closeToTray',
+            'Keep running in the tray when the window is closed (Quit from the tray menu)',
+          )}
+          checked={tray.data.on}
+          disabled={toggleTray.isPending}
+          onChange={(e) => toggleTray.mutate(e.target.checked)}
+        />
+      )}
       <p className="mt-2 text-sm text-muted">
         {t(
           'settings.desktopHint',
           'Ctrl+Shift+E (Cmd+Shift+E on a Mac) adds a transaction from anywhere. The tray icon opens the app or adds a transaction.',
         )}
       </p>
-      <ErrorBox error={toggle.error} />
+      <ErrorBox error={toggle.error ?? toggleTray.error} />
     </Card>
   );
 }

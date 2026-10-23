@@ -69,7 +69,10 @@ apps/web (React, unchanged pages)          apps/native/src-tauri (Rust)
 - **Desktop extras:** tray icon (Open / Add transaction / Quit), global shortcut
   **Ctrl+Shift+E** (Cmd+Shift+E on macOS) opens quick entry from anywhere, single instance (a second
   launch focuses the running app), **start at login** (Settings → General → Desktop app;
-  `tauri-plugin-autostart`, off by default). Links to other sites open in the system browser.
+  `tauri-plugin-autostart`, off by default), **keep running in the tray** when the window is closed
+  (same card, shown only when the tray icon could be created; off by default because GNOME without the
+  AppIndicator extension accepts a tray icon but never shows it; `src/tray.rs`, a `close-to-tray`
+  marker file in the app config directory). Links to other sites open in the system browser.
 - **Mobile extras:** the app lock screen offers **fingerprint / Face ID** (tauri-plugin-biometric)
   when the device has it; the PIN stays the fallback. Biometrics only gate the UI, like the PIN.
   Android back button: closes dialogs, goes back in the app, leaves the app only from the dashboard.
@@ -111,7 +114,7 @@ to rebuild). Rust, Cargo, Gradle and Bun caches live in docker volumes `finplat_
 scripts/native.sh linux build      # -> apps/native/dist/linux/{deb,rpm,appimage}/
 scripts/native-test.sh             # starts the built binary under Xvfb and drives it (screenshots: tests/native/results/)
 scripts/native-test.sh linux-connected   # same binary against the isolated E2E server stack (register, bearer token, sync, restart)
-scripts/native.sh linux check      # quick cargo check after Rust changes
+scripts/native.sh linux check      # cargo fmt --check + clippy (-D warnings) after Rust changes
 ```
 
 The smoke tests: the app runs inside Tauri with the native bridges, local onboarding, account with an
@@ -279,6 +282,8 @@ Run through these on the real OS; tick them here (and in `docs/implementation-st
 
 ### Desktop (Windows, macOS, Linux desktop)
 - [ ] Tray icon menu: Open, Add transaction, Quit.
+- [ ] Settings → General → "Keep running in the tray": closing the window hides it, the tray's Open
+      brings it back, Quit ends the app; off again: closing the window quits.
 - [ ] Ctrl+Shift+E (Cmd+Shift+E) opens quick entry while another app is focused.
 - [ ] Starting the app twice focuses the first window.
 - [ ] Windows: SmartScreen warning on the unsigned installer (expected until code signing).
@@ -311,8 +316,7 @@ Updates: `tauri-plugin-updater` with GitHub Releases is the planned path (not ad
   keyring crate has no Android backend).
 - Local MCP server for desktop (PLAN feature 131).
 - Auto-update (tauri-plugin-updater) and signed release pipeline.
-- Desktop: close-to-tray option; scheduled automatic backups to a chosen folder (needs a persisted
-  fs scope for that folder).
+- Desktop: scheduled automatic backups to a chosen folder (needs a persisted fs scope for that folder).
 - Android: share a statement/receipt from another app into Finance Platform (share target).
 - macOS: unsigned (ad-hoc signed) builds may ask for Keychain access again after every update (the
   item's access list is tied to the binary's signature); a Developer ID signature fixes it.
