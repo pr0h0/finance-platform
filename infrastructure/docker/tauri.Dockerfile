@@ -53,3 +53,5 @@ RUN sdkmanager "emulator" "system-images;android-35;google_apis;x86_64" >/dev/nu
     && sed -i 's#/root/.android/avd#/opt/avd#' /opt/avd/test.ini \
     && chmod -R a+rwX /opt/avd $ANDROID_HOME
 ENV ANDROID_AVD_HOME=/opt/avd PATH=$ANDROID_HOME/emulator:$PATH
+# The emulator's windowed mode (scripts/native-test.sh android-ui) also needs libxkbfile.
+RUN apt-get update && apt-get install -y --no-install-recommends libxkbfile1 && rm -rf /var/lib/apt/lists/*
