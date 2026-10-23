@@ -355,12 +355,12 @@ export function Spinner({ label = 'Loading…' }: { label?: string }) {
 /** Key/value rows (settings, diagnostics). */
 export function DefinitionList({ items }: { items: [ReactNode, ReactNode][] }) {
   return (
-    <dl className="grid grid-cols-[minmax(8rem,auto)_1fr] gap-x-4 gap-y-1.5 text-sm">
+    <dl className="grid grid-cols-1 gap-x-4 gap-y-0.5 text-sm sm:grid-cols-[minmax(8rem,auto)_1fr] sm:gap-y-1.5">
       {items.map(([k, v], i) => (
         // biome-ignore lint/suspicious/noArrayIndexKey: static rows
         <div key={i} className="contents">
           <dt className="text-muted">{k}</dt>
-          <dd className="min-w-0 break-words">{v}</dd>
+          <dd className="mb-1.5 min-w-0 break-words sm:mb-0">{v}</dd>
         </div>
       ))}
     </dl>

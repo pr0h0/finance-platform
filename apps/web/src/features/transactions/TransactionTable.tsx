@@ -20,6 +20,17 @@ import { primaryAmount } from './model.ts';
 import { Badge, MoneyText } from './ui.tsx';
 
 const ROW_H = 44;
+// Column widths; on phones the date moves under the description and account/category are hidden,
+// so the description takes what is left and the amount stays on screen.
+const COL: Record<string, string> = {
+  select: 'w-9',
+  date: 'w-[110px] max-md:hidden',
+  description: 'md:w-[360px]',
+  account: 'w-[160px] max-md:hidden',
+  category: 'w-[180px] max-md:hidden',
+  amount: 'w-[120px] md:w-[140px]',
+};
+const hideOnPhone = (id: string) => (COL[id]?.includes('max-md:hidden') ? 'max-md:hidden' : '');
 
 export function TransactionTable({
   rows,
@@ -43,7 +54,6 @@ export function TransactionTable({
     () => [
       {
         id: 'select',
-        size: 36,
         enableSorting: false,
         header: ({ table }) => (
           <input
@@ -76,61 +86,67 @@ export function TransactionTable({
       {
         id: 'date',
         header: t('transaction.date', 'Date'),
-        size: 110,
         accessorFn: (t) => `${t.bookingDate}|${t.createdAt}`,
         cell: ({ row }) => <span className="tabular-nums">{row.original.bookingDate}</span>,
       },
       {
         id: 'description',
         header: t('transactions.transactionTable.description', 'Description'),
-        size: 360,
         accessorFn: (t) =>
           (t.description || t.payee || refs.merchantName(t.merchantId)).toLowerCase(),
         cell: ({ row }) => {
           const tx = row.original;
           const merchant = refs.merchantName(tx.merchantId);
           return (
-            <div className="flex min-w-0 items-center gap-1.5">
-              {tx.source === 'import' && (
-                <FileInput
-                  size={14}
-                  aria-label={t('transactions.transactionTable.imported', 'Imported')}
-                  className="shrink-0 text-muted"
-                />
-              )}
-              {(tx.kind === 'transfer' || tx.kind === 'fx') && (
-                <Repeat
-                  size={14}
-                  aria-label={t('transaction.kind.transfer', 'Transfer')}
-                  className="shrink-0 text-muted"
-                />
-              )}
-              {tx.attachmentIds.length > 0 && (
-                <Paperclip
-                  size={14}
-                  aria-label={t('transactions.transactionTable.hasAttachments', 'Has attachments')}
-                  className="shrink-0 text-muted"
-                />
-              )}
-              <span className="truncate">
-                {tx.description || tx.payee || merchant || (
-                  <em className="text-muted">
-                    {t('transactions.transactionTable.noDescription', 'No description')}
-                  </em>
+            <div className="min-w-0">
+              <div className="flex min-w-0 items-center gap-1.5">
+                {tx.source === 'import' && (
+                  <FileInput
+                    size={14}
+                    aria-label={t('transactions.transactionTable.imported', 'Imported')}
+                    className="shrink-0 text-muted"
+                  />
                 )}
-              </span>
-              {merchant && tx.description && (
-                <span className="hidden truncate text-xs text-muted lg:inline">· {merchant}</span>
-              )}
-              {tx.status === 'pending' && (
-                <Badge tone="amber">{t('transactions.transactionTable.pending', 'pending')}</Badge>
-              )}
-              {tx.status === 'void' && (
-                <Badge tone="red">{t('transactions.transactionTable.void', 'void')}</Badge>
-              )}
-              {tx.excludeFromReports && (
-                <Badge>{t('transactions.transactionTable.excluded', 'excluded')}</Badge>
-              )}
+                {(tx.kind === 'transfer' || tx.kind === 'fx') && (
+                  <Repeat
+                    size={14}
+                    aria-label={t('transaction.kind.transfer', 'Transfer')}
+                    className="shrink-0 text-muted"
+                  />
+                )}
+                {tx.attachmentIds.length > 0 && (
+                  <Paperclip
+                    size={14}
+                    aria-label={t(
+                      'transactions.transactionTable.hasAttachments',
+                      'Has attachments',
+                    )}
+                    className="shrink-0 text-muted"
+                  />
+                )}
+                <span className="truncate">
+                  {tx.description || tx.payee || merchant || (
+                    <em className="text-muted">
+                      {t('transactions.transactionTable.noDescription', 'No description')}
+                    </em>
+                  )}
+                </span>
+                {merchant && tx.description && (
+                  <span className="hidden truncate text-xs text-muted lg:inline">· {merchant}</span>
+                )}
+                {tx.status === 'pending' && (
+                  <Badge tone="amber">
+                    {t('transactions.transactionTable.pending', 'pending')}
+                  </Badge>
+                )}
+                {tx.status === 'void' && (
+                  <Badge tone="red">{t('transactions.transactionTable.void', 'void')}</Badge>
+                )}
+                {tx.excludeFromReports && (
+                  <Badge>{t('transactions.transactionTable.excluded', 'excluded')}</Badge>
+                )}
+              </div>
+              <div className="text-xs text-muted tabular-nums md:hidden">{tx.bookingDate}</div>
             </div>
           );
         },
@@ -138,14 +154,12 @@ export function TransactionTable({
       {
         id: 'account',
         header: t('transactions.transactionTable.account', 'Account'),
-        size: 160,
         accessorFn: (t) => t.postings.map((p) => refs.accountName(p.accountId)).join(' → '),
         cell: ({ getValue }) => <span className="truncate">{getValue() as string}</span>,
       },
       {
         id: 'category',
         header: t('transaction.category', 'Category'),
-        size: 180,
         accessorFn: (tx) =>
           tx.kind === 'transfer' || tx.kind === 'fx'
             ? t('transaction.kind.transfer', 'Transfer')
@@ -167,7 +181,6 @@ export function TransactionTable({
       {
         id: 'amount',
         header: () => <span className="block text-right">{t('transaction.amount', 'Amount')}</span>,
-        size: 140,
         accessorFn: (t) => primaryAmount(t)?.amount ?? '0',
         sortingFn: (a, b) =>
           compareDecimal(
@@ -236,11 +249,7 @@ export function TransactionTable({
       >
         <colgroup>
           {table.getVisibleLeafColumns().map((c) => (
-            <col
-              key={c.id}
-              style={{ width: c.getSize() }}
-              className={c.id === 'account' || c.id === 'category' ? 'max-md:hidden' : ''}
-            />
+            <col key={c.id} className={COL[c.id]} />
           ))}
         </colgroup>
         <thead className="sticky top-0 z-10 bg-surface-2 text-left text-xs text-muted">
@@ -255,7 +264,7 @@ export function TransactionTable({
                     aria-sort={
                       sorted === 'asc' ? 'ascending' : sorted === 'desc' ? 'descending' : undefined
                     }
-                    className={`border-b border-line px-2 py-2 font-medium ${h.column.id === 'account' || h.column.id === 'category' ? 'max-md:hidden' : ''}`}
+                    className={`border-b border-line px-2 py-2 font-medium ${hideOnPhone(h.column.id)}`}
                   >
                     {h.column.getCanSort() ? (
                       <button
@@ -313,7 +322,7 @@ export function TransactionTable({
                 {row.getVisibleCells().map((c) => (
                   <td
                     key={c.id}
-                    className={`overflow-hidden px-2 whitespace-nowrap ${c.column.id === 'account' || c.column.id === 'category' ? 'max-md:hidden' : ''}`}
+                    className={`overflow-hidden px-2 whitespace-nowrap ${hideOnPhone(c.column.id)}`}
                   >
                     {flexRender(c.column.columnDef.cell, c.getContext())}
                   </td>

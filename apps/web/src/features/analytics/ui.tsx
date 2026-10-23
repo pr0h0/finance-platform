@@ -49,7 +49,7 @@ export function Card({
       className={`rounded-lg border border-line bg-surface p-4 ${className}`}
     >
       {(title || actions) && (
-        <div className="mb-3 flex items-center justify-between gap-2">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           {title && (
             <h2 id={id} className="text-sm font-medium text-muted">
               {title}
@@ -93,9 +93,12 @@ export function Stat({
   hint?: ReactNode;
 }) {
   return (
-    <div>
+    <div className="min-w-0">
       <div className="text-xs text-muted">{label}</div>
-      <div className="text-xl font-semibold leading-tight break-words">{value}</div>
+      {/* Two stats side by side on a phone: smaller, and an amount may wrap after its currency. */}
+      <div className="text-base font-semibold leading-tight sm:text-xl [&_span]:whitespace-normal">
+        {value}
+      </div>
       {hint && <div className="mt-1 text-xs text-muted">{hint}</div>}
     </div>
   );

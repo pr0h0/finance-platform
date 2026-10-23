@@ -10,10 +10,20 @@ const PAGES = [
   '/analytics',
   '/import',
   '/settings',
+  '/goals',
+  '/subscriptions',
+  '/rules',
+  '/reports',
+  '/converter',
+  '/notifications',
+  '/sync',
+  '/household',
+  '/devices',
+  '/agents',
 ];
 
 for (const v of [
-  { name: 'mobile-dark', viewport: { width: 390, height: 844 }, colorScheme: 'dark' as const },
+  { name: 'mobile-dark', viewport: { width: 360, height: 780 }, colorScheme: 'dark' as const },
   { name: 'desktop-dark', viewport: { width: 1280, height: 800 }, colorScheme: 'dark' as const },
 ]) {
   test(`layout: ${v.name}, no horizontal page scroll, no page errors`, async ({
@@ -49,7 +59,7 @@ for (const v of [
         overflow > 1
           ? await page.evaluate(() =>
               [...document.querySelectorAll('body *')]
-                .filter((e) => e.getBoundingClientRect().right > 391)
+                .filter((e) => e.getBoundingClientRect().right > window.innerWidth + 1)
                 .slice(-5)
                 .map((e) => `${e.tagName}.${e.className}`.slice(0, 120)),
             )

@@ -137,7 +137,7 @@ export default function TransactionsPage() {
                 <Download size={14} aria-hidden /> {t('transactions.page.export', 'Export')}
                 {selected.length ? ` (${selected.length})` : ''}
               </summary>
-              <div className="absolute right-0 z-20 mt-1 flex w-40 flex-col rounded-md border border-line bg-surface p-1 shadow-lg">
+              <div className="absolute left-0 z-20 mt-1 flex w-40 sm:right-0 sm:left-auto flex-col rounded-md border border-line bg-surface p-1 shadow-lg">
                 {(['csv', 'json', 'xlsx'] as const).map((f) => (
                   <button
                     key={f}
