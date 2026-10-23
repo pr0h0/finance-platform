@@ -1,5 +1,7 @@
 // Client-side report export: CSV (RFC 4180, spreadsheet formula injection guarded), PNG of a
 // rendered chart SVG, and PDF through the browser's print dialog (print stylesheet in the page).
+
+import { downloadBlob } from '../../lib/format.ts';
 import { tNow } from '../../lib/i18n.ts';
 
 /** Quote a CSV cell; cells starting with = + - @ tab or CR get a leading ' unless numeric. */
@@ -14,14 +16,7 @@ export function toCsv(rows: readonly (readonly unknown[])[]): string {
 }
 
 export function download(name: string, data: Blob): void {
-  const url = URL.createObjectURL(data);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = name;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  downloadBlob(data, name);
 }
 
 /** UTF-8 CSV; the byte order mark (default on) makes Excel read č ć đ š ž instead of mojibake. */

@@ -5,6 +5,7 @@ import { money } from '@finplat/finance-engine';
 import { formatMoney, parseDecimalInput } from '@finplat/localization';
 import { X } from 'lucide-react';
 import { type ButtonHTMLAttributes, type ReactNode, useEffect, useId, useRef } from 'react';
+import { downloadBlob } from '../../lib/format.ts';
 import { useT } from '../../lib/i18n.ts';
 
 export const inputCls =
@@ -255,14 +256,9 @@ export function Tabs<T extends string>({
   );
 }
 
-/** Trigger a browser download of generated content. */
+/** Save generated content as a file (browser download or the native save dialog). */
 export function download(name: string, data: BlobPart, type: string) {
-  const url = URL.createObjectURL(new Blob([data], { type }));
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = name;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  downloadBlob(new Blob([data], { type }), name);
 }
 
 export const today = () => {

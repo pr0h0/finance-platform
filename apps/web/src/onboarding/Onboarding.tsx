@@ -87,7 +87,10 @@ function Frame({
     step === 'server' || step === 'auth' || step === 'server-profile' ? 'local-profile' : step,
   );
   return (
-    <main id="main" className="flex min-h-dvh items-start justify-center px-4 py-8 sm:items-center">
+    <main
+      id="main"
+      className="flex min-h-dvh items-start justify-center px-4 py-8 pt-[max(2rem,env(safe-area-inset-top))] sm:items-center"
+    >
       <section
         aria-labelledby="onb-title"
         className="w-full max-w-xl rounded-lg border border-line bg-surface p-6"

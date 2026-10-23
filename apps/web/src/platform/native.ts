@@ -52,6 +52,16 @@ export const nativeDevice = () => ({
   clientVersion: '0.1.0',
 });
 export const isMobileNative = () => platform === 'android' || platform === 'ios';
+export const isDesktopNative = () => isNative && !isMobileNative() && platform !== 'other';
+
+/** Desktop: is the app started at login (tauri-plugin-autostart)? */
+export async function autostartEnabled(): Promise<boolean> {
+  return (await import('@tauri-apps/plugin-autostart')).isEnabled();
+}
+export async function setAutostart(on: boolean): Promise<void> {
+  const a = await import('@tauri-apps/plugin-autostart');
+  await (on ? a.enable() : a.disable());
+}
 
 /** fetch for the API: Rust-side HTTP in the native app, the browser's fetch on the web. */
 export const appFetch = ((input: RequestInfo | URL, init?: RequestInit) =>
@@ -184,6 +194,17 @@ export async function openExternal(url: string): Promise<void> {
     return;
   }
   await (await import('@tauri-apps/plugin-opener')).openUrl(url);
+}
+
+/** Saves a file through the OS save dialog (native app; a WebView ignores <a download>). Resolves
+ * false when the user cancelled. fs may write only the path chosen in the dialog. */
+export async function nativeSave(name: string, blob: Blob): Promise<boolean> {
+  const { save } = await import('@tauri-apps/plugin-dialog');
+  const path = await save({ defaultPath: name });
+  if (!path) return false;
+  const { writeFile } = await import('@tauri-apps/plugin-fs');
+  await writeFile(path, new Uint8Array(await blob.arrayBuffer()));
+  return true;
 }
 
 /** OS notification (native app), when the user allowed it. Returns false when not shown. */

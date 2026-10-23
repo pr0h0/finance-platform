@@ -156,7 +156,8 @@ export function Layout({ sections, children }: { sections: Section[]; children: 
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex h-12 items-center gap-2 border-b border-line bg-surface/95 px-3 backdrop-blur">
+        {/* iPhone notch / status bar (native iOS app, iOS home-screen PWA): the inset is 0 elsewhere */}
+        <header className="sticky top-0 z-30 flex h-[calc(3rem+env(safe-area-inset-top))] items-center gap-2 border-b border-line bg-surface/95 px-3 pt-[env(safe-area-inset-top)] backdrop-blur">
           <IconButton
             className="md:hidden"
             label={t('shell.menu', 'Menu')}

@@ -1,7 +1,7 @@
 // Smoke test of the built Linux desktop app (apps/native) over WebDriver (tests/native/webdriver.ts):
 // local-mode onboarding, an account with an opening balance, then quit and start the app again to
 // prove the data survived in SQLite (src-tauri/src/store.rs) and the onboarding state too.
-import { existsSync } from 'node:fs';
+import { existsSync, readdirSync } from 'node:fs';
 import {
   App,
   button,
@@ -63,6 +63,21 @@ try {
   const body = await second.exec<string>('return document.body.innerText');
   check(body.includes('123.45'), 'account and opening balance restored from SQLite after restart');
   await second.shot('2-accounts-after-restart');
+
+  // Settings → General → Desktop app → start at login (tauri-plugin-autostart writes an XDG entry)
+  await second.click(`//a[normalize-space(.)='Settings']`);
+  const box = `//label[contains(normalize-space(.), 'Start Finance Platform when I sign in')]`;
+  await second.click(box);
+  const entry = `${process.env.HOME}/.config/autostart`;
+  for (let i = 0; i < 20 && !(existsSync(entry) && readdirSync(entry).length); i++)
+    await sleep(250);
+  check(
+    existsSync(entry) && readdirSync(entry).length > 0,
+    'start at login turned on (XDG autostart entry)',
+  );
+  await second.click(box);
+  for (let i = 0; i < 20 && readdirSync(entry).length; i++) await sleep(250);
+  check(readdirSync(entry).length === 0, 'start at login turned off again');
 } finally {
   await second.quit().catch(() => undefined);
 }

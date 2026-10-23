@@ -223,6 +223,10 @@ export const bs: Record<string, string> = {
     'Podaci se čuvaju u bazi na ovom uređaju. Pravite šifrovane sigurnosne kopije: izgubljen ili resetovan uređaj ih gubi.',
   'storage.note':
     'Pohrana preglednika je manje trajna od baze podataka na računaru: brisanje podataka stranice, privatni prozori i oslobađanje prostora je brišu. Čuvajte šifrovane rezervne kopije.',
+  'settings.desktop': 'Desktop aplikacija',
+  'settings.autostart': 'Pokreni Finance Platform kada se prijavim na ovaj računar',
+  'settings.desktopHint':
+    'Ctrl+Shift+E (Cmd+Shift+E na Macu) dodaje transakciju odakle god. Ikona u traci otvara aplikaciju ili dodaje transakciju.',
   'settings.display': 'Prikaz (ovaj uređaj)',
   'settings.reporting': 'Izvještajna valuta profila „{{name}}”',
   'settings.reportingLabel': 'Izvještajna valuta',

@@ -296,6 +296,22 @@
   with opacity. Moderate/minor axe findings are not gated.
 - `libsodium` (app lock, backups, E2EE) needs `'wasm-unsafe-eval'` in the gateway CSP `script-src` (added).
 
+## Native apps (apps/native, Tauri 2) — 2026-10-23
+Full state and checklists: docs/native/README.md.
+- Windows, macOS and iOS are built on GitHub Actions only; nobody has run them yet. Linux was driven
+  headless (Xvfb); tray icon, global shortcut and OS notifications were not seen on a real desktop.
+  Android ran in an emulator only (no biometrics, camera or real notifications there).
+- The bearer token and E2EE keys live in the app's private data (WebView storage / SQLite), not in
+  the OS keychain. Signing in again from the "session ended" banner registers a new device.
+- No push notifications while the app is closed; OS notifications are shown while it runs.
+- No passkeys in the native app (WebAuthn is bound to the server's web origin): password sign-in.
+- No auto-update, no signed Windows/macOS builds yet (SmartScreen / Gatekeeper warnings).
+- The whole local database is loaded into memory at start (MemoryStore + SQLite write-through);
+  fine for a personal ledger, revisit for very large data.
+- Exports and backups use the OS save dialog; on iOS the save dialog has not been tried (Files app
+  integration may need the share sheet instead).
+- iOS: `src-tauri/gen/apple` is not committed yet (generate with `tauri ios init` on a Mac).
+
 ## Integration pass (2026-10-22)
 - E2E suite (`tests/e2e`, `scripts/e2e.sh`) runs every journey in Chromium, Firefox and WebKit (Playwright
   1.63 image) against an isolated `finplat-e2e` stack with Mailpit; `admin.spec.ts` runs alone afterwards because

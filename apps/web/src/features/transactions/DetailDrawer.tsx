@@ -7,6 +7,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Ban, Copy, FileUp, RotateCcw, Trash2, Undo2 } from 'lucide-react';
 import { type ReactNode, useEffect, useState } from 'react';
 import { useData } from '../../app/data.tsx';
+import { downloadBlob } from '../../lib/format.ts';
 import { useT } from '../../lib/i18n.ts';
 import { ocrAssets } from '../../lib/ocr.ts';
 import {
@@ -537,7 +538,9 @@ function Attachments({ tx }: { tx: D.Transaction }) {
     }),
   );
   const del = useWrite((o, id: string) => o.removeAttachment(id));
-  const [view, setView] = useState<{ url: string; type: string; name: string } | null>(null);
+  const [view, setView] = useState<{ url: string; type: string; name: string; blob: Blob } | null>(
+    null,
+  );
   const [err, setErr] = useState<string | null>(null);
   const [scan, setScan] = useState<D.Attachment | null>(null);
   useEffect(
@@ -560,7 +563,7 @@ function Attachments({ tx }: { tx: D.Transaction }) {
   const open = async (a: D.Attachment) => {
     try {
       const blob = await ops.attachmentContent(a.id);
-      setView({ url: URL.createObjectURL(blob), type: a.contentType, name: a.fileName });
+      setView({ url: URL.createObjectURL(blob), type: a.contentType, name: a.fileName, blob });
     } catch (e) {
       setErr(describeError(e));
     }
@@ -638,9 +641,13 @@ function Attachments({ tx }: { tx: D.Transaction }) {
           <figcaption className="mb-2 flex items-center justify-between text-xs">
             {view.name}
             <span className="flex gap-2">
-              <a href={view.url} download={view.name} className="text-accent underline">
+              <button
+                type="button"
+                onClick={() => downloadBlob(view.blob, view.name)}
+                className="text-accent underline"
+              >
                 {t('backup.downloadOne', 'Download')}
-              </a>
+              </button>
               <button type="button" onClick={() => setView(null)} className="underline">
                 {t('common.close', 'Close')}
               </button>

@@ -2,6 +2,7 @@
 // Android and iOS. The UI is apps/web (bundled); this crate adds what a browser cannot do:
 //   - durable local SQLite storage behind packages/storage's MemoryStore (store_* commands),
 //   - HTTP without CORS to any compatible server (tauri-plugin-http), native notifications,
+//   - saving exports/backups through the OS save dialog (dialog + fs plugins),
 //   - desktop: system tray and a global "add transaction" shortcut; mobile: biometric unlock.
 mod store;
 
@@ -36,6 +37,8 @@ pub fn run() {
         // A second launch focuses the running app instead of opening another database connection.
         builder = builder
             .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| show_main(app)))
+            // Settings → General → "Start at login" (off by default)
+            .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, None))
             .plugin(
                 tauri_plugin_global_shortcut::Builder::new()
                     .with_handler(|app, _shortcut, event| {
@@ -56,6 +59,10 @@ pub fn run() {
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_opener::init())
+        // Save dialog + writing the chosen file (exports, backups, attachments): fs may write only
+        // where the user picked in the dialog (no static fs scope in capabilities).
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_fs::init())
         .manage(store::Stores::default())
         .invoke_handler(tauri::generate_handler![
             store::store_load,

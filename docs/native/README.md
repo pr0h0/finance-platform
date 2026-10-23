@@ -11,11 +11,15 @@ Last updated: 2026-10-23.
 
 | Platform | Builds | Verified | Where it was verified | Left to do |
 |---|---|---|---|---|
-| Linux | ✅ `.deb`, `.rpm`, `.AppImage` (docker, `scripts/native.sh linux build`) | ✅ automated smoke test drives the real binary (`scripts/native-test.sh`) | this Linux server, Xvfb + WebDriver | try on a real desktop session (tray icon, global shortcut, notifications) |
-| Android | see "Android" below | see below | docker + emulator | see below |
-| Windows | GitHub Actions `native` workflow (`.msi`, setup `.exe`) | ⬜ not run on Windows yet | — | install on Windows, checklist below |
-| macOS | GitHub Actions `native` workflow (universal `.dmg`) | ⬜ not run on a Mac yet | — | checklist below; signing/notarization |
-| iOS | GitHub Actions `native` workflow (simulator build) | ⬜ | — | Xcode on a Mac, simulator + iPhone, checklist below |
+| Linux | ✅ `.deb`, `.rpm`, `.AppImage` (docker: `scripts/native.sh linux build`; also GitHub Actions) | ✅ two automated smoke tests drive the real binary: local mode (`scripts/native-test.sh`) and connected mode against a real server (`scripts/native-test.sh linux-connected`) | this Linux server, Xvfb + WebDriver | a real desktop session: tray icon, global shortcut, OS notifications |
+| Android | ✅ signed per-ABI `.apk` + `.aab` (docker: `scripts/native.sh android build`; GitHub Actions unsigned) | ✅ automated smoke test in an emulator (`scripts/native-test.sh android`): local mode, restart, back button | this Linux server, Android 15 emulator (KVM) | a real phone: biometrics, camera, notifications, connected mode (checklist) |
+| Windows | ✅ `.msi` + setup `.exe` (GitHub Actions `native`, 2026-10-23) | ⬜ not run on Windows yet | — | install on Windows/VM, checklist below; code signing |
+| macOS | ✅ universal `.dmg` (GitHub Actions `native`, 2026-10-23) | ⬜ not run on a Mac yet | — | checklist below; signing/notarization |
+| iOS | ✅ simulator `.app` compiles (GitHub Actions `native`, 2026-10-23) | ⬜ not run in a simulator or on an iPhone yet | — | `tauri ios init` on a Mac (commit `gen/apple`), simulator + iPhone, checklist below |
+
+✅ = done and checked, ⬜ = open. GitHub artifacts: Actions → **native** → the run → Artifacts
+(`finplat-linux`, `finplat-windows`, `finplat-macos`, `finplat-android`, `finplat-ios-simulator`).
+The workflow runs only on "Run workflow" or a `v*` tag (macOS minutes count 10× on a private repo).
 
 ✅ = done and checked, ⬜ = open.
 
@@ -87,15 +91,23 @@ All commands from the repository root. Versions: Rust stable (1.90+), Bun 1.4.2,
 
 ### Linux (this server, docker)
 
+Toolchain images are built on first use (`infrastructure/docker/tauri.Dockerfile`; `REBUILD_IMAGE=1`
+to rebuild). Rust, Cargo, Gradle and Bun caches live in docker volumes `finplat_cargo`,
+`finplat_cargo_target`, `finplat_gradle`, `finplat_bun`.
+
+
 ```sh
 scripts/native.sh linux build      # -> apps/native/dist/linux/{deb,rpm,appimage}/
 scripts/native-test.sh             # starts the built binary under Xvfb and drives it (screenshots: tests/native/results/)
+scripts/native-test.sh linux-connected   # same binary against the isolated E2E server stack (register, bearer token, sync, restart)
 scripts/native.sh linux check      # quick cargo check after Rust changes
 ```
 
-The smoke test: app runs inside Tauri with the native bridges, local onboarding, account with an
+The smoke tests: the app runs inside Tauri with the native bridges, local onboarding, account with an
 opening balance, dashboard; quits; the SQLite file exists; starts again and finds the account and
-balance restored from SQLite. Install a bundle on a desktop: `sudo apt install ./Finance*.deb`, or run
+balance restored from SQLite. Connected: registers on the server through the native HTTP client,
+signs in as a `linux` device (bearer token), adds an account, syncs; the test checks the server
+side through the API; after a restart the app is still signed in with the data cached in SQLite. Install a bundle on a desktop: `sudo apt install ./Finance*.deb`, or run
 the AppImage directly.
 
 Dev mode with live reload needs a desktop session: on a Linux desktop install the
@@ -103,7 +115,36 @@ Dev mode with live reload needs a desktop session: on a Linux desktop install th
 
 ### Android (this server, docker)
 
-See the Android section below for the current state and commands.
+```sh
+scripts/native.sh android build    # signed release: apps/native/dist/android/app-arm64-release.apk (phones),
+                                   # app-arm-release.apk (old 32-bit phones), x86/x86_64 (emulators), .aab (Play Store)
+scripts/native.sh android run bunx tauri android build --debug --apk --target x86_64   # debug APK for the emulator
+scripts/native-test.sh android     # boots a headless Android 15 emulator (needs /dev/kvm), installs the debug APK,
+                                   # drives its WebView over the DevTools protocol (screenshots: tests/native/results/)
+```
+
+**Install on your phone:** copy `apps/native/dist/android/app-arm64-release.apk` to the phone (or
+`adb install` it), open it, allow "install unknown apps" for the file manager/browser once. Updates
+install over the old version only if they are signed with the same key (below).
+
+**Signing key (keep it safe!):** release builds are signed with the upload keystore in
+`apps/native/.signing/` (`finplat-upload.jks` + `keystore.properties` with its password; both
+gitignored, copy of the properties in `src-tauri/gen/android/keystore.properties`). **Back up the
+`.signing` folder** (password manager or encrypted backup): without it you cannot ship updates to
+phones that have the app installed, only uninstall + reinstall (which deletes local data). For the
+Play Store, use it as the upload key with Play App Signing. On another machine copy the folder back
+and recreate `src-tauri/gen/android/keystore.properties` from it; without the file builds are unsigned.
+
+Details of the Android build:
+- `src-tauri/gen/android` is the Android Studio project (`tauri android init`, committed). App id
+  `me.pr0h0.finplat`, min SDK 24 (Android 7), target/compile SDK 37.
+- `MainActivity.kt` pads the web app by the system-bar, display-cutout and keyboard insets: Android
+  15+ draws apps edge to edge and the WebView does not report those insets to CSS. The status and
+  navigation bar area shows the app's surface color (`res/values*/themes.xml`).
+- Back button (`apps/web/src/platform/native.ts`): closes an open dialog/drawer, else goes back in
+  the app's history, else to the dashboard, and only there leaves the app.
+- Debug builds allow WebView debugging (chrome://inspect on a desktop Chrome with the phone attached
+  by USB), which is how the emulator test drives the app.
 
 ### Windows (needs a Windows PC or VM)
 
@@ -190,3 +231,7 @@ Updates: `tauri-plugin-updater` with GitHub Releases is the planned path (not ad
 - Auto-update (tauri-plugin-updater) and signed release pipeline.
 - Desktop: close-to-tray option, start at login.
 - Android: share a statement/receipt from another app into Finance Platform (share target).
+- iOS: safe-area insets (notch / home indicator) come from `viewport-fit=cover` + CSS `env()`:
+  header and onboarding pad by `safe-area-inset-top`, the bottom navigation by
+  `safe-area-inset-bottom`. Not seen on an iPhone yet: check the header, dialogs and the mobile
+  menu drawer on a simulator with a notch.

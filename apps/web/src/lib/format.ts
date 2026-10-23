@@ -11,6 +11,7 @@ import {
 } from '@finplat/localization';
 import { useMemo } from 'react';
 import { useApp } from '../app/store.ts';
+import { isNative, nativeSave } from '../platform/native.ts';
 
 export function useFormat() {
   const region = useApp((s) => s.prefs.region);
@@ -49,12 +50,18 @@ export function todayIso(d = new Date()): string {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
 
+/** Saves generated content as a file: a browser download, or the OS save dialog in the native app.
+ * The one place the app writes files (exports, reports, backups, attachments). */
 export function downloadBlob(
   data: Blob | Uint8Array | string,
   fileName: string,
   type = 'application/octet-stream',
 ) {
   const blob = data instanceof Blob ? data : new Blob([data as BlobPart], { type });
+  if (isNative) {
+    nativeSave(fileName, blob).catch((e) => console.error('save failed', e));
+    return;
+  }
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;

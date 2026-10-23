@@ -1,11 +1,12 @@
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useData, useProfile } from '../app/data.tsx';
 import { useApp } from '../app/store.ts';
-import { Button, Card, ErrorBox, Field, Select } from '../components/ui/index.tsx';
+import { Button, Card, Checkbox, ErrorBox, Field, Select } from '../components/ui/index.tsx';
 import { toast } from '../components/ui/toast.tsx';
 import { currencyCodes, currencyName } from '../lib/currencies.ts';
 import { useT } from '../lib/i18n.ts';
+import { autostartEnabled, isDesktopNative, setAutostart } from '../platform/native.ts';
 import { PreferencesForm } from './PreferencesForm.tsx';
 
 export function GeneralTab() {
@@ -24,6 +25,7 @@ export function GeneralTab() {
       <Card title={t('settings.display', 'Display (this device)')}>
         <PreferencesForm />
       </Card>
+      {isDesktopNative() && <DesktopCard />}
       <Card
         title={t('settings.reporting', 'Reporting currency of “{{name}}”', { name: profile.name })}
       >
@@ -62,5 +64,33 @@ export function GeneralTab() {
         </div>
       </Card>
     </div>
+  );
+}
+
+/** Native desktop app: start at login; where the tray and the global shortcut are. */
+function DesktopCard() {
+  const t = useT();
+  const qc = useQueryClient();
+  const on = useQuery({ queryKey: ['native', 'autostart'], queryFn: autostartEnabled });
+  const toggle = useMutation({
+    mutationFn: setAutostart,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['native', 'autostart'] }),
+  });
+  return (
+    <Card title={t('settings.desktop', 'Desktop app')}>
+      <Checkbox
+        label={t('settings.autostart', 'Start Finance Platform when I sign in to this computer')}
+        checked={on.data ?? false}
+        disabled={on.isLoading || toggle.isPending}
+        onChange={(e) => toggle.mutate(e.target.checked)}
+      />
+      <p className="mt-2 text-sm text-muted">
+        {t(
+          'settings.desktopHint',
+          'Ctrl+Shift+E (Cmd+Shift+E on a Mac) adds a transaction from anywhere. The tray icon opens the app or adds a transaction.',
+        )}
+      </p>
+      <ErrorBox error={toggle.error} />
+    </Card>
   );
 }
