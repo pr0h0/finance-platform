@@ -306,7 +306,9 @@ Full state and checklists: docs/native/README.md.
   Signing in again from the "session ended" banner registers a new device.
 - No push notifications while the app is closed; OS notifications are shown while it runs.
 - No passkeys in the native app (WebAuthn is bound to the server's web origin): password sign-in.
-- No auto-update, no signed Windows/macOS builds yet (SmartScreen / Gatekeeper warnings).
+- Auto-update is built but no release has gone through it yet; apps installed before the first
+  release (0.2.0) must be reinstalled once. Linux updates only the AppImage. Windows/macOS bundles are
+  not code-signed (SmartScreen / Gatekeeper warnings).
 - The whole local database is loaded into memory at start (MemoryStore + SQLite write-through);
   fine for a personal ledger, revisit for very large data.
 - Exports and backups use the OS save dialog; on iOS the save dialog has not been tried (Files app

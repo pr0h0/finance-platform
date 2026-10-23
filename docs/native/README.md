@@ -296,7 +296,7 @@ Run through these on the real OS; tick them here (and in `docs/implementation-st
 - [ ] Back button / swipe back behaves (Android: back goes back in the app, exits at the dashboard).
 - [ ] Background → foreground keeps state; sync resumes.
 
-## Releases and signing (open)
+## Releases and signing
 
 | Platform | Unsigned today | To sign |
 |---|---|---|
@@ -306,7 +306,41 @@ Run through these on the real OS; tick them here (and in `docs/implementation-st
 | Android | see Android section | keystore (see Android section); Play Store $25 once |
 | Linux | none needed | optional: sign the AppImage / host an apt repo |
 
-Updates: `tauri-plugin-updater` with GitHub Releases is the planned path (not added yet).
+### Auto-update (done 2026-10-23)
+
+Installed apps check `https://fin.pr0h0.me/downloads/latest.json` at start and every 6 hours and
+show a bar "Finance Platform X is available — Update / Later" (`apps/web/src/platform/updates.ts`,
+`shell/NativeUpdatePrompt.tsx`).
+- **Desktop:** `tauri-plugin-updater` downloads the bundle, verifies its minisign signature against
+  `plugins.updater.pubkey` (tauri.conf.json) and installs it, then the app restarts. Linux updates
+  the **AppImage** only (a .deb/.rpm install has to be updated by installing the new package);
+  Windows runs the NSIS installer (passive); macOS replaces the `.app`.
+- **Android:** `downloads/android.json` names the newest arm64 APK; "Update" opens it in the browser and
+  the package installer installs it over the old app (same upload key, higher versionCode, which
+  Tauri derives from the version).
+- **iOS:** no in-app updates (App Store / TestFlight later).
+- **Keys:** `apps/native/.signing/updater.key` + `updater.password` (gitignored, only on the Linux
+  server; **back them up**, a new key breaks updates of every installed app), also stored as GitHub
+  secrets `TAURI_SIGNING_PRIVATE_KEY` and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`.
+- **Feed hosting:** the gateway serves the `finplat_downloads` volume at `/downloads/`
+  (`infrastructure/docker/gateway.conf`); `*.json` is never cached.
+
+**Publish a release** (on the Linux server, clean `main`):
+```bash
+scripts/release.sh 0.2.0 "What changed"
+```
+It bumps the version (tauri.conf.json, Cargo.toml), commits "release v0.2.0", pushes the tag, waits
+for the `native` workflow (the tag build adds `--config src-tauri/tauri.release.conf.json`, which
+creates the signed updater bundles), downloads the desktop bundles, builds the signed Android APKs
+here, writes `latest.json` + `android.json` and copies everything to
+`https://fin.pr0h0.me/downloads/0.2.0/`. If a step fails after the tag was pushed, rerun with
+`SKIP_TAG=1`.
+
+Verified here: a signed AppImage built with the release config and the GitHub-secret key; the app
+read a local feed, showed the update bar, downloaded the bundle and checked its signature (a feed
+claiming another version than the signed one is refused). Not yet done: a real release through
+GitHub, and installing an update on each OS. Apps installed before 0.2.0 have no updater: install
+0.2.0 by hand once.
 
 ## Open items (native)
 
@@ -315,7 +349,7 @@ Updates: `tauri-plugin-updater` with GitHub Releases is the planned path (not ad
   IndexedDB), and the bearer token on Android in the Android Keystore (a small Kotlin plugin; the
   keyring crate has no Android backend).
 - Local MCP server for desktop (PLAN feature 131).
-- Auto-update (tauri-plugin-updater) and signed release pipeline.
+- Code signing of the Windows/macOS bundles (the auto-update signature is separate and done).
 - Desktop: scheduled automatic backups to a chosen folder (needs a persisted fs scope for that folder).
 - Android: share a statement/receipt from another app into Finance Platform (share target).
 - macOS: unsigned (ad-hoc signed) builds may ask for Keychain access again after every update (the

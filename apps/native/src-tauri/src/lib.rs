@@ -4,7 +4,7 @@
 //   - the server token in the OS credential store (secret_* commands, secret.rs),
 //   - HTTP without CORS to any compatible server (tauri-plugin-http), native notifications,
 //   - saving exports/backups through the OS save dialog (dialog + fs plugins),
-//   - desktop: system tray (optionally keeping the app there when its window closes) and a global
+//   - desktop: signed auto-updates, system tray (optionally keeping the app there when its window closes) and a global
 //     "add transaction" shortcut; mobile: biometric unlock.
 mod secret;
 mod store;
@@ -64,6 +64,9 @@ pub fn run() {
             }));
         }
         builder = builder
+            // Signed updates from plugins.updater.endpoints (platform/updates.ts asks and installs)
+            .plugin(tauri_plugin_updater::Builder::new().build())
+            .plugin(tauri_plugin_process::init())
             // Settings → General → "Start at login" (off by default)
             .plugin(tauri_plugin_autostart::init(
                 tauri_plugin_autostart::MacosLauncher::LaunchAgent,

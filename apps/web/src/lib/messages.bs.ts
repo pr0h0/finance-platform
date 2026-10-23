@@ -228,6 +228,9 @@ export const bs: Record<string, string> = {
     'Pohrana preglednika je manje trajna od baze podataka na računaru: brisanje podataka stranice, privatni prozori i oslobađanje prostora je brišu. Čuvajte šifrovane rezervne kopije.',
   'settings.desktop': 'Desktop aplikacija',
   'settings.autostart': 'Pokreni Finance Platform kada se prijavim na ovaj računar',
+  'update.available': 'Dostupna je verzija Finance Platform {{v}}.',
+  'update.install': 'Ažuriraj',
+  'update.later': 'Kasnije',
   'settings.closeToTray':
     'Ostavi aplikaciju u traci kada se prozor zatvori (Izlaz iz menija u traci)',
   'settings.desktopHint':

@@ -12,10 +12,11 @@ Native, in order:
 2. On Windows: install the `finplat-windows` artifact (or `bunx tauri dev`), tick the checklist.
 3. Android on a real phone: `apps/native/dist/android/app-arm64-release.apk`, checklist (biometrics,
    camera, notifications, connected mode against fin.pr0h0.me).
-4. Desktop items of PLAN still open: auto-update with signed releases (tauri-plugin-updater + an update
-   feed, e.g. on the server), E2EE keys in the OS keychain (the token already is), scheduled automatic
+4. First release through `scripts/release.sh 0.2.0` (auto-update is built: docs/native/README.md
+   "Auto-update"), then install it by hand once on each device; later versions update themselves.
+5. Desktop items of PLAN still open: E2EE keys in the OS keychain (the token already is), scheduled automatic
    backups to a folder, local MCP bridge (131). Close-to-tray is done (Settings → General).
-5. Push notifications when the app is closed (FCM/APNs from the server's notification job).
+6. Push notifications when the app is closed (FCM/APNs from the server's notification job).
 
 Web/backend, highest value next:
 1. Remaining English outside JSX (toasts in `.ts` modules, option-label arrays, enum values such as account

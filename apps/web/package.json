@@ -40,6 +40,8 @@
     "@tauri-apps/plugin-notification": "^2",
     "@tauri-apps/plugin-opener": "^2",
     "@tauri-apps/plugin-os": "^2",
+    "@tauri-apps/plugin-process": "^2",
+    "@tauri-apps/plugin-updater": "^2",
     "@tesseract.js-data/bos": "1.0.0",
     "@tesseract.js-data/eng": "1.0.0",
     "@tesseract.js-data/hrv": "1.0.0",

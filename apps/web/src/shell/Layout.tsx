@@ -20,6 +20,7 @@ import { isNative, onNativeQuickAdd } from '../platform/native.ts';
 import { lockNow } from './AppLock.tsx';
 import { Banners } from './Banners.tsx';
 import { CommandPalette, useShortcuts } from './CommandPalette.tsx';
+import { NativeUpdatePrompt } from './NativeUpdatePrompt.tsx';
 import { NotificationBell } from './NotificationBell.tsx';
 import { ProfileSwitcher } from './ProfileSwitcher.tsx';
 import { QuickAdd } from './QuickAdd.tsx';
@@ -201,7 +202,7 @@ export function Layout({ sections, children }: { sections: Section[]; children: 
         </header>
 
         <Banners />
-        {!isNative && <UpdatePrompt />}
+        {isNative ? <NativeUpdatePrompt /> : <UpdatePrompt />}
 
         <main id="main" className="mx-auto w-full max-w-7xl flex-1 px-4 py-5 pb-24 md:pb-6">
           {children}

@@ -50,10 +50,13 @@ services:
     restart: unless-stopped
     ports:
       - "127.0.0.1:3810:8080"
+    volumes:
+      - downloads:/srv/downloads:ro   # native app updates, written by scripts/release.sh
     depends_on:
       api: { condition: service_healthy }
       web: { condition: service_healthy }
 
 volumes:
   pgdata:
+  downloads:
   apidata:
