@@ -37,7 +37,7 @@ RUN mkdir -p $ANDROID_HOME/cmdline-tools && cd /tmp \
     && chmod -R a+rwX $ANDROID_HOME
 RUN rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
 # the generated project (gen/android) compiles against SDK 37 / build-tools 36
-RUN sdkmanager "platforms;android-37" "build-tools;36.0.0" >/dev/null && chmod -R a+rwX $ANDROID_HOME
+RUN $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-37.0" "build-tools;36.0.0" >/dev/null && chmod -R a+rwX $ANDROID_HOME
 ENV PATH=$ANDROID_HOME/platform-tools:$ANDROID_HOME/cmdline-tools/latest/bin:$PATH
 # Gradle caches go to a volume too (GRADLE_USER_HOME) so rebuilds do not re-download.
 ENV GRADLE_USER_HOME=/cache/gradle

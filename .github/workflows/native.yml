@@ -81,9 +81,12 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
-      - uses: android-actions/setup-android@v3
-      - name: Android NDK
-        run: sdkmanager "ndk;27.2.12479018" "platforms;android-35" "build-tools;35.0.0"
+      # The ubuntu runner ships the Android SDK (ANDROID_HOME); add the NDK and the platform the
+      # generated project compiles against (gen/android/app/build.gradle.kts).
+      - name: Android NDK and platform
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;27.2.12479018" "platforms;android-37.0" "build-tools;36.0.0"
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: "1.4.2"
