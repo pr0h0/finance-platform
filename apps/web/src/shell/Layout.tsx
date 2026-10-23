@@ -16,8 +16,9 @@ import type { Section } from '../app/routes.tsx';
 import { useApp } from '../app/store.ts';
 import { cx, IconButton } from '../components/ui/index.tsx';
 import { useT } from '../lib/i18n.ts';
-import { isNative, onNativeQuickAdd } from '../platform/native.ts';
+import { isDesktopNative, isNative, onNativeQuickAdd } from '../platform/native.ts';
 import { lockNow } from './AppLock.tsx';
+import { AutoBackup } from './AutoBackup.tsx';
 import { Banners } from './Banners.tsx';
 import { CommandPalette, useShortcuts } from './CommandPalette.tsx';
 import { NativeUpdatePrompt } from './NativeUpdatePrompt.tsx';
@@ -203,6 +204,7 @@ export function Layout({ sections, children }: { sections: Section[]; children: 
 
         <Banners />
         {isNative ? <NativeUpdatePrompt /> : <UpdatePrompt />}
+        {isDesktopNative() && <AutoBackup />}
 
         <main id="main" className="mx-auto w-full max-w-7xl flex-1 px-4 py-5 pb-24 md:pb-6">
           {children}

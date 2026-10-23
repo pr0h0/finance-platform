@@ -72,6 +72,36 @@ export async function setCloseToTray(on: boolean): Promise<void> {
   await (await import('@tauri-apps/api/core')).invoke('close_to_tray_set', { on });
 }
 
+// ------------------------------------------------------------ automatic backups (desktop)
+
+// The folder is picked and remembered on the Rust side (src-tauri/src/backup.rs), which writes only
+// finplat-backup-*.finplat files there; the passphrase lives in the OS credential store.
+const BACKUP_PASS_KEY = 'backup-passphrase';
+const core = () => import('@tauri-apps/api/core');
+
+export async function backupFolder(): Promise<string | null> {
+  return (await core()).invoke('backup_folder_get');
+}
+/** OS folder picker; null when cancelled. */
+export async function pickBackupFolder(): Promise<string | null> {
+  return (await core()).invoke('backup_folder_pick');
+}
+export async function clearBackupFolder(): Promise<void> {
+  await (await core()).invoke('backup_folder_clear');
+}
+/** Writes an encrypted backup into the chosen folder; returns the file's path. */
+export async function writeBackupFile(name: string, bytes: Uint8Array): Promise<string> {
+  return (await core()).invoke('backup_write', bytes, { headers: { 'x-name': name } });
+}
+export async function backupPassphrase(): Promise<string | null> {
+  return keychain ? secret<string | null>('secret_get', { key: BACKUP_PASS_KEY }) : null;
+}
+export async function setBackupPassphrase(value: string | null): Promise<void> {
+  await (value
+    ? secret('secret_set', { key: BACKUP_PASS_KEY, value })
+    : secret('secret_delete', { key: BACKUP_PASS_KEY }));
+}
+
 /** fetch for the API: Rust-side HTTP in the native app, the browser's fetch on the web. */
 export const appFetch = ((input: RequestInfo | URL, init?: RequestInit) =>
   (httpFetch ?? fetch)(input, init)) as typeof fetch;

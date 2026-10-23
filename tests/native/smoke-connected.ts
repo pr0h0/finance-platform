@@ -2,8 +2,10 @@
 // (scripts/native-test.sh linux-connected): the native app reaches the server through
 // tauri-plugin-http (no CORS), registers, signs in as a *native device* (bearer token, not a cookie),
 // adds an account, syncs; the test then checks the server side with its own API session, and starts
-// the app again to prove the token and the server cache (SQLite) survive a restart.
-import { App, button, buttonContaining, byLabel, check, heading } from './webdriver.ts';
+// the app again to prove the token and the server cache (SQLite) survive a restart, and writes an
+// automatic backup into a folder (passphrase in the keychain; src-tauri/src/backup.rs).
+import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { App, button, buttonContaining, byLabel, check, heading, sleep } from './webdriver.ts';
 
 const SERVER = process.env.SERVER ?? 'http://localhost:8080';
 const EMAIL = `native-${Date.now()}@e2e.test`;
@@ -94,6 +96,36 @@ try {
   );
   check(!banner, 'still signed in after a restart (token kept), server data cached in SQLite');
   await again.shot('connected-2-restart');
+
+  // Automatic backups: the folder is normally picked in the OS dialog (not drivable over WebDriver),
+  // so the test writes the remembered folder the way backup_folder_pick does, then reloads the page.
+  const folder = `${process.env.HOME}/backups`;
+  mkdirSync(folder, { recursive: true });
+  const cfg = `${process.env.HOME}/.config/me.pr0h0.finplat`;
+  mkdirSync(cfg, { recursive: true });
+  writeFileSync(`${cfg}/backup-folder`, folder);
+  await again.click(`//a[normalize-space(.)='Settings']`);
+  await again.click(`//*[@role='tab'][normalize-space(.)='Backups & data']`);
+  await again.find(`//*[normalize-space(.)='${folder}']`);
+  const card = `//section[.//h2[normalize-space(.)='Automatic backups']]`;
+  await again.type(`(${card}//input[@type='password'])[1]`, 'native backup passphrase');
+  await again.type(`(${card}//input[@type='password'])[2]`, 'native backup passphrase');
+  await again.click(`${card}//button[normalize-space(.)='Save passphrase']`);
+  await again.find(
+    `${card}//*[contains(normalize-space(.), 'Passphrase kept in the system keychain')]`,
+  );
+  await again.click(`${card}//button[normalize-space(.)='Back up now']`);
+  let files: string[] = [];
+  for (let i = 0; i < 40 && !files.length; i++) {
+    await sleep(250);
+    files = readdirSync(folder).filter((f) => /^finplat-backup-.*\.finplat$/.test(f));
+  }
+  check(
+    files.length === 1 &&
+      readFileSync(`${folder}/${files[0]}`).subarray(0, 15).toString() === 'FINPLAT-BACKUP\n',
+    `automatic backup written to the chosen folder (${files[0]})`,
+  );
+  await again.shot('connected-3-auto-backup');
 } finally {
   await again.quit().catch(() => undefined);
 }

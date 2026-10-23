@@ -231,6 +231,24 @@ export const bs: Record<string, string> = {
   'update.available': 'Dostupna je verzija Finance Platform {{v}}.',
   'update.install': 'Ažuriraj',
   'update.later': 'Kasnije',
+  'backup.scheduleHintDesktop':
+    'Automatske kopije (iznad) rade po ovom rasporedu; bez njih aplikacija podsjeti kada je kopija na redu.',
+  'autoBackup.failed': 'Automatska sigurnosna kopija nije uspjela',
+  'autoBackup.saved': 'Kopija sačuvana: {{path}}',
+  'autoBackup.title': 'Automatske sigurnosne kopije',
+  'autoBackup.text':
+    'Aplikacija upisuje šifrovanu kopiju svih profila u folder koji odaberete (npr. onaj koji sinhronizuje vaš cloud disk), prema rasporedu ispod, i čuva 10 najnovijih.',
+  'autoBackup.noKeychain':
+    'Potreban je sistemski privjesak ključeva za čuvanje lozinke kopije, a ovaj računar ga nema (na Linuxu: GNOME Keyring ili KWallet).',
+  'autoBackup.noFolder': 'Folder nije odabran.',
+  'autoBackup.changeFolder': 'Promijeni folder',
+  'autoBackup.chooseFolder': 'Odaberi folder',
+  'autoBackup.passSaved': 'Lozinka se čuva u sistemskom privjesku ključeva',
+  'autoBackup.changePass': 'Promijeni lozinku',
+  'autoBackup.savePass': 'Sačuvaj lozinku',
+  'autoBackup.now': 'Napravi kopiju sada',
+  'autoBackup.off': 'Isključi',
+  'autoBackup.paused': 'Raspored je isključen (Raspored kopija ispod).',
   'settings.closeToTray':
     'Ostavi aplikaciju u traci kada se prozor zatvori (Izlaz iz menija u traci)',
   'settings.desktopHint':

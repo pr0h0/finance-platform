@@ -73,6 +73,12 @@ apps/web (React, unchanged pages)          apps/native/src-tauri (Rust)
   (same card, shown only when the tray icon could be created; off by default because GNOME without the
   AppIndicator extension accepts a tray icon but never shows it; `src/tray.rs`, a `close-to-tray`
   marker file in the app config directory). Links to other sites open in the system browser.
+- **Automatic backups (desktop):** Settings → Backups & data → Automatic backups: pick a folder once
+  (OS dialog, remembered by `src/backup.rs` in `<app config>/backup-folder`), save a passphrase (kept
+  in the OS keychain; the card is disabled without one). The app then writes an encrypted
+  `finplat-backup-<date>.finplat` of every profile on the backup schedule (checked at start and hourly,
+  `shell/AutoBackup.tsx`) and keeps the newest 10. The web page has no file-system scope: Rust writes
+  only files with that name pattern into that folder. Restore as usual (Restore backup).
 - **Mobile extras:** the app lock screen offers **fingerprint / Face ID** (tauri-plugin-biometric)
   when the device has it; the PIN stays the fallback. Biometrics only gate the UI, like the PIN.
   Android back button: closes dialogs, goes back in the app, leaves the app only from the dashboard.
@@ -282,6 +288,8 @@ Run through these on the real OS; tick them here (and in `docs/implementation-st
 
 ### Desktop (Windows, macOS, Linux desktop)
 - [ ] Tray icon menu: Open, Add transaction, Quit.
+- [ ] Settings → Backups & data → Automatic backups: choose a folder (OS dialog), save a passphrase,
+      "Back up now" writes a file there; it restores on another device.
 - [ ] Settings → General → "Keep running in the tray": closing the window hides it, the tray's Open
       brings it back, Quit ends the app; off again: closing the window quits.
 - [ ] Ctrl+Shift+E (Cmd+Shift+E) opens quick entry while another app is focused.
@@ -350,7 +358,6 @@ GitHub, and installing an update on each OS. Apps installed before 0.2.0 have no
   keyring crate has no Android backend).
 - Local MCP server for desktop (PLAN feature 131).
 - Code signing of the Windows/macOS bundles (the auto-update signature is separate and done).
-- Desktop: scheduled automatic backups to a chosen folder (needs a persisted fs scope for that folder).
 - Android: share a statement/receipt from another app into Finance Platform (share target).
 - macOS: unsigned (ad-hoc signed) builds may ask for Keychain access again after every update (the
   item's access list is tied to the binary's signature); a Developer ID signature fixes it.

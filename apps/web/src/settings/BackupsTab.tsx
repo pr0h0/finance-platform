@@ -22,7 +22,17 @@ import {
 import { toast } from '../components/ui/toast.tsx';
 import { downloadBlob, formatBytes, todayIso, useFormat } from '../lib/format.ts';
 import { useT } from '../lib/i18n.ts';
-import { isNative } from '../platform/native.ts';
+import {
+  backupFolder,
+  backupPassphrase,
+  clearBackupFolder,
+  isDesktopNative,
+  isNative,
+  keychainInUse,
+  pickBackupFolder,
+  setBackupPassphrase,
+} from '../platform/native.ts';
+import { runAutoBackup } from '../shell/AutoBackup.tsx';
 
 const EXTRA_TABLES = ['exchange_rates', 'imported_raw_records', 'notifications', 'settings'];
 
@@ -116,10 +126,17 @@ function ExportBackup() {
       <div className="mt-4 border-t border-line pt-3">
         <Field
           label={t('backup.schedule', 'Backup schedule')}
-          hint={t(
-            'backup.scheduleHint',
-            'Browsers cannot save files silently. When a backup is due the app shows a reminder; one click creates the file.',
-          )}
+          hint={
+            isDesktopNative()
+              ? t(
+                  'backup.scheduleHintDesktop',
+                  'Automatic backups (above) run on this schedule; without them the app shows a reminder when a backup is due.',
+                )
+              : t(
+                  'backup.scheduleHint',
+                  'Browsers cannot save files silently. When a backup is due the app shows a reminder; one click creates the file.',
+                )
+          }
           className="max-w-xs"
         >
           <Select
@@ -534,9 +551,144 @@ function Storage() {
   );
 }
 
+/** Desktop app: encrypted backups written by themselves into a folder (shell/AutoBackup.tsx). */
+function AutoBackupCard() {
+  const t = useT();
+  const fmt = useFormat();
+  const qc = useQueryClient();
+  const { store } = useData();
+  const backup = useApp((s) => s.backup);
+  const [a, setA] = useState('');
+  const [b, setB] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [changing, setChanging] = useState(false);
+  const state = useQuery({
+    queryKey: ['native', 'auto-backup'],
+    queryFn: async () => ({ folder: await backupFolder(), pass: !!(await backupPassphrase()) }),
+  });
+  const refresh = () => qc.invalidateQueries({ queryKey: ['native', 'auto-backup'] });
+  const pick = useMutation({ mutationFn: pickBackupFolder, onSuccess: refresh });
+  const off = useMutation({
+    mutationFn: async () => {
+      await clearBackupFolder();
+      await setBackupPassphrase(null);
+    },
+    onSuccess: refresh,
+  });
+  const savePass = useMutation({
+    mutationFn: () => setBackupPassphrase(a),
+    onSuccess: () => {
+      setA('');
+      setB('');
+      setChanging(false);
+      void refresh();
+    },
+  });
+  const now = useMutation({
+    mutationFn: () => runAutoBackup(store),
+    onSuccess: (path) => path && toast(t('autoBackup.saved', 'Backup saved: {{path}}', { path })),
+  });
+  function submit(e: FormEvent) {
+    e.preventDefault();
+    if (a.length < 10)
+      return setError(t('backup.short', 'Use a passphrase of at least 10 characters.'));
+    if (a !== b) return setError(t('backup.mismatch', 'The passphrases do not match.'));
+    setError(null);
+    savePass.mutate();
+  }
+  const folder = state.data?.folder;
+  const ready = !!folder && !!state.data?.pass;
+  return (
+    <Card title={t('autoBackup.title', 'Automatic backups')}>
+      <p className="mb-3 text-sm text-muted">
+        {t(
+          'autoBackup.text',
+          'The app writes an encrypted backup of every profile into a folder you choose (for example one your cloud drive syncs), on the schedule below, and keeps the newest 10.',
+        )}
+      </p>
+      {!keychainInUse() ? (
+        <Notice tone="warn">
+          {t(
+            'autoBackup.noKeychain',
+            'Needs the system keychain to keep the backup passphrase, and this computer has none available (on Linux: GNOME Keyring or KWallet).',
+          )}
+        </Notice>
+      ) : (
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <span className="min-w-0 break-all">
+              {folder ?? t('autoBackup.noFolder', 'No folder chosen.')}
+            </span>
+            <Button size="sm" busy={pick.isPending} onClick={() => pick.mutate()}>
+              {folder
+                ? t('autoBackup.changeFolder', 'Change folder')
+                : t('autoBackup.chooseFolder', 'Choose folder')}
+            </Button>
+          </div>
+          {state.data?.pass && !changing ? (
+            <div className="flex flex-wrap items-center gap-2 text-sm">
+              <Badge tone="pos">
+                {t('autoBackup.passSaved', 'Passphrase kept in the system keychain')}
+              </Badge>
+              <Button size="sm" variant="ghost" onClick={() => setChanging(true)}>
+                {t('autoBackup.changePass', 'Change passphrase')}
+              </Button>
+            </div>
+          ) : (
+            <form onSubmit={submit} className="grid gap-3 sm:grid-cols-2">
+              <Field label={t('backup.passphrase', 'Backup passphrase')}>
+                <Input
+                  type="password"
+                  autoComplete="new-password"
+                  value={a}
+                  onChange={(e) => setA(e.target.value)}
+                />
+              </Field>
+              <Field label={t('lock.repeat', 'Repeat')} error={error}>
+                <Input
+                  type="password"
+                  autoComplete="new-password"
+                  value={b}
+                  onChange={(e) => setB(e.target.value)}
+                />
+              </Field>
+              <div className="sm:col-span-2">
+                <Button type="submit" busy={savePass.isPending}>
+                  {t('autoBackup.savePass', 'Save passphrase')}
+                </Button>
+              </div>
+            </form>
+          )}
+          {ready && (
+            <div className="flex flex-wrap items-center gap-3">
+              <Button variant="primary" busy={now.isPending} onClick={() => now.mutate()}>
+                {t('autoBackup.now', 'Back up now')}
+              </Button>
+              <Button variant="ghost" busy={off.isPending} onClick={() => off.mutate()}>
+                {t('autoBackup.off', 'Turn off')}
+              </Button>
+              <span className="text-xs text-muted">
+                {backup.intervalDays <= 0
+                  ? t('autoBackup.paused', 'Schedule is off (Backup schedule below).')
+                  : backup.lastBackupAt
+                    ? t('backup.last', 'Last backup: {{when}}', {
+                        when: fmt.dateTime(backup.lastBackupAt),
+                      })
+                    : t('backup.never', 'No backup made on this device yet')}
+              </span>
+            </div>
+          )}
+          <ErrorBox error={state.error ?? pick.error ?? off.error ?? savePass.error ?? now.error} />
+        </div>
+      )}
+    </Card>
+  );
+}
+
 export function BackupsTab() {
   return (
     <div className="flex flex-col gap-4">
+      {isDesktopNative() && <AutoBackupCard />}
       <ExportBackup />
       <RestoreBackup />
       <DataExport />

@@ -3,9 +3,11 @@
 //   - durable local SQLite storage behind packages/storage's MemoryStore (store_* commands),
 //   - the server token in the OS credential store (secret_* commands, secret.rs),
 //   - HTTP without CORS to any compatible server (tauri-plugin-http), native notifications,
-//   - saving exports/backups through the OS save dialog (dialog + fs plugins),
+//   - saving exports/backups through the OS save dialog (dialog + fs plugins), and automatic
+//     encrypted backups into a folder picked once (backup.rs),
 //   - desktop: signed auto-updates, system tray (optionally keeping the app there when its window closes) and a global
 //     "add transaction" shortcut; mobile: biometric unlock.
+mod backup;
 mod secret;
 mod store;
 mod tray;
@@ -117,7 +119,11 @@ pub fn run() {
             secret::secret_set,
             secret::secret_delete,
             tray::close_to_tray_get,
-            tray::close_to_tray_set
+            tray::close_to_tray_set,
+            backup::backup_folder_get,
+            backup::backup_folder_pick,
+            backup::backup_folder_clear,
+            backup::backup_write
         ])
         .setup(|app| {
             #[cfg(desktop)]
