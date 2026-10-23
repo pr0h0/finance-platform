@@ -299,66 +299,68 @@ function CategorySection({ s, f }: P) {
           {t('analytics.page.inThisPeriod', 'in this period.')}
         </Empty>
       ) : (
-        <table className="w-full text-sm">
-          <thead className="sr-only">
-            <tr>
-              <th>{t('transaction.category', 'Category')}</th>
-              <th>{t('analytics.page.share', 'Share')}</th>
-              <th>{t('transaction.amount', 'Amount')}</th>
-              <th>{t('analytics.page.count', 'Count')}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {r.rows.map((c, i) => (
-              <tr key={c.key}>
-                <td className="w-1/3 py-1 pr-2">
-                  <Link
-                    className="hover:underline"
-                    to={transactionsLink({
-                      ...f,
-                      categoryKey: c.key,
-                      kind: kind === 'spending' ? 'expense' : 'income',
-                    })}
-                  >
-                    {c.label}
-                  </Link>
-                </td>
-                <td className="w-1/3">
-                  <ProgressBar
-                    label={`${((Number(c.amount.amount) / total) * 100).toFixed(1)}%`}
-                    parts={[
-                      {
-                        value: Number(c.amount.amount) / total,
-                        className: '',
-                        title: c.label,
-                        color: SERIES[i] ?? SERIES_OTHER,
-                      },
-                      {
-                        value: Math.max(0, 1 - Number(c.amount.amount) / total),
-                        className: 'bg-transparent',
-                        title: 'rest',
-                      },
-                    ]}
-                  />
-                </td>
-                <td className="text-right">
-                  <Amount value={c.amount} />
-                </td>
-                <td className="w-10 text-right text-xs text-muted">{c.count}</td>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="sr-only">
+              <tr>
+                <th>{t('transaction.category', 'Category')}</th>
+                <th>{t('analytics.page.share', 'Share')}</th>
+                <th>{t('transaction.amount', 'Amount')}</th>
+                <th>{t('analytics.page.count', 'Count')}</th>
               </tr>
-            ))}
-          </tbody>
-          <tfoot>
-            <tr className="font-medium">
-              <td className="pt-2">{t('analytics.page.total', 'Total')}</td>
-              <td />
-              <td className="pt-2 text-right">
-                <Amount value={r.total} />
-              </td>
-              <td />
-            </tr>
-          </tfoot>
-        </table>
+            </thead>
+            <tbody>
+              {r.rows.map((c, i) => (
+                <tr key={c.key}>
+                  <td className="w-1/3 py-1 pr-2">
+                    <Link
+                      className="hover:underline"
+                      to={transactionsLink({
+                        ...f,
+                        categoryKey: c.key,
+                        kind: kind === 'spending' ? 'expense' : 'income',
+                      })}
+                    >
+                      {c.label}
+                    </Link>
+                  </td>
+                  <td className="w-1/3">
+                    <ProgressBar
+                      label={`${((Number(c.amount.amount) / total) * 100).toFixed(1)}%`}
+                      parts={[
+                        {
+                          value: Number(c.amount.amount) / total,
+                          className: '',
+                          title: c.label,
+                          color: SERIES[i] ?? SERIES_OTHER,
+                        },
+                        {
+                          value: Math.max(0, 1 - Number(c.amount.amount) / total),
+                          className: 'bg-transparent',
+                          title: 'rest',
+                        },
+                      ]}
+                    />
+                  </td>
+                  <td className="text-right">
+                    <Amount value={c.amount} />
+                  </td>
+                  <td className="w-10 text-right text-xs text-muted">{c.count}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr className="font-medium">
+                <td className="pt-2">{t('analytics.page.total', 'Total')}</td>
+                <td />
+                <td className="pt-2 text-right">
+                  <Amount value={r.total} />
+                </td>
+                <td />
+              </tr>
+            </tfoot>
+          </table>
+        </div>
       )}
     </Card>
   );
@@ -477,30 +479,32 @@ function MoneyTable({
 }) {
   const t = useT();
   return (
-    <table className="w-full text-xs">
-      <thead>
-        <tr className="text-left text-muted">
-          <th className="py-1">{t('analytics.page.period', 'Period')}</th>
-          {cols.map(([k, l]) => (
-            <th key={k} className="text-right">
-              {l}
-            </th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((r) => (
-          <tr key={r.x}>
-            <td className="py-0.5">{r.label}</td>
-            {cols.map(([k]) => (
-              <td key={k} className="text-right">
-                <Amount value={r.money[k]} />
-              </td>
+    <div className="overflow-x-auto">
+      <table className="w-full text-xs">
+        <thead>
+          <tr className="text-left text-muted">
+            <th className="py-1">{t('analytics.page.period', 'Period')}</th>
+            {cols.map(([k, l]) => (
+              <th key={k} className="text-right">
+                {l}
+              </th>
             ))}
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={r.x}>
+              <td className="py-0.5">{r.label}</td>
+              {cols.map(([k]) => (
+                <td key={k} className="text-right">
+                  <Amount value={r.money[k]} />
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
@@ -597,34 +601,36 @@ function ComparisonSection({ s, f }: P) {
       </p>
       <DataBanner missingRates={c.missingRates} />
       {c.rows.length ? (
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-line text-left text-xs text-muted">
-              <th className="py-1">{t('transaction.category', 'Category')}</th>
-              <th className="text-right">{t('analytics.page.now', 'Now')}</th>
-              <th className="text-right">{t('analytics.page.before', 'Before')}</th>
-              <th className="text-right">{t('lock.change', 'Change')}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {c.rows.slice(0, 12).map((r) => (
-              <tr key={r.key} className="border-b border-line/60">
-                <td className="py-1">{r.label}</td>
-                <td className="text-right">
-                  <Amount value={r.current} />
-                </td>
-                <td className="text-right">
-                  <Amount value={r.previous} />
-                </td>
-                <td
-                  className={`text-right ${toMinor(r.change) > 0n ? 'text-neg' : toMinor(r.change) < 0n ? 'text-pos' : ''}`}
-                >
-                  <Amount value={r.change} />
-                </td>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-line text-left text-xs text-muted">
+                <th className="py-1">{t('transaction.category', 'Category')}</th>
+                <th className="text-right">{t('analytics.page.now', 'Now')}</th>
+                <th className="text-right">{t('analytics.page.before', 'Before')}</th>
+                <th className="text-right">{t('lock.change', 'Change')}</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {c.rows.slice(0, 12).map((r) => (
+                <tr key={r.key} className="border-b border-line/60">
+                  <td className="py-1">{r.label}</td>
+                  <td className="text-right">
+                    <Amount value={r.current} />
+                  </td>
+                  <td className="text-right">
+                    <Amount value={r.previous} />
+                  </td>
+                  <td
+                    className={`text-right ${toMinor(r.change) > 0n ? 'text-neg' : toMinor(r.change) < 0n ? 'text-pos' : ''}`}
+                  >
+                    <Amount value={r.change} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       ) : (
         <Empty>{t('analytics.page.noSpendingInEither', 'No spending in either period.')}</Empty>
       )}
@@ -835,46 +841,48 @@ function CurrencySection({ s, f }: P) {
         />
       )}
       {ex.rows.length ? (
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-line text-left text-xs text-muted">
-              <th className="py-1">{t('profiles.currency', 'Currency')}</th>
-              <th>{t('analytics.page.shareOfAssets', 'Share of assets')}</th>
-              <th className="text-right">{t('analytics.page.balance', 'Balance')}</th>
-              <th className="text-right">
-                {t('analytics.page.in', 'In')} {f.currency}
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {ex.rows.map((r, i) => (
-              <tr key={r.currency} className="border-b border-line/60">
-                <td className="py-1">{r.currency}</td>
-                <td className="w-1/3">
-                  <ProgressBar
-                    label={fmt.percent(r.share)}
-                    parts={[
-                      {
-                        value: Number(r.share),
-                        className: '',
-                        title: r.currency,
-                        color: SERIES[i] ?? SERIES_OTHER,
-                      },
-                      { value: 1 - Number(r.share), className: 'bg-transparent', title: 'rest' },
-                    ]}
-                  />
-                  <span className="text-[10px] text-muted">{fmt.percent(r.share)}</span>
-                </td>
-                <td className="text-right">
-                  <Amount value={r.original} />
-                </td>
-                <td className="text-right">
-                  <Amount value={r.converted} />
-                </td>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-line text-left text-xs text-muted">
+                <th className="py-1">{t('profiles.currency', 'Currency')}</th>
+                <th>{t('analytics.page.shareOfAssets', 'Share of assets')}</th>
+                <th className="text-right">{t('analytics.page.balance', 'Balance')}</th>
+                <th className="text-right">
+                  {t('analytics.page.in', 'In')} {f.currency}
+                </th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {ex.rows.map((r, i) => (
+                <tr key={r.currency} className="border-b border-line/60">
+                  <td className="py-1">{r.currency}</td>
+                  <td className="w-1/3">
+                    <ProgressBar
+                      label={fmt.percent(r.share)}
+                      parts={[
+                        {
+                          value: Number(r.share),
+                          className: '',
+                          title: r.currency,
+                          color: SERIES[i] ?? SERIES_OTHER,
+                        },
+                        { value: 1 - Number(r.share), className: 'bg-transparent', title: 'rest' },
+                      ]}
+                    />
+                    <span className="text-[10px] text-muted">{fmt.percent(r.share)}</span>
+                  </td>
+                  <td className="text-right">
+                    <Amount value={r.original} />
+                  </td>
+                  <td className="text-right">
+                    <Amount value={r.converted} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       ) : (
         <Empty>{t('analytics.page.noBalances', 'No balances.')}</Empty>
       )}
@@ -964,28 +972,30 @@ function RecurringSection({ s, f }: P) {
         />
       )}
       {r.rows.length ? (
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-line text-left text-xs text-muted">
-              <th className="py-1">{t('transactions.detailDrawer.plan', 'Plan')}</th>
-              <th className="text-right">{t('backup.monthly', 'Monthly')}</th>
-              <th className="text-right">{t('reports.page.annual', 'Annual')}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {r.rows.map((x) => (
-              <tr key={x.plan.id} className="border-b border-line/60">
-                <td className="py-1">{x.plan.description}</td>
-                <td className="text-right">
-                  <Amount value={x.monthly ?? x.native.monthly} />
-                </td>
-                <td className="text-right">
-                  <Amount value={x.annual ?? x.native.annual} />
-                </td>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-line text-left text-xs text-muted">
+                <th className="py-1">{t('transactions.detailDrawer.plan', 'Plan')}</th>
+                <th className="text-right">{t('backup.monthly', 'Monthly')}</th>
+                <th className="text-right">{t('reports.page.annual', 'Annual')}</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {r.rows.map((x) => (
+                <tr key={x.plan.id} className="border-b border-line/60">
+                  <td className="py-1">{x.plan.description}</td>
+                  <td className="text-right">
+                    <Amount value={x.monthly ?? x.native.monthly} />
+                  </td>
+                  <td className="text-right">
+                    <Amount value={x.annual ?? x.native.annual} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       ) : (
         <Empty>
           {t('analytics.page.noRecurringExpensePlans', 'No recurring expense plans.')}{' '}
@@ -1023,37 +1033,39 @@ function PlannedActualSection({ s, f }: P) {
             {t('analytics.page.difference', ', difference')}{' '}
             <Amount value={fromMinor(actual - planned, f.currency)} />
           </p>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-line text-left text-xs text-muted">
-                <th className="py-1">{t('transaction.date', 'Date')}</th>
-                <th>{t('transactions.detailDrawer.plan', 'Plan')}</th>
-                <th className="text-right">{t('analytics.page.planned', 'Planned')}</th>
-                <th className="text-right">{t('analytics.page.actual', 'Actual')}</th>
-                <th className="text-right">{t('analytics.page.variance', 'Variance')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r) => (
-                <tr
-                  key={`${r.plan.id}|${r.occurrence.occurrenceDate}`}
-                  className="border-b border-line/60"
-                >
-                  <td className="py-1">{fmt.date(r.occurrence.occurrenceDate)}</td>
-                  <td>{r.plan.description}</td>
-                  <td className="text-right">
-                    <Amount value={r.planned} />
-                  </td>
-                  <td className="text-right">
-                    <Amount value={r.actual} />
-                  </td>
-                  <td className="text-right">
-                    <Amount value={r.variance} />
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-line text-left text-xs text-muted">
+                  <th className="py-1">{t('transaction.date', 'Date')}</th>
+                  <th>{t('transactions.detailDrawer.plan', 'Plan')}</th>
+                  <th className="text-right">{t('analytics.page.planned', 'Planned')}</th>
+                  <th className="text-right">{t('analytics.page.actual', 'Actual')}</th>
+                  <th className="text-right">{t('analytics.page.variance', 'Variance')}</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {rows.map((r) => (
+                  <tr
+                    key={`${r.plan.id}|${r.occurrence.occurrenceDate}`}
+                    className="border-b border-line/60"
+                  >
+                    <td className="py-1">{fmt.date(r.occurrence.occurrenceDate)}</td>
+                    <td>{r.plan.description}</td>
+                    <td className="text-right">
+                      <Amount value={r.planned} />
+                    </td>
+                    <td className="text-right">
+                      <Amount value={r.actual} />
+                    </td>
+                    <td className="text-right">
+                      <Amount value={r.variance} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </>
       ) : (
         <Empty>

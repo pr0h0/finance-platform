@@ -141,32 +141,34 @@ export function ForecastPanel({ snap }: { snap: Snapshot }) {
         <ChartFrame
           name="forecast"
           table={
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="text-left text-muted">
-                  <th className="py-1">{t('transaction.date', 'Date')}</th>
-                  <th>{t('planning.forecastPanel.conservative', 'Conservative')}</th>
-                  <th>{t('planning.forecastPanel.expected', 'Expected')}</th>
-                  <th>{t('planning.forecastPanel.optimistic', 'Optimistic')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r) => (
-                  <tr key={r.x}>
-                    <td className="py-0.5">{r.label}</td>
-                    <td>
-                      <Amount value={r.money.conservative} />
-                    </td>
-                    <td>
-                      <Amount value={r.money.expected} />
-                    </td>
-                    <td>
-                      <Amount value={r.money.optimistic} />
-                    </td>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="text-left text-muted">
+                    <th className="py-1">{t('transaction.date', 'Date')}</th>
+                    <th>{t('planning.forecastPanel.conservative', 'Conservative')}</th>
+                    <th>{t('planning.forecastPanel.expected', 'Expected')}</th>
+                    <th>{t('planning.forecastPanel.optimistic', 'Optimistic')}</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {rows.map((r) => (
+                    <tr key={r.x}>
+                      <td className="py-0.5">{r.label}</td>
+                      <td>
+                        <Amount value={r.money.conservative} />
+                      </td>
+                      <td>
+                        <Amount value={r.money.expected} />
+                      </td>
+                      <td>
+                        <Amount value={r.money.optimistic} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           }
         >
           <MoneyChart

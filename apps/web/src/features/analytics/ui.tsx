@@ -46,7 +46,7 @@ export function Card({
   return (
     <section
       aria-labelledby={title ? id : undefined}
-      className={`rounded-lg border border-line bg-surface p-4 ${className}`}
+      className={`min-w-0 rounded-lg border border-line bg-surface p-4 ${className}`}
     >
       {(title || actions) && (
         <div className="mb-3 flex items-center justify-between gap-2">

@@ -282,26 +282,28 @@ export function ActivateFlow({ onCancel }: { onCancel: () => void }) {
           {prepared.map((p, i) => (
             <div key={p.profile.id} className="rounded-md border border-line p-3">
               <p className="mb-2 text-sm font-medium">{p.profile.name}</p>
-              <table className={tableClass}>
-                <thead>
-                  <tr>
-                    <th>{t('activate.entity', 'Records')}</th>
-                    <th>{t('activate.upload', 'To upload')}</th>
-                    <th>{t('activate.onServer', 'Already on server')}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {Object.entries(p.preview.upload)
-                    .filter(([k, n]) => n > 0 || (p.preview.remote[k] ?? 0) > 0)
-                    .map(([k, n]) => (
-                      <tr key={k}>
-                        <td>{k.replace(/_/g, ' ')}</td>
-                        <td>{n}</td>
-                        <td>{p.preview.remote[k] ?? 0}</td>
-                      </tr>
-                    ))}
-                </tbody>
-              </table>
+              <div className="overflow-x-auto">
+                <table className={tableClass}>
+                  <thead>
+                    <tr>
+                      <th>{t('activate.entity', 'Records')}</th>
+                      <th>{t('activate.upload', 'To upload')}</th>
+                      <th>{t('activate.onServer', 'Already on server')}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Object.entries(p.preview.upload)
+                      .filter(([k, n]) => n > 0 || (p.preview.remote[k] ?? 0) > 0)
+                      .map(([k, n]) => (
+                        <tr key={k}>
+                          <td>{k.replace(/_/g, ' ')}</td>
+                          <td>{n}</td>
+                          <td>{p.preview.remote[k] ?? 0}</td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
               {p.preview.duplicates.length > 0 && (
                 <fieldset className="mt-3">
                   <legend className="text-sm font-medium">

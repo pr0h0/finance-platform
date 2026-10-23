@@ -264,19 +264,21 @@ function RowsCard({
   return (
     <Card title={title}>
       {rows.length ? (
-        <table className="w-full text-sm">
-          <tbody>
-            {rows.map((c) => (
-              <tr key={c.key} className="border-b border-line/60">
-                <td className="py-1">{c.label}</td>
-                <td className="text-right">
-                  <Amount value={c.amount} />
-                </td>
-                <td className="w-8 text-right text-xs text-muted">{c.count}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <tbody>
+              {rows.map((c) => (
+                <tr key={c.key} className="border-b border-line/60">
+                  <td className="py-1">{c.label}</td>
+                  <td className="text-right">
+                    <Amount value={c.amount} />
+                  </td>
+                  <td className="w-8 text-right text-xs text-muted">{c.count}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       ) : (
         <Empty>{t('reports.page.none', 'None.')}</Empty>
       )}

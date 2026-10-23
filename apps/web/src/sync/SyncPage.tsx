@@ -348,24 +348,26 @@ export default function SyncPage() {
         </Card>
 
         <Card title={t('sync.devices', 'Connected devices')}>
-          <table className={tableClass}>
-            <thead>
-              <tr>
-                <th>{t('devices.name', 'Device')}</th>
-                <th>{t('sync.lastPush', 'Last upload')}</th>
-                <th>{t('sync.pulled', 'Pulled to')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(server.data?.devices ?? []).map((d) => (
-                <tr key={d.deviceId}>
-                  <td>{(d.deviceId && deviceName.get(d.deviceId)) ?? d.deviceId}</td>
-                  <td>{d.lastPushedAt ? fmt.dateTime(d.lastPushedAt) : '—'}</td>
-                  <td>{d.lastPulledVersion ?? '—'}</td>
+          <div className="overflow-x-auto">
+            <table className={tableClass}>
+              <thead>
+                <tr>
+                  <th>{t('devices.name', 'Device')}</th>
+                  <th>{t('sync.lastPush', 'Last upload')}</th>
+                  <th>{t('sync.pulled', 'Pulled to')}</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {(server.data?.devices ?? []).map((d) => (
+                  <tr key={d.deviceId}>
+                    <td>{(d.deviceId && deviceName.get(d.deviceId)) ?? d.deviceId}</td>
+                    <td>{d.lastPushedAt ? fmt.dateTime(d.lastPushedAt) : '—'}</td>
+                    <td>{d.lastPulledVersion ?? '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
           <Link to="/devices" className="mt-2 inline-block text-sm text-accent">
             {t('sync.manageDevices', 'Manage devices')}
           </Link>

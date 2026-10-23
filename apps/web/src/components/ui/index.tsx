@@ -241,7 +241,7 @@ export function Card({
   return (
     <As
       aria-labelledby={title ? id : undefined}
-      className={cx('rounded-lg border border-line bg-surface p-4', className)}
+      className={cx('min-w-0 rounded-lg border border-line bg-surface p-4', className)}
     >
       {(title || actions) && (
         <div className="mb-3 flex items-center justify-between gap-2">

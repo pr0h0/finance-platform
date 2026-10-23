@@ -396,31 +396,33 @@ function AddRate() {
         )}
       </p>
       {recent.length > 0 && (
-        <table className="text-sm">
-          <thead className="text-left text-xs text-muted">
-            <tr>
-              <th className="py-1 font-medium">{t('transaction.date', 'Date')}</th>
-              <th className="font-medium">{t('currency.converter.pair', 'Pair')}</th>
-              <th className="text-right font-medium">{t('currency.converter.rate', 'Rate')}</th>
-              <th className="font-medium">{t('currency.converter.source', 'Source')}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {recent.map((r) => (
-              <tr
-                key={`${r.baseCurrency}${r.quoteCurrency}${r.rateDate}${r.source}`}
-                className="border-t border-line"
-              >
-                <td className="py-1 tabular-nums">{r.rateDate}</td>
-                <td>
-                  {r.baseCurrency}/{r.quoteCurrency}
-                </td>
-                <td className="text-right tabular-nums">{r.rate}</td>
-                <td>{r.source}</td>
+        <div className="overflow-x-auto">
+          <table className="text-sm">
+            <thead className="text-left text-xs text-muted">
+              <tr>
+                <th className="py-1 font-medium">{t('transaction.date', 'Date')}</th>
+                <th className="font-medium">{t('currency.converter.pair', 'Pair')}</th>
+                <th className="text-right font-medium">{t('currency.converter.rate', 'Rate')}</th>
+                <th className="font-medium">{t('currency.converter.source', 'Source')}</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {recent.map((r) => (
+                <tr
+                  key={`${r.baseCurrency}${r.quoteCurrency}${r.rateDate}${r.source}`}
+                  className="border-t border-line"
+                >
+                  <td className="py-1 tabular-nums">{r.rateDate}</td>
+                  <td>
+                    {r.baseCurrency}/{r.quoteCurrency}
+                  </td>
+                  <td className="text-right tabular-nums">{r.rate}</td>
+                  <td>{r.source}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </section>
   );
