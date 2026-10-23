@@ -6,6 +6,7 @@ import { Button, Card, Checkbox, ErrorBox, Field, Select } from '../components/u
 import { toast } from '../components/ui/toast.tsx';
 import { currencyCodes, currencyName } from '../lib/currencies.ts';
 import { useT } from '../lib/i18n.ts';
+import { LocalMcpCard } from '../mcp/LocalMcp.tsx';
 import {
   autostartEnabled,
   closeToTray,
@@ -32,6 +33,7 @@ export function GeneralTab() {
         <PreferencesForm />
       </Card>
       {isDesktopNative() && <DesktopCard />}
+      {isDesktopNative() && <LocalMcpCard />}
       <Card
         title={t('settings.reporting', 'Reporting currency of “{{name}}”', { name: profile.name })}
       >

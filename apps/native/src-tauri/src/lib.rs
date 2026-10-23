@@ -6,8 +6,9 @@
 //   - saving exports/backups through the OS save dialog (dialog + fs plugins), and automatic
 //     encrypted backups into a folder picked once (backup.rs),
 //   - desktop: signed auto-updates, system tray (optionally keeping the app there when its window closes) and a global
-//     "add transaction" shortcut; mobile: biometric unlock.
+//     "add transaction" shortcut, a local MCP server for AI agents (mcp.rs); mobile: biometric unlock.
 mod backup;
+pub mod mcp;
 mod secret;
 mod store;
 mod tray;
@@ -110,6 +111,7 @@ pub fn run() {
         })
         .manage(store::Stores::default())
         .manage(tray::Tray::default())
+        .manage(mcp::Mcp::default())
         .on_window_event(tray::on_window_event)
         .invoke_handler(tauri::generate_handler![
             store::store_load,
@@ -123,9 +125,14 @@ pub fn run() {
             backup::backup_folder_get,
             backup::backup_folder_pick,
             backup::backup_folder_clear,
-            backup::backup_write
+            backup::backup_write,
+            mcp::mcp_get,
+            mcp::mcp_set,
+            mcp::mcp_attach,
+            mcp::mcp_reply
         ])
         .setup(|app| {
+            mcp::init(app.handle());
             #[cfg(desktop)]
             {
                 use tauri::menu::{Menu, MenuItem};

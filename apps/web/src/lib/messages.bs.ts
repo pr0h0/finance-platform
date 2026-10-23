@@ -249,6 +249,12 @@ export const bs: Record<string, string> = {
   'autoBackup.now': 'Napravi kopiju sada',
   'autoBackup.off': 'Isključi',
   'autoBackup.paused': 'Raspored je isključen (Raspored kopija ispod).',
+  'localMcp.title': 'Lokalni MCP server',
+  'localMcp.intro':
+    'Omogućava AI aplikacijama na ovom računaru (Claude Desktop, Claude Code, …) da čitaju vaše finansije iz ove aplikacije, bez servera. Samo čitanje. Radi dok je aplikacija pokrenuta i otključana; ono što agent pročita ide njegovom AI provajderu.',
+  'localMcp.enable': 'Dozvoli AI aplikacijama na ovom računaru da čitaju moje podatke',
+  'localMcp.claudeCode': 'Claude Code:',
+  'localMcp.config': 'Ostali klijenti (npr. claude_desktop_config.json u Claude Desktopu):',
   'settings.closeToTray':
     'Ostavi aplikaciju u traci kada se prozor zatvori (Izlaz iz menija u traci)',
   'settings.desktopHint':

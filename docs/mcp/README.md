@@ -2,8 +2,9 @@
 
 The Go API exposes a [Model Context Protocol](https://modelcontextprotocol.io) server so AI agents
 (Claude Code, Claude Desktop, any MCP client) can analyse your finances and **propose** changes.
-The local desktop MCP server (Feature 131) is DEFERRED to the desktop phase; it will use the same
-tool contracts (`packages/mcp-contracts`).
+The desktop app also has a **local MCP server** (Feature 131, read-only, no server needed): see
+[Local MCP server](#local-mcp-server-desktop-app) at the end. Both use the same tool contracts
+(`packages/mcp-contracts`).
 
 > **Privacy:** everything an agent reads through MCP is sent to that agent's AI provider. Only grant
 > what you are comfortable sharing. Nothing is sent anywhere unless you create a client and grant it.
@@ -220,3 +221,38 @@ Tool failures are returned as MCP tool results with `isError: true` and
 `scope_missing`, `profile_not_granted`, `account_not_granted`, `account_restricted`, `period_not_granted`,
 `no_grants`, `validation_failed` (`details.fields`), `not_found`, `splits_mismatch`, `conflict`,
 `result_too_large`, `idempotency_key_reused`, `read_only_profile`.
+
+## Local MCP server (desktop app)
+
+The Linux, Windows and macOS apps answer the 19 read tools from the data on that computer (local
+profiles and connected-mode caches alike), without any server.
+
+1. Finance Platform → Settings → General → **Local MCP server** → tick *Allow AI apps on this computer
+   to read my data*. The card then shows the exact command for this install.
+2. Add it to the client (stdio):
+   ```sh
+   claude mcp add finance-local -- "/path/to/finance-platform" --mcp
+   ```
+   or in `claude_desktop_config.json` / `.mcp.json`:
+   ```json
+   { "mcpServers": { "finance-local": { "command": "/path/to/finance-platform", "args": ["--mcp"] } } }
+   ```
+   Typical paths: Linux `/usr/bin/finplat-native` (.deb/.rpm) or the `.AppImage` file; macOS
+   `/Applications/Finance Platform.app/Contents/MacOS/finplat-native`; Windows
+   `C:\Program Files\Finance Platform\finplat-native.exe`.
+
+How it works: `--mcp` starts a small relay instead of the app. It reads `<app config>/mcp.json`
+(`{port, token}`, written with mode 0600 while the switch is on; Linux `~/.config/me.pr0h0.finplat`,
+macOS `~/Library/Application Support/me.pr0h0.finplat`, Windows `%APPDATA%\me.pr0h0.finplat`),
+connects to the running app on `127.0.0.1:<port>`, sends the token, then copies JSON-RPC lines both
+ways (`apps/native/src-tauri/src/mcp.rs`). The app hands each message to the web app
+(`apps/web/src/mcp/local-server.ts`, tools in `local-tools.ts`), which answers from the open
+database. `profileId` defaults to the profile open in the app.
+
+- The app must be running (the tray is enough) and unlocked; otherwise the relay or the request fails
+  with a message saying so.
+- Read-only. Write tools / proposals run on the server's `/mcp` only.
+- No per-client tokens or grants: anything running as your OS user can use it while it is on (the same
+  user could read the database file anyway). Turning it off closes the port and deletes `mcp.json`.
+- Calls are not audited (the server audits its `/mcp`).
+

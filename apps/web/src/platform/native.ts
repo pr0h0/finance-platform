@@ -73,6 +73,33 @@ export async function setCloseToTray(on: boolean): Promise<void> {
   await (await import('@tauri-apps/api/core')).invoke('close_to_tray_set', { on });
 }
 
+// ------------------------------------------------------------ local MCP server (desktop)
+
+// src-tauri/src/mcp.rs listens on 127.0.0.1 while on; MCP clients run `<command> --mcp`.
+export async function localMcp(): Promise<{ on: boolean; command: string }> {
+  return (await import('@tauri-apps/api/core')).invoke('mcp_get');
+}
+export async function setLocalMcp(on: boolean): Promise<void> {
+  await (await import('@tauri-apps/api/core')).invoke('mcp_set', { on });
+}
+/** Answers every MCP request with handle (null = no reply) until the returned function is called. */
+export async function serveLocalMcp(
+  handle: (message: string) => Promise<string | null>,
+): Promise<() => void> {
+  const { invoke } = await import('@tauri-apps/api/core');
+  const { listen } = await import('@tauri-apps/api/event');
+  const un = await listen<{ conn: number; message: string }>('mcp:request', async (e) => {
+    const out = await handle(e.payload.message);
+    if (out !== null)
+      await invoke('mcp_reply', { conn: e.payload.conn, message: out }).catch(() => {});
+  });
+  await invoke('mcp_attach', { on: true });
+  return () => {
+    un();
+    void invoke('mcp_attach', { on: false });
+  };
+}
+
 // ------------------------------------------------------------ automatic backups (desktop)
 
 // The folder is picked and remembered on the Rust side (src-tauri/src/backup.rs), which writes only

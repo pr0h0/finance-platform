@@ -3,6 +3,7 @@
 // prove the data survived in SQLite (src-tauri/src/store.rs) and the onboarding state too.
 import { existsSync, readdirSync } from 'node:fs';
 import {
+  APP,
   App,
   button,
   buttonContaining,
@@ -78,6 +79,61 @@ try {
   await second.click(box);
   for (let i = 0; i < 20 && readdirSync(entry).length; i++) await sleep(250);
   check(readdirSync(entry).length === 0, 'start at login turned off again');
+
+  // Settings → General → Local MCP server: an MCP client runs `<app> --mcp` (stdio relay, mcp.rs)
+  // and reads the account from the running app's local data.
+  await second.click(`//label[contains(normalize-space(.), 'Allow AI apps on this computer')]`);
+  const ep = `${process.env.HOME}/.config/me.pr0h0.finplat/mcp.json`;
+  for (let i = 0; i < 20 && !existsSync(ep); i++) await sleep(250);
+  check(existsSync(ep), 'local MCP server turned on (mcp.json written)');
+  const rpc = [
+    {
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'initialize',
+      params: {
+        protocolVersion: '2025-06-18',
+        capabilities: {},
+        clientInfo: { name: 'smoke', version: '1' },
+      },
+    },
+    { jsonrpc: '2.0', method: 'notifications/initialized' },
+    { jsonrpc: '2.0', id: 2, method: 'tools/list' },
+    {
+      jsonrpc: '2.0',
+      id: 3,
+      method: 'tools/call',
+      params: { name: 'list_accounts', arguments: {} },
+    },
+  ];
+  const relay = Bun.spawn([APP, '--mcp'], { stdin: 'pipe', stdout: 'pipe', stderr: 'inherit' });
+  for (const m of rpc) relay.stdin.write(`${JSON.stringify(m)}\n`);
+  await relay.stdin.flush();
+  const replies: {
+    id: number;
+    result?: {
+      tools?: unknown[];
+      structuredContent?: { accounts: { name: string; balances: { amount: string }[] }[] };
+    };
+  }[] = [];
+  const reader = relay.stdout.pipeThrough(new TextDecoderStream()).getReader();
+  let buf = '';
+  const deadline = Date.now() + 15_000;
+  while (replies.length < 3 && Date.now() < deadline) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buf += value;
+    for (let i = buf.indexOf('\n'); i >= 0; i = buf.indexOf('\n')) {
+      replies.push(JSON.parse(buf.slice(0, i)));
+      buf = buf.slice(i + 1);
+    }
+  }
+  relay.stdin.end();
+  relay.kill();
+  const byId = (id: number) => replies.find((r) => r.id === id)?.result;
+  check((byId(2)?.tools?.length ?? 0) >= 19, 'MCP tools/list over the relay (read-only tools)');
+  const wallet = byId(3)?.structuredContent?.accounts.find((a) => a.name === 'Wallet');
+  check(wallet?.balances[0]?.amount === '123.45', 'MCP list_accounts answered from local data');
 } finally {
   await second.quit().catch(() => undefined);
 }

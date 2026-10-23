@@ -82,6 +82,9 @@ apps/web (React, unchanged pages)          apps/native/src-tauri (Rust)
   `finplat-backup-<date>.finplat` of every profile on the backup schedule (checked at start and hourly,
   `shell/AutoBackup.tsx`) and keeps the newest 10. The web page has no file-system scope: Rust writes
   only files with that name pattern into that folder. Restore as usual (Restore backup).
+- **Local MCP server (desktop):** Settings → General → Local MCP server lets MCP clients run
+  `finplat-native --mcp`, a stdio relay to the running app on 127.0.0.1 (`src/mcp.rs`); the 19 read
+  tools are answered from local data. Details: docs/mcp/README.md "Local MCP server".
 - **Mobile extras:** the app lock screen offers **fingerprint / Face ID** (tauri-plugin-biometric)
   when the device has it; the PIN stays the fallback. Biometrics only gate the UI, like the PIN.
   Android back button: closes dialogs, goes back in the app, leaves the app only from the dashboard.
@@ -358,7 +361,6 @@ GitHub, and installing an update on each OS. Apps installed before 0.2.0 have no
 - Push notifications while the app is closed (FCM / APNs via the server's notification job).
 - Android: the bearer token and E2EE keys in the Android Keystore (a small Kotlin plugin; the keyring
   crate has no Android backend). Desktop and iOS keep both in the OS credential store.
-- Local MCP server for desktop (PLAN feature 131).
 - Code signing of the Windows/macOS bundles (the auto-update signature is separate and done).
 - Android: share a statement/receipt from another app into Finance Platform (share target).
 - macOS: unsigned (ad-hoc signed) builds may ask for Keychain access again after every update (the

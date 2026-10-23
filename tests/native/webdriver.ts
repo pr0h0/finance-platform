@@ -4,7 +4,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 
 const DRIVER = process.env.WEBDRIVER_URL ?? 'http://127.0.0.1:4444';
-const APP = process.env.APP ?? '/cache/target/release/finplat-native';
+export const APP = process.env.APP ?? '/cache/target/release/finplat-native';
 export const OUT = process.env.OUT ?? '/repo/tests/native/results';
 export const DATA = `${process.env.HOME}/.local/share/me.pr0h0.finplat`;
 const ELEMENT = 'element-6066-11e4-a52e-4f735466cecf';
