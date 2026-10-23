@@ -98,9 +98,8 @@ jobs:
           workspaces: apps/native/src-tauri
       - name: Build
         working-directory: apps/native
-        env:
-          NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/27.2.12479018
         run: |
+          export NDK_HOME="$ANDROID_HOME/ndk/27.2.12479018"  # the runner's ANDROID_HOME (not a workflow env)
           bun install --frozen-lockfile
           bunx tauri android build --apk --aab
       - uses: actions/upload-artifact@v4
