@@ -182,9 +182,10 @@ export function ActivateFlow({ onCancel }: { onCancel: () => void }) {
         <AuthStep
           server={server}
           onSignedIn={async (s) => {
-            // An account that already has data: upload nothing new by default (only profiles that
-            // already exist there), so connecting a device with test/local data does not push it.
-            const remote = await s.api.listProfiles().catch(() => []);
+            // Signing in to an account that already has profiles: upload nothing new by default
+            // (only profiles that already exist there), so a device with test/local data does not
+            // push it. A just-created account holds only its default profile: upload everything.
+            const remote = s.registered ? [] : await s.api.listProfiles().catch(() => []);
             if (remote.length)
               setSelected(
                 new Set(profiles.filter((p) => remote.some((r) => r.id === p.id)).map((p) => p.id)),

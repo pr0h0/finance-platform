@@ -123,16 +123,21 @@ test('connect a device with local data to an account that has data: nothing uplo
   await expect(local).not.toBeChecked();
   await page.getByRole('button', { name: 'Connect without uploading' }).click();
   await expect(page.getByText('Connected').first()).toBeVisible();
-  await expect(page.getByText('From server').first()).toBeVisible();
-  const accounts = await page.evaluate(async () => {
-    const profiles = (await (await fetch('/api/v1/profiles')).json()).items as { id: string }[];
-    return (
-      await (
-        await fetch('/api/v1/accounts', { headers: { 'X-Profile-ID': profiles[0].id } })
-      ).json()
-    ).items.length;
+  const server = await page.evaluate(async () => {
+    const profiles = (await (await fetch('/api/v1/profiles')).json()).items as {
+      id: string;
+      name: string;
+    }[];
+    const accounts: string[] = [];
+    for (const p of profiles) {
+      const r = await fetch('/api/v1/accounts', { headers: { 'X-Profile-ID': p.id } });
+      accounts.push(...((await r.json()).items as { name: string }[]).map((a) => a.name));
+    }
+    return { profiles: profiles.map((p) => p.name), accounts };
   });
-  expect(accounts).toBe(0); // the local "Test wallet" was not uploaded
+  expect(server.profiles).toContain('From server');
+  expect(server.profiles).toHaveLength(2); // the account's default profile + "From server": none uploaded
+  expect(server.accounts).not.toContain('Test wallet');
 });
 
 test('E2EE profile: encrypt on device A, enroll and decrypt on B (passphrase) and C (recovery code)', async ({

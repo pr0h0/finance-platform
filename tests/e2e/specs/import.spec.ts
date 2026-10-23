@@ -33,7 +33,7 @@ test('import synthetic CSV (with a mapping template) and OFX statements', async 
   await page
     .getByLabel('Template JSON')
     .fill(readFileSync(`${FIX}/templates/primjer-banka-csv.json`, 'utf8'));
-  await page.getByRole('button', { name: 'Load' }).click();
+  await page.getByRole('button', { name: 'Load', exact: true }).click();
   await page.getByRole('button', { name: 'Save template' }).click();
   await expect(page.getByText('Primjer Banka CSV (synthetic example)').first()).toBeVisible();
 
