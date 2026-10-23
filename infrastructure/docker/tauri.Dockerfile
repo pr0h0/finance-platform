@@ -53,5 +53,7 @@ RUN sdkmanager "emulator" "system-images;android-35;google_apis;x86_64" >/dev/nu
     && sed -i 's#/root/.android/avd#/opt/avd#' /opt/avd/test.ini \
     && chmod -R a+rwX /opt/avd $ANDROID_HOME
 ENV ANDROID_AVD_HOME=/opt/avd PATH=$ANDROID_HOME/emulator:$PATH
-# The emulator's windowed mode (scripts/native-test.sh android-ui) also needs libxkbfile.
-RUN apt-get update && apt-get install -y --no-install-recommends libxkbfile1 && rm -rf /var/lib/apt/lists/*
+# The emulator's windowed mode (scripts/native-test.sh android-ui) also needs libxkbfile, and the
+# desktop keyboard reaches the emulator only with hw.keyboard on.
+RUN apt-get update && apt-get install -y --no-install-recommends libxkbfile1 && rm -rf /var/lib/apt/lists/* \
+    && sed -i 's/^hw.keyboard *= *no/hw.keyboard=yes/' /opt/avd/test.avd/config.ini
