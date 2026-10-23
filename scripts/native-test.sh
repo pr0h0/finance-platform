@@ -56,7 +56,7 @@ case "$target" in
     trap 'dockerx rm -f finplat-android-ui >/dev/null 2>&1 || true' EXIT
     dockerx run --rm --name finplat-android-ui --user 1000:1000 --device /dev/kvm --group-add "$kvm_gid" -v "$FINPLAT_ROOT:/repo" -w /repo \
       -v /tmp/.X11-unix:/tmp/.X11-unix -e DISPLAY="${DISPLAY:-:0}" -v "${XAUTHORITY:-$HOME/.Xauthority}:/tmp/.Xauthority:ro" -e XAUTHORITY=/tmp/.Xauthority \
-      -e HOME=/tmp/home "$image" \
+      -e LANG=C.UTF-8 -e QT_XKB_CONFIG_ROOT=/usr/share/X11/xkb -e HOME=/tmp/home "$image" \
       bash -c "mkdir -p \$HOME && (emulator -avd test -no-audio -no-boot-anim -gpu swiftshader_indirect -no-snapshot -accel on >/tmp/emulator.log 2>&1 &) && adb wait-for-device && for i in \$(seq 1 120); do [ \"\$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\\r')\" = 1 ] && break; sleep 2; done && adb install -r $apk >/dev/null && adb shell monkey -p me.pr0h0.finplat -c android.intent.category.LAUNCHER 1 >/dev/null && echo 'app launched; Ctrl+C stops the emulator' && while adb get-state >/dev/null 2>&1; do sleep 5; done" ;;
   *) echo "usage: scripts/native-test.sh [linux|linux-connected|android|android-ui]" >&2; exit 2 ;;
 esac
