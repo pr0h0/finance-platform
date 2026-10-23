@@ -30,6 +30,24 @@ fn show_main(app: &tauri::AppHandle) {
 #[cfg(desktop)]
 const QUICK_ADD_SHORTCUT: &str = "CommandOrControl+Shift+E";
 
+/// Polls the test server for an expression, evaluates it, posts the result back. Short polls: a
+/// response held open for seconds never reaches the page in WKWebView.
+#[cfg(debug_assertions)]
+const DRIVER: &str = r#"async (u) => {
+  if (window.__finplatDriver) return;
+  window.__finplatDriver = true;
+  for (;;) {
+    try {
+      const r = await fetch(u + '/next');
+      if (r.status !== 200) { await new Promise((r) => setTimeout(r, 100)); continue; }
+      const { id, expr } = await r.json();
+      let body;
+      try { body = { id, value: await (0, eval)(expr) }; } catch (e) { body = { id, error: String(e && e.stack || e) }; }
+      await fetch(u + '/result', { method: 'POST', body: JSON.stringify(body) });
+    } catch { await new Promise((r) => setTimeout(r, 500)); }
+  }
+}"#;
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let mut builder = tauri::Builder::default();
@@ -65,6 +83,16 @@ pub fn run() {
         // where the user picked in the dialog (no static fs scope in capabilities).
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
+        .on_page_load(|_webview, _payload| {
+            // Debug builds only: tests/native/apple-smoke.ts drives the app through a local test
+            // server (macOS and the iOS simulator have no WebDriver/CDP for WKWebView).
+            #[cfg(debug_assertions)]
+            if _payload.event() == tauri::webview::PageLoadEvent::Finished {
+                if let Ok(url) = std::env::var("FINPLAT_DRIVER") {
+                    let _ = _webview.eval(format!("({DRIVER})({url:?})"));
+                }
+            }
+        })
         .manage(store::Stores::default())
         .invoke_handler(tauri::generate_handler![
             store::store_load,
