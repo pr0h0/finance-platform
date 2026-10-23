@@ -6,6 +6,7 @@
 //   - auth: a bearer token for this device (native devices get one at sign-in), not a cookie;
 //   - no service worker / Web Push / passkeys (WebAuthn is bound to the server's web origin).
 import { MemoryStore, type StoreCommit, type StorePersistence } from '@finplat/storage';
+import { type Secrets, withSecretRows } from './secret-rows.ts';
 
 export const isNative = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 
@@ -251,8 +252,19 @@ export function sqlitePersistence(name: string): StorePersistence {
   };
 }
 
-/** The LocalStore of the native app for one store name (local mode or one server cache). */
-export const nativeStore = (name: string) => new MemoryStore(undefined, sqlitePersistence(name));
+const keychainSecrets: Secrets = {
+  get: (key) => secret<string | null>('secret_get', { key }),
+  set: (key, value) => secret('secret_set', { key, value }),
+  delete: (key) => secret('secret_delete', { key }),
+};
+
+/** The LocalStore of the native app for one store name (local mode or one server cache). E2EE keys
+ * go to the OS credential store when there is one (secret-rows.ts). */
+export const nativeStore = (name: string) =>
+  new MemoryStore(
+    undefined,
+    withSecretRows(sqlitePersistence(name), keychain ? keychainSecrets : null, name),
+  );
 
 // ------------------------------------------------------------ desktop / mobile integration
 

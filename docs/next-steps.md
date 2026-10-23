@@ -14,9 +14,8 @@ Native, in order:
    camera, notifications, connected mode against fin.pr0h0.me).
 4. First release through `scripts/release.sh 0.2.0` (auto-update is built: docs/native/README.md
    "Auto-update"), then install it by hand once on each device; later versions update themselves.
-5. Desktop items of PLAN still open: E2EE keys in the OS keychain (the token already is), local MCP
-   bridge (131). Done: close-to-tray (Settings → General), automatic backups to a folder (Settings →
-   Backups & data).
+5. Desktop items of PLAN still open: local MCP bridge (131); Android Keystore for the token and E2EE
+   keys. Done: close-to-tray, automatic backups to a folder, E2EE keys in the OS keychain.
 6. Push notifications when the app is closed (FCM/APNs from the server's notification job).
 
 Web/backend, highest value next:

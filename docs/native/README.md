@@ -52,7 +52,10 @@ apps/web (React, unchanged pages)          apps/native/src-tauri (Rust)
   Service: `src-tauri/src/secret.rs`, keyring crate); `app/store.ts` keeps it out of localStorage and
   puts it back at start. Where there is no usable credential store (Android; a Linux session without
   GNOME Keyring/KWallet) it stays in the app's private settings (`connection.token`). Signing in again
-  from the "session ended" banner registers a new device and replaces the token.
+  from the "session ended" banner registers a new device and replaces the token. **E2EE keys** (the
+  device key pair and each profile keyring, meta rows `e2ee:*`) go to the same credential store:
+  `apps/web/src/platform/secret-rows.ts` wraps the SQLite persistence, keeps only a marker in SQLite
+  and moves older plaintext rows over on the next start. Without a credential store they stay in SQLite.
 - **Files.** Exports (CSV, PDF reports, charts), encrypted backups and attachment downloads go through
   one helper (`downloadBlob` in `apps/web/src/lib/format.ts`): a browser download on the web, the
   **OS save dialog** in the app (`tauri-plugin-dialog`; `tauri-plugin-fs` may write only the path the
@@ -353,9 +356,8 @@ GitHub, and installing an update on each OS. Apps installed before 0.2.0 have no
 ## Open items (native)
 
 - Push notifications while the app is closed (FCM / APNs via the server's notification job).
-- E2EE profile keys in the OS credential store too (today in the app's SQLite, like on the web in
-  IndexedDB), and the bearer token on Android in the Android Keystore (a small Kotlin plugin; the
-  keyring crate has no Android backend).
+- Android: the bearer token and E2EE keys in the Android Keystore (a small Kotlin plugin; the keyring
+  crate has no Android backend). Desktop and iOS keep both in the OS credential store.
 - Local MCP server for desktop (PLAN feature 131).
 - Code signing of the Windows/macOS bundles (the auto-update signature is separate and done).
 - Android: share a statement/receipt from another app into Finance Platform (share target).
