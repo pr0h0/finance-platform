@@ -2,15 +2,7 @@
   "$schema": "../gen/schemas/mobile-schema.json",
   "identifier": "mobile",
   "description": "Phones: biometric unlock; leaving the app with the Android back button",
-  "windows": [
-    "main"
-  ],
-  "platforms": [
-    "android",
-    "iOS"
-  ],
-  "permissions": [
-    "biometric:default",
-    "core:app:allow-exit"
-  ]
+  "windows": ["main"],
+  "platforms": ["android", "iOS"],
+  "permissions": ["biometric:default", "core:app:allow-exit"]
 }
