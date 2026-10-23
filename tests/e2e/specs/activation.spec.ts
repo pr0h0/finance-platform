@@ -90,6 +90,51 @@ test('activate a local profile: dedupe preview, merge, upload, verify, connected
   await expect(page.getByRole('row', { name: /Local groceries/ })).toBeVisible();
 });
 
+test('connect a device with local data to an account that has data: nothing uploaded by default', async ({
+  page,
+}) => {
+  await onboardLocal(page, [{ name: 'Test wallet', type: 'cash', opening: '5.00' }]);
+  const email = uniqueEmail('connect-only');
+  // the account already has its own profile (another id: made on another device)
+  const statuses = await page.evaluate(
+    async ({ email, password }) => {
+      const post = (u: string, body: unknown, h: Record<string, string> = {}) =>
+        fetch(u, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...h },
+          body: JSON.stringify(body),
+        });
+      const reg = await post('/api/v1/auth/register', { email, password });
+      const login = await post('/api/v1/auth/login', { email, password });
+      const csrf = (await login.json()).csrfToken as string;
+      const prof = await post(
+        '/api/v1/profiles',
+        { name: 'From server', baseCurrency: 'BAM' },
+        { 'X-CSRF-Token': csrf },
+      );
+      return [reg.status, prof.status];
+    },
+    { email, password: PASSWORD },
+  );
+  expect(statuses).toEqual([201, 201]);
+
+  await startActivation(page, email, false);
+  const local = page.getByRole('checkbox', { name: /Personal/ });
+  await expect(local).not.toBeChecked();
+  await page.getByRole('button', { name: 'Connect without uploading' }).click();
+  await expect(page.getByText('Connected').first()).toBeVisible();
+  await expect(page.getByText('From server').first()).toBeVisible();
+  const accounts = await page.evaluate(async () => {
+    const profiles = (await (await fetch('/api/v1/profiles')).json()).items as { id: string }[];
+    return (
+      await (
+        await fetch('/api/v1/accounts', { headers: { 'X-Profile-ID': profiles[0].id } })
+      ).json()
+    ).items.length;
+  });
+  expect(accounts).toBe(0); // the local "Test wallet" was not uploaded
+});
+
 test('E2EE profile: encrypt on device A, enroll and decrypt on B (passphrase) and C (recovery code)', async ({
   browser,
 }) => {

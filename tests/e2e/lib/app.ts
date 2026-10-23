@@ -221,7 +221,7 @@ export async function startActivation(page: Page, email: string, register = true
   await panel
     .getByRole('button', { name: register ? 'Create account' : 'Sign in', exact: true })
     .click();
-  await expect(page.getByRole('button', { name: 'Preview upload' })).toBeVisible();
+  await expect(page.getByRole('group', { name: 'Profiles to synchronize' })).toBeVisible();
 }
 
 /** Profile currently selected in the app (persisted app state). */

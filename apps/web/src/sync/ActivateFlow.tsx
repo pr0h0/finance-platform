@@ -181,7 +181,14 @@ export function ActivateFlow({ onCancel }: { onCancel: () => void }) {
       {step === 'auth' && server && (
         <AuthStep
           server={server}
-          onSignedIn={(s) => {
+          onSignedIn={async (s) => {
+            // An account that already has data: upload nothing new by default (only profiles that
+            // already exist there), so connecting a device with test/local data does not push it.
+            const remote = await s.api.listProfiles().catch(() => []);
+            if (remote.length)
+              setSelected(
+                new Set(profiles.filter((p) => remote.some((r) => r.id === p.id)).map((p) => p.id)),
+              );
             setSigned(s);
             setStep('choose');
           }}
@@ -249,15 +256,28 @@ export function ActivateFlow({ onCancel }: { onCancel: () => void }) {
               </div>
             )}
           </div>
-          <Button
-            variant="primary"
-            className="self-start justify-self-start"
-            busy={busy}
-            disabled={selected.size === 0}
-            onClick={prepare}
-          >
-            {t('activate.preview', 'Preview upload')}
-          </Button>
+          {selected.size ? (
+            <Button
+              variant="primary"
+              className="self-start justify-self-start"
+              busy={busy}
+              onClick={prepare}
+            >
+              {t('activate.preview', 'Preview upload')}
+            </Button>
+          ) : (
+            <>
+              <p className="text-sm text-muted">
+                {t(
+                  'activate.noUpload',
+                  'Nothing is uploaded: this device shows the profiles already on the server, and its local profiles stay here, hidden while connected.',
+                )}
+              </p>
+              <Button variant="primary" className="self-start justify-self-start" onClick={finish}>
+                {t('activate.connectOnly', 'Connect without uploading')}
+              </Button>
+            </>
+          )}
         </>
       )}
       {step === 'preview' && (

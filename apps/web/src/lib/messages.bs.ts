@@ -143,6 +143,9 @@ export const bs: Record<string, string> = {
   'e2ee.limits':
     'Ključevi se čuvaju u pohrani ovog preglednika, ne u hardverskom spremištu ključeva. Ako izgubite lozinku, kod za oporavak i sve prijavljene uređaje, podaci se ne mogu povratiti.',
   'activate.preview': 'Pregled slanja',
+  'activate.noUpload':
+    'Ništa se ne šalje: ovaj uređaj prikazuje profile koji su već na serveru, a njegovi lokalni profili ostaju ovdje, skriveni dok ste povezani.',
+  'activate.connectOnly': 'Poveži bez slanja',
   'activate.entity': 'Zapisi',
   'activate.upload': 'Za slanje',
   'activate.onServer': 'Već na serveru',
