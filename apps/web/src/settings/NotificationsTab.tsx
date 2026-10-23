@@ -236,33 +236,35 @@ export function NotificationsTab() {
       </Card>
 
       <Card title={t('notif.types', 'What to send')}>
-        <table className={tableClass}>
-          <thead>
-            <tr>
-              <th className="text-left">{t('notif.type', 'Type')}</th>
-              <th>{t('notif.emailShort', 'Email')}</th>
-              <th>{t('notif.pushShort', 'Push')}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {TYPES.map((k) => (
-              <tr key={k}>
-                <td>{label[k]}</td>
-                {(['email', 'push'] as const).map((ch) => (
-                  <td key={ch} className="text-center">
-                    <Checkbox
-                      className="justify-center"
-                      label={<span className="sr-only">{`${label[k]} — ${ch}`}</span>}
-                      checked={form[ch][k]}
-                      disabled={!form[ch].enabled}
-                      onChange={(e) => set(ch, k, e.target.checked)}
-                    />
-                  </td>
-                ))}
+        <div className="overflow-x-auto">
+          <table className={tableClass}>
+            <thead>
+              <tr>
+                <th className="text-left">{t('notif.type', 'Type')}</th>
+                <th>{t('notif.emailShort', 'Email')}</th>
+                <th>{t('notif.pushShort', 'Push')}</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {TYPES.map((k) => (
+                <tr key={k}>
+                  <td>{label[k]}</td>
+                  {(['email', 'push'] as const).map((ch) => (
+                    <td key={ch} className="text-center">
+                      <Checkbox
+                        className="justify-center"
+                        label={<span className="sr-only">{`${label[k]} — ${ch}`}</span>}
+                        checked={form[ch][k]}
+                        disabled={!form[ch].enabled}
+                        onChange={(e) => set(ch, k, e.target.checked)}
+                      />
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
         <p className="mt-2 text-xs text-muted">
           {t(
             'notif.inAppAlways',

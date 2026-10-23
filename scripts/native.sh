@@ -15,6 +15,7 @@ if [ -n "${REBUILD_IMAGE:-}" ] || ! dockerx image inspect "$image" >/dev/null 2>
   dockerx build -f "$FINPLAT_ROOT/infrastructure/docker/tauri.Dockerfile" --target "$target" -t "$image" \
     "$FINPLAT_ROOT/infrastructure/docker"
 fi
+# ANDROID_USER_HOME holds the debug keystore: kept in a volume so debug APKs update each other.
 finplat_prepare_volumes finplat_cargo finplat_cargo_target finplat_bun finplat_gradle
 tty=(); [ -t 0 ] && tty=(-it)
 run() {
@@ -22,6 +23,7 @@ run() {
     -v "$FINPLAT_ROOT:/repo" -w /repo/apps/native -e HOME=/tmp \
     -v finplat_cargo:/cache/cargo -v finplat_cargo_target:/cache/target -v finplat_gradle:/cache/gradle \
     -v finplat_bun:/cache/bun -e BUN_INSTALL_CACHE_DIR=/cache/bun -e CI=true \
+    -e ANDROID_USER_HOME=/cache/gradle/android-user \
     ${ANDROID_KEYSTORE_PROPERTIES:+-e ANDROID_KEYSTORE_PROPERTIES} \
     "$image" "$@"
 }

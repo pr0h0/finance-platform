@@ -684,24 +684,26 @@ function Accounts() {
       }
     >
       {list.length > 0 && (
-        <table className={cx(tableClass, 'mb-4')}>
-          <thead>
-            <tr>
-              <th>{t('account.name', 'Name')}</th>
-              <th>{t('account.type', 'Type')}</th>
-              <th>{t('account.currency', 'Currency')}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {list.map((a) => (
-              <tr key={a.id}>
-                <td>{a.name}</td>
-                <td>{t(`accountType.${a.accountType}`, a.accountType)}</td>
-                <td>{a.currency}</td>
+        <div className="overflow-x-auto">
+          <table className={cx(tableClass, 'mb-4')}>
+            <thead>
+              <tr>
+                <th>{t('account.name', 'Name')}</th>
+                <th>{t('account.type', 'Type')}</th>
+                <th>{t('account.currency', 'Currency')}</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {list.map((a) => (
+                <tr key={a.id}>
+                  <td>{a.name}</td>
+                  <td>{t(`accountType.${a.accountType}`, a.accountType)}</td>
+                  <td>{a.currency}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
       <form onSubmit={submit} className="grid gap-3 sm:grid-cols-2">
         <Field label={t('account.name', 'Name')} className="sm:col-span-2">

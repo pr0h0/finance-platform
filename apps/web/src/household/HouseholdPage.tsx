@@ -332,53 +332,55 @@ function SharedProfile({ households }: { households: Household[] }) {
         </p>
       )}
       {(members.data?.length ?? 0) > 0 && (
-        <table className={`${tableClass} mt-2`}>
-          <thead>
-            <tr>
-              <th>{t('household.member', 'Member')}</th>
-              <th>{t('household.profileRole', 'Profile role')}</th>
-              <th>
-                <span className="sr-only">{t('common.actions', 'Actions')}</span>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {members.data?.map((m) => (
-              <tr key={m.userId}>
-                <td>{m.email}</td>
-                <td>
-                  {isOwner && m.userId ? (
-                    <Select
-                      aria-label={t('household.profileRole', 'Profile role')}
-                      className="h-8 w-32"
-                      value={m.role}
-                      onChange={(e) =>
-                        setRole.mutate({ userId: m.userId as string, role: e.target.value })
-                      }
-                    >
-                      {PROLES.map((r) => (
-                        <option key={r}>{r}</option>
-                      ))}
-                    </Select>
-                  ) : (
-                    m.role
-                  )}
-                </td>
-                <td className="text-right">
-                  {isOwner && m.role !== 'owner' && m.userId && (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => remove.mutate(m.userId as string)}
-                    >
-                      {t('household.remove', 'Remove')}
-                    </Button>
-                  )}
-                </td>
+        <div className="overflow-x-auto">
+          <table className={`${tableClass} mt-2`}>
+            <thead>
+              <tr>
+                <th>{t('household.member', 'Member')}</th>
+                <th>{t('household.profileRole', 'Profile role')}</th>
+                <th>
+                  <span className="sr-only">{t('common.actions', 'Actions')}</span>
+                </th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {members.data?.map((m) => (
+                <tr key={m.userId}>
+                  <td>{m.email}</td>
+                  <td>
+                    {isOwner && m.userId ? (
+                      <Select
+                        aria-label={t('household.profileRole', 'Profile role')}
+                        className="h-8 w-32"
+                        value={m.role}
+                        onChange={(e) =>
+                          setRole.mutate({ userId: m.userId as string, role: e.target.value })
+                        }
+                      >
+                        {PROLES.map((r) => (
+                          <option key={r}>{r}</option>
+                        ))}
+                      </Select>
+                    ) : (
+                      m.role
+                    )}
+                  </td>
+                  <td className="text-right">
+                    {isOwner && m.role !== 'owner' && m.userId && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => remove.mutate(m.userId as string)}
+                      >
+                        {t('household.remove', 'Remove')}
+                      </Button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
       {isOwner && household && candidates.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-2">
