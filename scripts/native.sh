@@ -34,7 +34,7 @@ case "$cmd" in
       android)
         # gen/android is created once by `tauri android init` and committed. (One-line scripts: the
         # `sg docker` fallback in _docker.sh cannot pass newlines.)
-        run bash -c 'bun install --frozen-lockfile >/dev/null && { [ -d src-tauri/gen/android ] || bunx tauri android init --ci; } && bunx tauri android build --apk --split-per-abi "$@" && bunx tauri android build --aab "$@" && mkdir -p dist/android && find src-tauri/gen/android/app/build/outputs \( -name "*.apk" -o -name "*.aab" \) -exec cp {} dist/android/ \;' _ "$@" ;;
+        run bash -c 'bun install --frozen-lockfile >/dev/null && { [ -d src-tauri/gen/android ] || bunx tauri android init --ci; } && bunx tauri android build --apk --split-per-abi "$@" && bunx tauri android build --aab "$@" && rm -rf dist/android && mkdir -p dist/android && find src-tauri/gen/android/app/build/outputs \( -name "*.apk" -o -name "*.aab" \) -exec cp {} dist/android/ \;' _ "$@" ;;
     esac ;;
   run) run "$@" ;;
   *) echo "unknown command $cmd" >&2; exit 2 ;;

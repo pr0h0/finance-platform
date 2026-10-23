@@ -90,6 +90,7 @@ class WebView {
   }
 
   async until(expr: string, what: string, timeoutMs = 30_000) {
+    if (process.env.DEBUG) console.log(`  waiting for ${what}`);
     const end = Date.now() + timeoutMs;
     while (!(await this.eval<boolean>(`!!(${expr})`))) {
       if (Date.now() > end) throw new Error(`timed out waiting for ${what}`);
@@ -201,5 +202,19 @@ check(
 );
 await sleep(1500);
 shot('android-2-after-restart');
+
+// Android back button: back inside the app (not closing it)
+await b.eval(
+  `[...document.querySelectorAll('nav a')].find((l) => norm(l.textContent) === 'Transactions').click()`,
+);
+await b.heading('Transactions');
 b.close();
+sh('adb shell input keyevent KEYCODE_BACK');
+await sleep(2000);
+shot('android-3-after-back');
+check(sh(`adb shell pidof ${PKG} || true`), 'back button keeps the app open');
+const c = await WebView.attach();
+await c.heading('Dashboard');
+check(true, 'back button goes back inside the app (Transactions -> Dashboard)');
+c.close();
 console.log('android smoke test passed');

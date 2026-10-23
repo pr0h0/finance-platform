@@ -27,6 +27,7 @@ export async function initNative(): Promise<void> {
     ? (p as NativePlatform)
     : 'other';
   document.documentElement.dataset.platform = platform;
+  if (platform === 'android') await handleAndroidBack();
   // Links to other sites open in the system browser: inside the app window they would replace the app.
   document.addEventListener(
     'click',
@@ -55,6 +56,31 @@ export const isMobileNative = () => platform === 'android' || platform === 'ios'
 /** fetch for the API: Rust-side HTTP in the native app, the browser's fetch on the web. */
 export const appFetch = ((input: RequestInfo | URL, init?: RequestInit) =>
   (httpFetch ?? fetch)(input, init)) as typeof fetch;
+
+/** Android back button / gesture. The WebView does not treat the app's own page changes as history
+ * (back would close the app), so: close an open dialog or drawer, else go back in the app's
+ * history, else go to the dashboard, and only there leave the app. */
+async function handleAndroidBack() {
+  const { onBackButtonPress, exit } = await import('@tauri-apps/api/app');
+  await onBackButtonPress(() => {
+    const dialog = document.querySelector<HTMLDialogElement>('dialog[open]');
+    if (dialog) {
+      dialog.dispatchEvent(new Event('cancel')); // the app's <dialog> closes on cancel
+      return;
+    }
+    if (document.querySelector('[role="dialog"]')) {
+      // Radix dialogs, menus and the navigation drawer close on Escape
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      return;
+    }
+    const idx = (history.state as { idx?: number } | null)?.idx ?? 0; // react-router's history index
+    if (idx > 0) history.back();
+    else if (location.pathname !== '/') {
+      history.replaceState(history.state, '', '/');
+      dispatchEvent(new PopStateEvent('popstate', { state: history.state }));
+    } else void exit(0);
+  });
+}
 
 // ------------------------------------------------------------ storage
 
