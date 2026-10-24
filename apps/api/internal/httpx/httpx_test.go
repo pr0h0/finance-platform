@@ -35,6 +35,33 @@ func TestErrorFormat(t *testing.T) {
 	}
 }
 
+// Common validator messages get a translatable code (details.fieldCodes); bespoke ones do not.
+func TestValidationFieldCodes(t *testing.T) {
+	rr := httptest.NewRecorder()
+	httpx.WriteError(rr, httptest.NewRequest("GET", "/", nil), httpx.Validation(map[string]string{
+		"amount": "must be positive", "name": "required, at most 200 characters", "kind": "income, expense or transfer",
+		"date": "expected YYYY-MM-DD", "note": "use either categoryId or splits"}))
+	var body struct {
+		Error struct {
+			Details struct {
+				Fields     map[string]string
+				FieldCodes map[string]httpx.FieldCode
+			}
+		}
+	}
+	if err := json.Unmarshal(rr.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	c := body.Error.Details.FieldCodes
+	if c["amount"].Code != "positive" || c["name"].Code != "required_max_length" || c["name"].Params["max"] != "200" ||
+		c["kind"].Code != "one_of" || c["kind"].Params["options"] != "income, expense, transfer" || c["date"].Code != "invalid_date" {
+		t.Fatalf("codes: %+v", c)
+	}
+	if _, ok := c["note"]; ok || body.Error.Details.Fields["note"] == "" {
+		t.Fatalf("bespoke message must keep only the text: %s", rr.Body)
+	}
+}
+
 func TestDecodeJSONRejectsUnknownAndOversize(t *testing.T) {
 	var v struct{ A int }
 	r := httptest.NewRequest("POST", "/", strings.NewReader(`{"A":1,"B":2}`))

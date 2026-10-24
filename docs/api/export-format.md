@@ -6,7 +6,7 @@
 ```jsonc
 {
   "format": "finplat-export",
-  "formatVersion": 1,
+  "formatVersion": 2,                   // 2 added "files"; version 1 documents are still restored
   "schemaVersion": 20261021120000,      // highest migration applied on the exporting server
   "exportedAt": "2026-10-21T12:00:00Z",
   "profile": { "id": "…", "name": "Personal", "base_currency": "BAM", … },   // profiles row
@@ -17,13 +17,24 @@
   },
   "snapshots": [                        // latest synced API state per entity (sync_changes)
     { "entityType": "transactions", "entityId": "…", "serverVersion": 42, "data": { … } }
+  ],
+  "files": [                            // content of every live (not deleted) attachment row
+    { "attachmentId": "…", "mimeType": "image/jpeg", "sha256": "<hex of the content>", "data": "<base64>" }
   ]
 }
 ```
 
 - Money columns are decimal strings/numbers exactly as stored (`NUMERIC`), never floats in the source.
 - Not included: audit history, sync bookkeeping (operations, checkpoints, conflicts), MCP grants, E2EE key
-  envelopes, sessions, attachment **file contents** (attachment metadata rows are included).
+  envelopes, sessions.
+- Attachment contents are in `files` (plaintext, server-side `ATTACHMENT_ENCRYPTION_KEY` undone). E2EE profiles
+  have no contents on the server (they stay on devices and in the client's encrypted backup), so `files` is
+  empty; an attachment row whose content is missing on the server is exported without a file.
+- Size: the export is built in memory (contents plus their base64), so it is about 1.4x the attachments'
+  total size; a restore upload is limited by `MAX_UPLOAD_BYTES` (default 25 MiB) — raise it on the target
+  server when migrating a profile with many attachments.
+- The web app's "Export from this device" writes the same envelope (`source: "device"`, tables keyed by the
+  device's table names with camelCase fields) with `files` for the attachments stored on that device.
 - The export is read in one REPEATABLE READ snapshot, so it is internally consistent.
 
 ## Server backups
@@ -44,6 +55,11 @@
   profile you own that has no data (a pre-restore backup of it is taken first);
 - every row gets a **new id** (all references, including ids inside JSON columns and snapshots, are remapped),
   so a backup can be restored next to its original or on a different server;
+- each file is checked against its `sha256` (and the row's) and written to the attachment storage under the
+  new profile/attachment id (encrypted at rest when the target has `ATTACHMENT_ENCRYPTION_KEY`; type re-sniffed
+  against the upload allowlist); a mismatch refuses the restore (`422`). Rows without a file (version 1
+  documents) get a **copy** of the original's content (never a shared key) when that attachment still exists on
+  this server in a profile the restoring user is a member of; otherwise they keep metadata only;
 - users referenced by the backup that do not exist on this server are replaced by the restoring user;
 - the sync log is rebuilt from the snapshots (`changes.Record`), so connected devices download the profile;
 - a backup from a newer schema is refused (`409 backup_newer_than_server`).

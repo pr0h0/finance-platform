@@ -94,7 +94,7 @@ class Meta {
   }
 }
 
-const invalid = (field: string, msg: string) =>
+export const invalid = (field: string, msg: string) =>
   new ToolError('validation_failed', 'request validation failed', { fields: { [field]: msg } });
 const zero = (cur: string) => fromMinor(0n, cur);
 
@@ -104,14 +104,14 @@ type ReadName = Exclude<
 >;
 type In<N extends ReadName> = z.output<(typeof TOOLS)[N]['input']>;
 
-interface Env {
+export interface Env {
   ctx: ToolContext;
   profile: D.Profile;
   ops: FinanceOps;
   today: string;
 }
 
-async function env(ctx: ToolContext, profileId?: string): Promise<Env> {
+export async function env(ctx: ToolContext, profileId?: string): Promise<Env> {
   let profile = ctx.profile;
   if (profileId && profileId !== ctx.profile.id) {
     const p = (await ctx.ds.listProfiles()).find((x) => x.id === profileId);
@@ -122,7 +122,11 @@ async function env(ctx: ToolContext, profileId?: string): Promise<Env> {
 }
 
 /** The profile owning an entity (Go entityProfile): every local profile is "granted". */
-async function owner(ctx: ToolContext, what: string, find: (ops: FinanceOps) => Promise<unknown>) {
+export async function owner(
+  ctx: ToolContext,
+  what: string,
+  find: (ops: FinanceOps) => Promise<unknown>,
+) {
   const profiles = await ctx.ds.listProfiles();
   for (const p of [ctx.profile, ...profiles.filter((x) => x.id !== ctx.profile.id)]) {
     const e = await env(ctx, p.id);
@@ -951,6 +955,25 @@ const tools: { [N in ReadName]: (ctx: ToolContext, a: In<N>) => Promise<unknown>
   },
 };
 
+/** A ServiceError (code/message/details) as a ToolError; anything else unchanged. */
+export function toToolError(err: unknown): unknown {
+  if (err instanceof ToolError) return err;
+  const se = err as { code?: unknown; message?: string; details?: unknown };
+  return typeof se?.code === 'string'
+    ? new ToolError(se.code, se.message ?? se.code, se.details)
+    : err;
+}
+
+/** Strict zod parse of tool arguments (unknown fields are rejected, like the server's
+ * DisallowUnknownFields); errors are validation_failed with field paths. */
+export function parseArgs<S extends z.ZodType>(schema: S, args: unknown): z.output<S> {
+  const parsed = (schema instanceof z.ZodObject ? schema.strict() : schema).safeParse(args ?? {});
+  if (parsed.success) return parsed.data as z.output<S>;
+  const fields: Record<string, string> = {};
+  for (const i of parsed.error.issues) fields[i.path.join('.') || 'arguments'] = i.message;
+  throw new ToolError('validation_failed', 'request validation failed', { fields });
+}
+
 /** Run one read tool on local data. Errors are ToolError (code like the server's error codes). */
 export async function callReadTool(
   ctx: ToolContext,
@@ -959,23 +982,12 @@ export async function callReadTool(
 ): Promise<unknown> {
   const fn = Object.hasOwn(tools, name) ? tools[name as ReadName] : undefined;
   if (!fn) throw new ToolError('unknown_tool', `no such tool: ${name}`);
-  const schema = TOOLS[name as ReadName].input;
-  // unknown fields are rejected, like the server's DisallowUnknownFields
-  const parsed = (schema instanceof z.ZodObject ? schema.strict() : schema).safeParse(args ?? {});
-  if (!parsed.success) {
-    const fields: Record<string, string> = {};
-    for (const i of parsed.error.issues) fields[i.path.join('.') || 'arguments'] = i.message;
-    throw new ToolError('validation_failed', 'request validation failed', { fields });
-  }
+  const data = parseArgs(TOOLS[name as ReadName].input, args);
   let res: unknown;
   try {
-    res = await (fn as (c: ToolContext, a: unknown) => Promise<unknown>)(ctx, parsed.data);
+    res = await (fn as (c: ToolContext, a: unknown) => Promise<unknown>)(ctx, data);
   } catch (err) {
-    if (err instanceof ToolError) throw err;
-    const se = err as { code?: unknown; message?: string; details?: unknown };
-    if (typeof se.code === 'string')
-      throw new ToolError(se.code, se.message ?? se.code, se.details);
-    throw err;
+    throw toToolError(err);
   }
   const payload = res instanceof FileResult ? res.result : res;
   const size = new TextEncoder().encode(JSON.stringify(payload)).length;

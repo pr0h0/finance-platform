@@ -423,8 +423,12 @@ export interface Notification {
   profileId: Uuid | null;
   kind: string;
   severity: E.NotificationSeverity;
+  /** Fallback text (server: the user's locale when created; local: the UI language). */
   title: string;
   body: string;
+  /** Server notifications: stable text code; UIs render notification.<code>.title/body with params. */
+  code?: string | null;
+  params?: Record<string, string | number | Money>;
   data: Record<string, unknown>;
   readAt: IsoInstant | null;
   createdAt: IsoInstant;

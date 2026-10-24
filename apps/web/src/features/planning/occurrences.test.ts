@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test';
 import { m, seed } from '../analytics/fixture.test-util.ts';
-import { annualPlan, commitments, occurrenceRows } from './occurrences.ts';
+import { annualPlan, commitments, occurrenceRows, planBudget } from './occurrences.ts';
 
 test('occurrence rows include resolved ones; commitments count pending only', async () => {
   const f = await seed();
@@ -34,4 +34,27 @@ test('occurrence rows include resolved ones; commitments count pending only', as
   expect(a.items.map((i) => i.plan.description)).toEqual(['Insurance']);
   expect(a.months[0]?.smoothed.amount).toBe('50.00');
   expect(a.months.find((x) => x.month === '2026-06')?.expense.amount).toBe('1500.00');
+
+  // Rent and Insurance have no category: left out of the budget from plans.
+  expect(planBudget(s)).toEqual({ allocations: [], skipped: 2 });
+});
+
+test('budget from plans: monthly equivalent per category, one-offs spread over 12 months', async () => {
+  const f = await seed();
+  const plan = (description: string, amount: string, dueDate: string, rrule?: string) =>
+    f.ops.create('planned_transactions', {
+      kind: 'expense',
+      accountId: f.checking.id,
+      categoryId: f.food.id,
+      description,
+      amount: m(amount),
+      dueDate,
+      ...(rrule ? { recurrence: { rrule } } : {}),
+    });
+  await plan('Groceries', '100.00', '2026-04-05', 'FREQ=MONTHLY');
+  await plan('Wine club', '1200.00', '2026-09-01', 'FREQ=YEARLY');
+  await plan('Party', '60.00', '2026-12-20');
+  await plan('Long ago', '999.00', '2025-01-01');
+  const b = planBudget(await f.snap('2026-03-31'));
+  expect(b).toEqual({ allocations: [{ categoryId: f.food.id, amount: m('205.00') }], skipped: 0 });
 });

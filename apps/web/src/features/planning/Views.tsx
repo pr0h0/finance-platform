@@ -10,15 +10,32 @@ import {
   toMinor,
 } from '@finplat/finance-engine';
 import { intlLocale } from '@finplat/localization';
+import { useState } from 'react';
 import { useFormat } from '../../lib/format.ts';
 import { useT } from '../../lib/i18n.ts';
 import { ChartFrame, MoneyChart } from '../analytics/chart.tsx';
 import { plannedVsActual } from '../analytics/compute.ts';
 import { useOpsMutation } from '../analytics/hooks.ts';
 import type { Snapshot } from '../analytics/snapshot.ts';
-import { Amount, Button, Card, DataBanner, Empty, ProgressBar, SERIES } from '../analytics/ui.tsx';
+import {
+  Amount,
+  Button,
+  Card,
+  DataBanner,
+  Dialog,
+  Empty,
+  ProgressBar,
+  SERIES,
+} from '../analytics/ui.tsx';
+import { BudgetEditor } from '../budgets/BudgetEditor.tsx';
 import { CONFIDENCE_LABEL, PRIORITY_LABEL } from './labels.ts';
-import { annualPlan, installments, matchSuggestions, type OccRow } from './occurrences.ts';
+import {
+  annualPlan,
+  installments,
+  matchSuggestions,
+  type OccRow,
+  planBudget,
+} from './occurrences.ts';
 
 const tone = (r: OccRow) =>
   r.status !== 'pending'
@@ -276,8 +293,40 @@ export function AnnualPlanCard({ snap }: { snap: Snapshot }) {
   const t = useT();
   const f = useFormat();
   const a = annualPlan(snap);
+  const [budget, setBudget] = useState<ReturnType<typeof planBudget> | null>(null);
   return (
-    <Card title={t('planning.views.annualPlanNext12', 'Annual plan (next 12 months)')}>
+    <Card
+      title={t('planning.views.annualPlanNext12', 'Annual plan (next 12 months)')}
+      actions={
+        <Button onClick={() => setBudget(planBudget(snap))}>
+          {t('planning.views.budgetFromPlans', 'Create budget from plans')}
+        </Button>
+      }
+    >
+      <Dialog
+        open={!!budget}
+        onClose={() => setBudget(null)}
+        title={t('planning.views.budgetFromPlans', 'Create budget from plans')}
+      >
+        {budget && (
+          <>
+            <p className="mb-3 text-sm text-muted">
+              {t(
+                'planning.views.budgetFromPlansHint',
+                'Monthly limits per category from your planned expenses (yearly and one-off ones spread over 12 months). Check them before saving.',
+              )}
+              {budget.skipped > 0 &&
+                ` ${t('planning.views.budgetFromPlansSkipped', '{{n}} plans without a category or exchange rate are left out.', { n: budget.skipped })}`}
+            </p>
+            <BudgetEditor
+              snap={snap}
+              prefill={{ name: t('planning.views.plannedExpensesBudget', 'Planned expenses') }}
+              allocations={budget.allocations}
+              onDone={() => setBudget(null)}
+            />
+          </>
+        )}
+      </Dialog>
       <ChartFrame
         name="annual-plan"
         table={
@@ -343,7 +392,7 @@ export function AnnualPlanCard({ snap }: { snap: Snapshot }) {
               'Non-monthly expenses smoothed into a monthly set-aside of',
             )}{' '}
             <Amount value={a.months[0]?.smoothed} />{' '}
-            {t('planning.views.notAddedToBudgets', '(not added to budgets automatically):')}
+            {t('planning.views.inBudgetFromPlans', '(included by “Create budget from plans”):')}
           </p>
           <ul className="space-y-0.5">
             {a.items.map((i) => (

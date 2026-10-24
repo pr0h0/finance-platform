@@ -4,6 +4,7 @@ import {
   addDays,
   addMonths,
   annualize,
+  divRound,
   expandRecurrence,
   fromMinor,
   installmentProgress,
@@ -177,5 +178,38 @@ export function annualPlan(s: Snapshot) {
     })),
     items: smoothItems,
     complete,
+  };
+}
+
+/**
+ * Monthly budget limits from the plans (Annual plan → "Create budget from plans"): per category,
+ * the monthly equivalent of its active recurring expense plans plus one-off plans of the next 12
+ * months spread over 12 months, in the reporting currency. Plans without a category or rate are
+ * counted in `skipped`; the user reviews the limits in the budget editor before saving.
+ */
+export function planBudget(s: Snapshot) {
+  const start = startOfMonth(s.today);
+  const end = addDays(addMonths(start, 12), -1);
+  const sched = new Map(s.schedules.map((x) => [x.id, x]));
+  const annual = new Map<string, bigint>();
+  let skipped = 0;
+  for (const p of s.plans) {
+    if (p.kind !== 'expense' || p.status !== 'active') continue;
+    const sc = p.recurrenceId ? sched.get(p.recurrenceId) : undefined;
+    if (!sc && (p.dueDate < start || p.dueDate > end)) continue;
+    const yearly = sc ? annualize(p.amount, sc.rrule).annual : p.amount;
+    const conv = s.convert(yearly, s.today);
+    if (!p.categoryId || !conv) {
+      skipped++;
+      continue;
+    }
+    annual.set(p.categoryId, (annual.get(p.categoryId) ?? 0n) + toMinor(conv));
+  }
+  return {
+    allocations: [...annual].map(([categoryId, a]) => ({
+      categoryId,
+      amount: fromMinor(divRound(a, 12n, 'half_up'), s.currency),
+    })),
+    skipped,
   };
 }

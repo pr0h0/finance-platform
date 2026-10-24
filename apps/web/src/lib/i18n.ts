@@ -41,16 +41,51 @@ export function errorText(e: unknown, lang = useApp.getState().prefs.language): 
   const err = e as { code?: string; message?: string; status?: number; details?: unknown } | null;
   if (!err) return '';
   if (err.code) {
-    const fields = (err.details as { fields?: Record<string, string> } | undefined)?.fields;
+    const details = err.details as
+      | { fields?: Record<string, string>; fieldCodes?: Record<string, FieldCode> }
+      | undefined;
+    const fields = details?.fields;
     const base = errorMessage(err.code, lang, err.message ?? '');
     // App-side codes (import worker): translated by `error.<code>` with the thrown English as default.
     if (base === errorMessage('unknown', lang) && err.message)
       return messages[lang]?.[`error.${err.code}`] ?? err.message;
     if (fields && Object.keys(fields).length)
       return `${base} ${Object.entries(fields)
-        .map(([k, v]) => `${k}: ${v}`)
+        .map(([k, v]) => `${k}: ${fieldText(lang, v, details?.fieldCodes?.[k])}`)
         .join('; ')}`;
     return base;
   }
   return err.message ?? String(e);
+}
+
+type FieldCode = { code: string; params?: Record<string, string> };
+
+// API details.fieldCodes (apps/api/internal/httpx fieldRules); unknown codes keep the server's message.
+const FIELD_TEXT: Record<string, (t: TFn, p: Record<string, string>) => string> = {
+  required: (t) => t('error.field.required', 'required'),
+  required_max_length: (t, p) =>
+    t('error.field.required_max_length', 'required, at most {{max}} characters', p),
+  max_length: (t, p) => t('error.field.max_length', 'at most {{max}} characters', p),
+  length: (t, p) => t('error.field.length', '{{min}}-{{max}} characters', p),
+  too_long: (t) => t('error.field.too_long', 'too long'),
+  too_large: (t) => t('error.field.too_large', 'too large'),
+  invalid_id: (t) => t('error.field.invalid_id', 'invalid id'),
+  invalid_date: (t) => t('error.field.invalid_date', 'expected a date (YYYY-MM-DD)'),
+  unknown_currency: (t) => t('error.field.unknown_currency', 'unknown currency'),
+  positive: (t) => t('error.field.positive', 'must be positive'),
+  not_zero: (t) => t('error.field.not_zero', 'must not be zero'),
+  invalid_decimal: (t) => t('error.field.invalid_decimal', 'expected a number'),
+  invalid_email: (t) => t('error.field.invalid_email', 'invalid email address'),
+  unknown_reference: (t) => t('error.field.unknown_reference', 'not found'),
+  not_before: (t, p) => t('error.field.not_before', 'must not be before {{other}}', p),
+  future: (t) => t('error.field.future', 'must be in the future'),
+  max_days: (t, p) => t('error.field.max_days', 'range is limited to {{max}} days', p),
+  invalid_timezone: (t) => t('error.field.invalid_timezone', 'unknown time zone'),
+  invalid_locale: (t) => t('error.field.invalid_locale', 'invalid language'),
+  one_of: (t, p) => t('error.field.one_of', 'one of: {{options}}', p),
+};
+
+function fieldText(lang: string, message: string, c: FieldCode | undefined): string {
+  const f = c && FIELD_TEXT[c.code];
+  return f ? f((k, en, v) => translate(lang, k, en, v), c.params ?? {}) : message;
 }

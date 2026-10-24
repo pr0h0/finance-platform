@@ -1,6 +1,7 @@
 package notifications
 
 import (
+	"encoding/json"
 	"github.com/pr0h0/finance-platform/apps/api/internal/money"
 	"net/http"
 	"testing"
@@ -97,6 +98,31 @@ func TestGenerateBosnian(t *testing.T) {
 	}
 	if got["Kirija dospijeva sutra"] != "30,00 KM je zakazano za sutra." || got["Kasni: Telefon"] == "" {
 		t.Fatalf("bs notifications: %+v", got)
+	}
+	// Code + params let the web render them in the UI language, whatever users.locale was.
+	type params struct {
+		Name, Date string
+		Amount     struct{ Amount, Currency string }
+	}
+	codes := map[string]params{}
+	for _, x := range list.Items {
+		var p params
+		if x.Code != nil && json.Unmarshal(x.Params, &p) == nil {
+			codes[*x.Code] = p
+		}
+	}
+	due, late := codes["bill_due_tomorrow"], codes["bill_overdue"]
+	if due.Name != "Kirija" || due.Date != "2026-10-16" || due.Amount.Amount != "30.00" || due.Amount.Currency != "BAM" ||
+		late.Name != "Telefon" || late.Date != "2026-10-12" {
+		t.Fatalf("codes: %+v", codes)
+	}
+}
+
+func TestPercent(t *testing.T) {
+	for in, want := range map[string]string{"0.855": "86", "1": "100", "0.8": "80", "1.25": "125"} {
+		if got := percent(in); got != want {
+			t.Errorf("percent(%q) = %q, want %q", in, got, want)
+		}
 	}
 }
 

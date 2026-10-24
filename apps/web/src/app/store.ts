@@ -58,6 +58,8 @@ export interface AppState {
   lock: LockConfig | null;
   backup: BackupConfig;
   recent: Recent;
+  /** Desktop: the local MCP server also offers write tools (each change approved in the app). */
+  localMcpWrite: boolean;
   set: (patch: Partial<Omit<AppState, 'set' | 'setPrefs'>>) => void;
   setPrefs: (patch: Partial<Prefs>) => void;
 }
@@ -88,6 +90,7 @@ export const useApp = create<AppState>()(
       lock: null,
       backup: { intervalDays: 7, lastBackupAt: null },
       recent: {},
+      localMcpWrite: false,
       set: (patch) => set(patch),
       setPrefs: (patch) => set((s) => ({ prefs: { ...s.prefs, ...patch } })),
     }),

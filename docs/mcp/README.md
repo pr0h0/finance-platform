@@ -224,8 +224,9 @@ Tool failures are returned as MCP tool results with `isError: true` and
 
 ## Local MCP server (desktop app)
 
-The Linux, Windows and macOS apps answer the 19 read tools from the data on that computer (local
-profiles and connected-mode caches alike), without any server.
+The Linux, Windows and macOS apps answer the 19 read tools (and, if you allow it, the write tools with
+your approval per change) from the data on that computer (local profiles and connected-mode caches
+alike), without any server.
 
 1. Finance Platform → Settings → General → **Local MCP server** → tick *Allow AI apps on this computer
    to read my data*. The card then shows the exact command for this install.
@@ -251,7 +252,22 @@ database. `profileId` defaults to the profile open in the app.
 
 - The app must be running (the tray is enough) and unlocked; otherwise the relay or the request fails
   with a message saying so.
-- Read-only. Write tools / proposals run on the server's `/mcp` only.
+- Read-only by default. A second tick, *Also let AI apps propose changes (you approve each one)*
+  (off by default, stored per device), adds the 10 write tools (`update_transaction_category`,
+  `split_transaction`, `bulk_categorize_transactions`, `update_transaction_metadata`,
+  `create_planned_expense`, `update_planned_expense`, `create_budget`, `update_budget`,
+  `create_savings_goal`, `create_categorization_rule`) to `tools/list` (`apps/web/src/mcp/local-write.ts`).
+  Each call is validated like on the server (contract schema, unknown ids, exact split sums, one split
+  for categorize, allocation currency/duplicates, rrule), then the app comes to the front (OS
+  notification if it was not focused) and shows a before/after dialog; one dialog at a time, the rest
+  queue. **Approve** applies it through the normal data layer (synced like any edit) and the call
+  returns the server's applied-proposal shape `{proposalId, status: "applied", preview, result, meta}`;
+  **Reject** → error `rejected`; no answer within 5 minutes → `approval_timeout`. An edit made in the
+  app meanwhile → `conflict` (version check). Differences from the server: no proposals, so no
+  `preview_changes` / `apply_approved_changes`; `preview` has `summary` and `targets` but no dry-run
+  `after`; `bulk_categorize_transactions` writes one transaction at a time (all validated first);
+  `idempotencyKey` retries are remembered only until the app restarts; categorized splits are marked
+  `user`, not `mcp`.
 - No per-client tokens or grants: anything running as your OS user can use it while it is on (the same
   user could read the database file anyway). Turning it off closes the port and deletes `mcp.json`.
 - Calls are not audited (the server audits its `/mcp`).

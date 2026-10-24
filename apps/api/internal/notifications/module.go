@@ -42,6 +42,8 @@ type Notification struct {
 	Severity  string          `json:"severity"`
 	Title     string          `json:"title"`
 	Body      string          `json:"body"`
+	Code      *string         `json:"code"`   // stable text code (null on old rows): clients render notification.<code>.title/body
+	Params    json.RawMessage `json:"params"` // values for the text: strings, numbers, money {amount, currency}
 	Data      json.RawMessage `json:"data"`
 	ReadAt    *time.Time      `json:"readAt"`
 	CreatedAt time.Time       `json:"createdAt"`
@@ -68,7 +70,7 @@ func Register(r chi.Router, deps *app.Deps) {
 		if err := httpx.DecodeCursor(page.Cursor, &cur); err != nil {
 			return err
 		}
-		rows, err := db.Query(r.Context(), `SELECT n.id, n.profile_id, n.kind, n.severity, n.title, n.body, n.data, n.read_at, n.created_at
+		rows, err := db.Query(r.Context(), `SELECT n.id, n.profile_id, n.kind, n.severity, n.title, n.body, n.code, n.params, n.data, n.read_at, n.created_at
 			FROM notifications n WHERE n.user_id = $1 AND n.dismissed_at IS NULL AND n.channel = 'in_app'
 			  AND (n.scheduled_for IS NULL OR n.scheduled_for <= now())
 			  AND (n.profile_id IS NULL OR EXISTS (SELECT 1 FROM profile_members m WHERE m.profile_id = n.profile_id AND m.user_id = $1))
@@ -79,7 +81,7 @@ func Register(r chi.Router, deps *app.Deps) {
 		}
 		items, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (Notification, error) {
 			var n Notification
-			err := row.Scan(&n.ID, &n.ProfileID, &n.Kind, &n.Severity, &n.Title, &n.Body, &n.Data, &n.ReadAt, &n.CreatedAt)
+			err := row.Scan(&n.ID, &n.ProfileID, &n.Kind, &n.Severity, &n.Title, &n.Body, &n.Code, &n.Params, &n.Data, &n.ReadAt, &n.CreatedAt)
 			return n, err
 		})
 		if err != nil {
@@ -195,7 +197,8 @@ func RunOnce(ctx context.Context, db *pgxpool.Pool) (int, error) {
 type candidate struct {
 	kind, severity, title, body, dedupe string
 	bsTitle, bsBody                     string // Bosnian text, used when users.locale = 'bs'
-	data                                map[string]any
+	code                                string // stable text code for clients (web: notification.<code>.title/body)
+	params, data                        map[string]any
 }
 
 // in returns the candidate with title and body in the user's locale (en|bs; English otherwise).
@@ -204,6 +207,15 @@ func (c candidate) in(locale string) candidate {
 		c.title, c.body = c.bsTitle, c.bsBody
 	}
 	return c
+}
+
+// percent turns a decimal fraction ("0.855") into a whole percent ("86").
+func percent(f string) string {
+	r, ok := new(big.Rat).SetString(f)
+	if !ok {
+		return f
+	}
+	return r.Mul(r, big.NewRat(100, 1)).FloatString(0)
 }
 
 // bsDate renders YYYY-MM-DD as the Bosnian DD.MM.YYYY.
@@ -278,19 +290,21 @@ func Generate(ctx context.Context, db fin.DB, profileID uuid.UUID) (int, error) 
 				body:    fmt.Sprintf("%s was due on %s. Match the payment, mark it paid or skip it.", o.Amount, o.Date),
 				bsTitle: "Kasni: " + o.Description,
 				bsBody:  fmt.Sprintf("%s je dospjelo %s. Povežite uplatu, označite kao plaćeno ili preskočite.", bsMoney(o.Amount), bsDate(o.Date)),
-				dedupe:  "bill_overdue:" + o.PlannedTransactionID.String() + ":" + o.NominalDate, data: data})
+				code:    "bill_overdue", params: map[string]any{"name": o.Description, "amount": o.Amount, "date": o.Date},
+				dedupe: "bill_overdue:" + o.PlannedTransactionID.String() + ":" + o.NominalDate, data: data})
 		case left <= days:
-			when, bsWhen := "today", "danas"
+			when, bsWhen, code := "today", "danas", "bill_due_today"
 			if left == 1 {
-				when, bsWhen = "tomorrow", "sutra"
+				when, bsWhen, code = "tomorrow", "sutra", "bill_due_tomorrow"
 			} else if left > 1 {
-				when, bsWhen = "on "+o.Date, bsDate(o.Date)
+				when, bsWhen, code = "on "+o.Date, bsDate(o.Date), "bill_due"
 			}
 			cands = append(cands, candidate{kind: "bill_due", severity: "info", title: o.Description + " due " + when,
 				body:    fmt.Sprintf("%s is scheduled %s.", o.Amount, when),
 				bsTitle: o.Description + " dospijeva " + bsWhen,
 				bsBody:  fmt.Sprintf("%s je zakazano za %s.", bsMoney(o.Amount), bsWhen),
-				dedupe:  "bill_due:" + o.PlannedTransactionID.String() + ":" + o.NominalDate, data: data})
+				code:    code, params: map[string]any{"name": o.Description, "amount": o.Amount, "date": o.Date},
+				dedupe: "bill_due:" + o.PlannedTransactionID.String() + ":" + o.NominalDate, data: data})
 		}
 	}
 	alerts, err := budgets.CurrentAlerts(ctx, db, p.ID, today)
@@ -310,8 +324,11 @@ func Generate(ctx context.Context, db fin.DB, profileID uuid.UUID) (int, error) 
 			body:    fmt.Sprintf("Spent %s of %s (utilization %s, threshold %s).", a.Line.Actual, a.Line.Limit, *a.Line.Utilization, *a.Line.Alert),
 			bsTitle: a.Budget.Name + ": dostignut prag budžeta",
 			bsBody:  fmt.Sprintf("Potrošeno %s od %s (iskorištenost %s, prag %s).", bsMoney(a.Line.Actual), bsMoney(a.Line.Limit), bsDecimal(*a.Line.Utilization), bsDecimal(*a.Line.Alert)),
-			dedupe:  fmt.Sprintf("budget:%s:%s:%s:%s", a.Budget.ID, a.PeriodStart, cat, *a.Line.Alert),
-			data:    map[string]any{"budgetId": a.Budget.ID, "categoryId": a.Line.CategoryID, "periodStart": a.PeriodStart, "threshold": *a.Line.Alert}})
+			code:    "budget_threshold",
+			params: map[string]any{"budget": a.Budget.Name, "actual": a.Line.Actual, "limit": a.Line.Limit,
+				"utilization": percent(*a.Line.Utilization), "threshold": percent(*a.Line.Alert)},
+			dedupe: fmt.Sprintf("budget:%s:%s:%s:%s", a.Budget.ID, a.PeriodStart, cat, *a.Line.Alert),
+			data:   map[string]any{"budgetId": a.Budget.ID, "categoryId": a.Line.CategoryID, "periodStart": a.PeriodStart, "threshold": *a.Line.Alert}})
 	}
 	f, err := forecasting.Build(ctx, db, p, forecasting.Options{Days: 14, Currency: p.BaseCurrency})
 	if err != nil {
@@ -325,7 +342,8 @@ func Generate(ctx context.Context, db fin.DB, profileID uuid.UUID) (int, error) 
 			body:    fmt.Sprintf("An account is expected to reach %s on %s based on planned payments.", s.Amount, s.Date),
 			bsTitle: "Stanje će pasti ispod nule " + bsDate(s.Date),
 			bsBody:  fmt.Sprintf("Očekuje se da račun dostigne %s dana %s prema planiranim plaćanjima.", bsMoney(s.Amount), bsDate(s.Date)),
-			dedupe:  "shortfall:" + s.AccountID.String() + ":" + s.Date, data: map[string]any{"accountId": s.AccountID, "date": s.Date, "amount": s.Amount}})
+			code:    "low_balance", params: map[string]any{"amount": s.Amount, "date": s.Date},
+			dedupe: "shortfall:" + s.AccountID.String() + ":" + s.Date, data: map[string]any{"accountId": s.AccountID, "date": s.Date, "amount": s.Amount}})
 	}
 	rows, err := db.Query(ctx, `SELECT id, name, trial_ends_at FROM subscriptions WHERE profile_id = $1 AND deleted_at IS NULL AND status = 'trial'
 		AND trial_ends_at BETWEEN $2 AND $3`, p.ID, today, today.AddDate(0, 0, 3))
@@ -344,7 +362,8 @@ func Generate(ctx context.Context, db fin.DB, profileID uuid.UUID) (int, error) 
 			body:    "Cancel before then if you do not want to be charged.",
 			bsTitle: name + ": probni period ističe " + bsDate(fin.Fmt(end)),
 			bsBody:  "Otkažite prije toga ako ne želite da vam se naplati.",
-			dedupe:  "trial:" + id.String() + ":" + fin.Fmt(end), data: map[string]any{"subscriptionId": id}})
+			code:    "trial_ending", params: map[string]any{"name": name, "date": fin.Fmt(end)},
+			dedupe: "trial:" + id.String() + ":" + fin.Fmt(end), data: map[string]any{"subscriptionId": id}})
 	}
 	rows.Close()
 	anoms, err := analytics.Anomalies(ctx, db, analytics.Query{P: p, From: today.AddDate(0, 0, -7), To: today, Currency: p.BaseCurrency}, false)
@@ -357,7 +376,8 @@ func Generate(ctx context.Context, db fin.DB, profileID uuid.UUID) (int, error) 
 			bsBody = fmt.Sprintf("%s je više od 3x tipičnog iznosa (medijan %s) za ovu kategoriju u prethodnih 180 dana (%d troškova).", bsMoney(a.Amount), bsMoney(a.Baseline), a.BasisCount)
 		}
 		cands = append(cands, candidate{kind: "unusual_expense", severity: "warning", title: "Unusual expense: " + a.Description, body: a.Explanation,
-			bsTitle: "Neuobičajen trošak: " + a.Description, bsBody: bsBody,
+			bsTitle: "Neuobičajen trošak: " + a.Description, bsBody: bsBody, code: "unusual_expense." + a.Rule,
+			params: map[string]any{"name": a.Description, "amount": a.Amount, "baseline": a.Baseline, "count": a.BasisCount},
 			dedupe: "anomaly:" + a.TransactionID.String() + ":" + a.Rule, data: map[string]any{"transactionId": a.TransactionID, "rule": a.Rule}})
 	}
 
@@ -372,7 +392,8 @@ func Generate(ctx context.Context, db fin.DB, profileID uuid.UUID) (int, error) 
 			body:    "Changes from different devices touched the same records. Review them on the Sync page.",
 			bsTitle: fmt.Sprintf("Sukobi sinhronizacije čekaju vašu odluku: %d", conflicts),
 			bsBody:  "Promjene s različitih uređaja dotakle su iste zapise. Pregledajte ih na stranici Sinhronizacija.",
-			dedupe:  "sync_conflict:" + latest.String(), data: map[string]any{"count": conflicts, "link": "/sync"}})
+			code:    "sync_conflict", params: map[string]any{"count": conflicts},
+			dedupe: "sync_conflict:" + latest.String(), data: map[string]any{"count": conflicts, "link": "/sync"}})
 	}
 
 	mrows, err := db.Query(ctx, `SELECT m.user_id, u.locale FROM profile_members m JOIN users u ON u.id = m.user_id WHERE m.profile_id = $1`, p.ID)
@@ -401,10 +422,11 @@ func Generate(ctx context.Context, db fin.DB, profileID uuid.UUID) (int, error) 
 		for _, c := range cands {
 			c := c.in(m.Locale)
 			data, _ := json.Marshal(c.data)
+			params, _ := json.Marshal(c.params)
 			dedupe := p.ID.String() + ":" + c.dedupe
-			tag, err := db.Exec(ctx, `INSERT INTO notifications (user_id, profile_id, kind, severity, title, body, data, dedupe_key, delivered_at)
-				VALUES ($1,$2,$3,$4,$5,$6,$7,$8, now()) ON CONFLICT (user_id, dedupe_key) WHERE dedupe_key IS NOT NULL DO NOTHING`,
-				u, p.ID, c.kind, c.severity, c.title, c.body, data, dedupe)
+			tag, err := db.Exec(ctx, `INSERT INTO notifications (user_id, profile_id, kind, severity, title, body, code, params, data, dedupe_key, delivered_at)
+				VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10, now()) ON CONFLICT (user_id, dedupe_key) WHERE dedupe_key IS NOT NULL DO NOTHING`,
+				u, p.ID, c.kind, c.severity, c.title, c.body, c.code, params, data, dedupe)
 			if err != nil {
 				return n, err
 			}

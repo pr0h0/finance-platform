@@ -4,11 +4,14 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"slices"
 	"strings"
 	"time"
@@ -16,7 +19,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
+	"github.com/pr0h0/finance-platform/apps/api/internal/attachments"
+	"github.com/pr0h0/finance-platform/apps/api/internal/authz"
 	"github.com/pr0h0/finance-platform/apps/api/internal/changes"
+	"github.com/pr0h0/finance-platform/apps/api/internal/config"
 	"github.com/pr0h0/finance-platform/apps/api/internal/httpx"
 )
 
@@ -32,6 +38,15 @@ type Export struct {
 	Settings      json.RawMessage              `json:"settings"`
 	Tables        map[string][]json.RawMessage `json:"tables"`
 	Snapshots     []Snapshot                   `json:"snapshots"`
+	Files         []File                       `json:"files"` // formatVersion 2; absent in version 1
+}
+
+// File is the content of one attachment row (formatVersion 2).
+type File struct {
+	AttachmentID string `json:"attachmentId"`
+	MimeType     string `json:"mimeType"`
+	SHA256       string `json:"sha256"` // hex of the plaintext
+	Data         []byte `json:"data"`   // base64 (standard, padded)
 }
 
 // Snapshot is the latest synced state of one entity (sync_changes data).
@@ -44,7 +59,7 @@ type Snapshot struct {
 
 const (
 	exportFormat        = "finplat-export"
-	exportFormatVersion = 1
+	exportFormatVersion = 2 // 2 added files (attachment contents); 1 is still restored
 )
 
 // excluded profile-scoped tables: logs, sync bookkeeping, credentials and key material are
@@ -83,7 +98,7 @@ func BuildExport(ctx context.Context, db interface {
 		return nil, err
 	}
 	e := &Export{Format: exportFormat, FormatVersion: exportFormatVersion, SchemaVersion: sv, ExportedAt: time.Now().UTC(),
-		Tables: map[string][]json.RawMessage{}, Settings: json.RawMessage(`{}`), Snapshots: []Snapshot{}}
+		Tables: map[string][]json.RawMessage{}, Settings: json.RawMessage(`{}`), Snapshots: []Snapshot{}, Files: []File{}}
 	if err := tx.QueryRow(ctx, `SELECT to_jsonb(p) FROM profiles p WHERE id = $1`, profileID).Scan(&e.Profile); err != nil {
 		return nil, fmt.Errorf("export profile: %w", err)
 	}
@@ -136,6 +151,45 @@ func BuildExport(ctx context.Context, db interface {
 	return e, nil
 }
 
+// attachmentRow: the attachments columns export and restore need (to_jsonb names; sha256 is "\\x<hex>").
+type attachmentRow struct {
+	ID        string  `json:"id"`
+	Type      string  `json:"content_type"`
+	SHA256    string  `json:"sha256"`
+	Backend   string  `json:"storage_backend"`
+	Key       string  `json:"storage_key"`
+	Sealed    bool    `json:"server_encrypted"`
+	DeletedAt *string `json:"deleted_at"`
+}
+
+// AddFiles reads the content of every live attachment of the export into e.Files. E2EE profiles keep
+// attachments on their devices, so there is nothing to add. Rows whose content is missing are skipped.
+// ponytail: contents are held in memory (and base64 again while encoding); stream the JSON if exports get huge.
+func AddFiles(ctx context.Context, cfg *config.Config, e *Export) error {
+	if mode, _ := e.Profile["privacy_mode"].(string); mode == "e2ee" {
+		return nil
+	}
+	for _, raw := range e.Tables["attachments"] {
+		var a attachmentRow
+		if err := json.Unmarshal(raw, &a); err != nil {
+			return err
+		}
+		if a.DeletedAt != nil {
+			continue
+		}
+		data, err := attachments.Content(ctx, cfg, a.Backend, a.Key, a.Sealed, 1<<40)
+		if errors.Is(err, os.ErrNotExist) {
+			continue
+		}
+		if err != nil {
+			return fmt.Errorf("export attachment %s: %w", a.ID, err)
+		}
+		sum := sha256.Sum256(data)
+		e.Files = append(e.Files, File{AttachmentID: a.ID, MimeType: a.Type, SHA256: hex.EncodeToString(sum[:]), Data: data})
+	}
+	return nil
+}
+
 func schemaVersion(ctx context.Context, q querier) (int64, error) {
 	var v int64 // same as database.SchemaVersion, usable inside a transaction
 	err := q.QueryRow(ctx, `SELECT COALESCE(MAX(version_id), 0) FROM goose_db_version WHERE is_applied`).Scan(&v)
@@ -158,7 +212,7 @@ func ParseExport(raw []byte) (*Export, error) {
 	if err := json.Unmarshal(raw, &e); err != nil {
 		return nil, httpx.BadRequest("backup is not a finplat export: " + err.Error())
 	}
-	if e.Format != exportFormat || e.FormatVersion != exportFormatVersion || e.Profile == nil {
+	if e.Format != exportFormat || e.FormatVersion < 1 || e.FormatVersion > exportFormatVersion || e.Profile == nil {
 		return nil, httpx.Unprocessable("unsupported backup format")
 	}
 	return &e, nil
@@ -241,8 +295,9 @@ func insertOrder(tables []string, fks map[string]map[string]string) []string {
 // Restore loads an export into targetProfileID (which must exist and be empty), giving every row
 // a new id so a backup can be restored next to the original or on another server. Users that do
 // not exist here are replaced by restoredBy. Synced entities are re-recorded with changes.Record
-// so devices download the restored data. Returns row counts per table.
-func Restore(ctx context.Context, tx pgx.Tx, e *Export, targetProfileID, restoredBy uuid.UUID) (map[string]int, error) {
+// so devices download the restored data. Attachment contents (e.Files) are written to the attachment
+// storage under the new ids. Returns row counts per table.
+func Restore(ctx context.Context, tx pgx.Tx, cfg *config.Config, e *Export, targetProfileID, restoredBy uuid.UUID) (map[string]int, error) {
 	if mode, _ := e.Profile["privacy_mode"].(string); mode == "e2ee" {
 		return nil, httpx.NewError(http.StatusConflict, "e2ee_profile",
 			"end-to-end encrypted profiles are restored by a client holding the key (ciphertext is bound to its ids)")
@@ -325,8 +380,14 @@ func Restore(ctx context.Context, tx pgx.Tx, e *Export, targetProfileID, restore
 			known[id] = true
 		}
 	}
+	oldProfile, _ := e.Profile["id"].(string)
+	files := map[string]*File{}
+	for i := range e.Files {
+		files[e.Files[i].AttachmentID] = &e.Files[i]
+	}
 	for t, rs := range rows {
 		for _, m := range rs {
+			old, _ := m["id"].(string)
 			remap(m, ids)
 			m["profile_id"] = targetProfileID.String()
 			if _, ok := m["server_version"]; ok {
@@ -335,6 +396,11 @@ func Restore(ctx context.Context, tx pgx.Tx, e *Export, targetProfileID, restore
 			for _, col := range userCols(t) {
 				if s, ok := m[col].(string); ok && !known[s] {
 					m[col] = restoredBy.String()
+				}
+			}
+			if t == "attachments" {
+				if err := restoreFile(ctx, tx, cfg, m, files[old], old, oldProfile, targetProfileID); err != nil {
+					return nil, err
 				}
 			}
 		}
@@ -402,6 +468,70 @@ func Restore(ctx context.Context, tx pgx.Tx, e *Export, targetProfileID, restore
 		}
 	}
 	return counts, nil
+}
+
+// restoreFile points an attachments row at its new storage key and writes the backup's content there
+// (checksum verified). The key is always rebuilt from the new ids, so a crafted backup cannot point a
+// row at another profile's file. Without a file in the backup (version 1), the content is copied from the
+// original attachment when it still exists on this server in a profile the restoring user may read;
+// otherwise the row keeps metadata only.
+// ponytail: files written before a failed restore stay as unreferenced orphans under the rolled-back ids.
+func restoreFile(ctx context.Context, tx pgx.Tx, cfg *config.Config, m map[string]any, f *File, oldID, oldProfile string, profileID uuid.UUID) error {
+	id, _ := m["id"].(string)
+	key := profileID.String() + "/" + id
+	m["storage_key"] = key
+	if m["deleted_at"] != nil {
+		return nil
+	}
+	if f == nil {
+		var err error
+		if f, err = sourceFile(ctx, tx, cfg, oldID, oldProfile); f == nil {
+			return err
+		}
+	}
+	sum := sha256.Sum256(f.Data)
+	hexSum := hex.EncodeToString(sum[:])
+	row, _ := m["sha256"].(string)
+	if !strings.EqualFold(f.SHA256, hexSum) || (row != "" && !strings.EqualFold(strings.TrimPrefix(row, `\x`), hexSum)) {
+		return httpx.Unprocessable("attachment " + id + ": content checksum mismatch")
+	}
+	backend, ct, sealed, err := attachments.Store(ctx, cfg, key, f.Data)
+	if err != nil {
+		return fmt.Errorf("restore attachment content: %w", err)
+	}
+	m["storage_backend"], m["content_type"], m["server_encrypted"], m["size_bytes"] = backend, ct, sealed, len(f.Data)
+	return nil
+}
+
+// sourceFile reads the original attachment's content from this server, or returns nil when it is gone
+// or the restoring user is not a member of its profile.
+func sourceFile(ctx context.Context, tx pgx.Tx, cfg *config.Config, oldID, oldProfile string) (*File, error) {
+	pid, err := uuid.Parse(oldProfile)
+	if err != nil {
+		return nil, nil
+	}
+	if _, _, err := authz.RequireProfile(ctx, tx, pid, authz.RoleViewer); err != nil {
+		return nil, nil
+	}
+	var backend, key string
+	var sealed bool
+	var sum []byte
+	err = tx.QueryRow(ctx, `SELECT storage_backend, storage_key, server_encrypted, sha256 FROM attachments
+		WHERE id::text = $1 AND profile_id = $2 AND deleted_at IS NULL`, oldID, pid).Scan(&backend, &key, &sealed, &sum)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	data, err := attachments.Content(ctx, cfg, backend, key, sealed, 1<<40)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("copy attachment %s: %w", oldID, err)
+	}
+	return &File{AttachmentID: oldID, SHA256: hex.EncodeToString(sum), Data: data}, nil
 }
 
 func selfRefsReady(t string, m map[string]any, fks map[string]map[string]string, inserted, newIDs map[string]bool) bool {

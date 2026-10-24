@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "desktop",
-  "description": "Desktop: start at login (Settings → General), auto-update (install and restart)",
+  "description": "Desktop: start at login (Settings → General), auto-update (install and restart), bring the window forward for local MCP change approvals",
   "windows": ["main"],
   "platforms": ["linux", "macOS", "windows"],
   "permissions": [
@@ -9,6 +9,9 @@
     "autostart:allow-disable",
     "autostart:allow-is-enabled",
     "updater:default",
-    "process:allow-restart"
+    "process:allow-restart",
+    "core:window:allow-show",
+    "core:window:allow-unminimize",
+    "core:window:allow-set-focus"
   ]
 }

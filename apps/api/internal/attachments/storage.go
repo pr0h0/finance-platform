@@ -229,15 +229,11 @@ func Content(ctx context.Context, cfg *config.Config, backend, key string, seale
 	if !keyRE.MatchString(key) {
 		return nil, os.ErrNotExist
 	}
-	v, ok := readers.Load(cfg)
-	if !ok {
-		b, err := newBlobs(cfg)
-		if err != nil {
-			return nil, err
-		}
-		v, _ = readers.LoadOrStore(cfg, b)
+	b, err := cached(cfg)
+	if err != nil {
+		return nil, err
 	}
-	f, _, err := v.(*blobs).open(ctx, backend, key, sealed)
+	f, _, err := b.open(ctx, backend, key, sealed)
 	if err != nil {
 		return nil, err
 	}
@@ -247,4 +243,55 @@ func Content(ctx context.Context, cfg *config.Config, backend, key string, seale
 		return nil, ErrTooLarge
 	}
 	return data, err
+}
+
+func cached(cfg *config.Config) (*blobs, error) {
+	v, ok := readers.Load(cfg)
+	if !ok {
+		b, err := newBlobs(cfg)
+		if err != nil {
+			return nil, err
+		}
+		v, _ = readers.LoadOrStore(cfg, b)
+	}
+	return v.(*blobs), nil
+}
+
+// Store writes plaintext content under key (<profile id>/<attachment id>) on the configured backend,
+// sealed when ATTACHMENT_ENCRYPTION_KEY is set, for backup restore. The type is sniffed against the
+// same allowlist as uploads. It returns the backend, the sniffed content type and whether it is sealed.
+func Store(ctx context.Context, cfg *config.Config, key string, data []byte) (backend, contentType string, sealed bool, err error) {
+	if !keyRE.MatchString(key) {
+		return "", "", false, errors.New("invalid attachment key")
+	}
+	ct, ok := allowed[http.DetectContentType(data)]
+	if !ok || len(data) == 0 {
+		return "", "", false, httpx.NewError(http.StatusUnsupportedMediaType, "unsupported_file_type",
+			"attachment content in the backup is not an allowed file type")
+	}
+	b, err := cached(cfg)
+	if err != nil {
+		return "", "", false, err
+	}
+	if b.backend != "local" && b.backend != "s3" {
+		return "", "", false, errUnavailable
+	}
+	dir, err := b.tempDir(key[:36])
+	if err != nil {
+		return "", "", false, err
+	}
+	f, err := os.CreateTemp(dir, ".restore-*")
+	if err != nil {
+		return "", "", false, fmt.Errorf("temp file: %w", err)
+	}
+	defer os.Remove(f.Name()) // no-op once put has moved it
+	_, err = f.Write(data)
+	if cerr := f.Close(); err == nil {
+		err = cerr
+	}
+	if err != nil {
+		return "", "", false, err
+	}
+	sealed, err = b.put(ctx, key, f.Name())
+	return b.backend, ct, sealed, err
 }

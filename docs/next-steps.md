@@ -20,6 +20,6 @@ Native, in order:
 6. Push notifications when the app is closed (FCM/APNs from the server's notification job).
 
 Web/backend, highest value next:
-1. Server-generated text has no codes yet, so it stays English in Bosnian: notification titles/bodies and
-   API `details.fields` messages (the rest of the UI is translated, 2026-10-23).
+1. (done 2026-10-24) Server notifications carry `code` + `params` and validation errors `details.fieldCodes`;
+   the web renders both in the UI language. Left: bespoke field messages without a code (see known-issues).
 2. Raiffeisen BiH: other products/currencies once real samples exist (only the KM "IZVOD" layout is known).

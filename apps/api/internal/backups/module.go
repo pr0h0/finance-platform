@@ -37,6 +37,7 @@ import (
 	"github.com/pr0h0/finance-platform/apps/api/internal/app"
 	"github.com/pr0h0/finance-platform/apps/api/internal/authz"
 	"github.com/pr0h0/finance-platform/apps/api/internal/changes"
+	"github.com/pr0h0/finance-platform/apps/api/internal/config"
 	"github.com/pr0h0/finance-platform/apps/api/internal/httpx"
 	"github.com/pr0h0/finance-platform/apps/api/internal/profiles"
 )
@@ -72,10 +73,11 @@ type Service struct {
 	DB  *pgxpool.Pool
 	Dir string
 	Key []byte // nil = unencrypted
+	Cfg *config.Config
 }
 
 func NewService(deps *app.Deps) (*Service, error) {
-	s := &Service{DB: deps.DB, Dir: deps.Config.BackupDir}
+	s := &Service{DB: deps.DB, Dir: deps.Config.BackupDir, Cfg: deps.Config}
 	if deps.Config.BackupKey != "" {
 		k, err := base64.StdEncoding.DecodeString(deps.Config.BackupKey)
 		if err != nil || len(k) != 32 {
@@ -93,9 +95,18 @@ func (s *Service) keyID() string {
 
 func (s *Service) path(id uuid.UUID) string { return filepath.Join(s.Dir, id.String()+".fpb") }
 
+// Export is BuildExport plus the attachment contents.
+func (s *Service) Export(ctx context.Context, profileID uuid.UUID) (*Export, error) {
+	exp, err := BuildExport(ctx, s.DB, profileID)
+	if err == nil {
+		err = AddFiles(ctx, s.Cfg, exp)
+	}
+	return exp, err
+}
+
 // Create writes a backup of profileID owned by userID.
 func (s *Service) Create(ctx context.Context, profileID, userID uuid.UUID, kind string) (Backup, error) {
-	exp, err := BuildExport(ctx, s.DB, profileID)
+	exp, err := s.Export(ctx, profileID)
 	if err != nil {
 		return Backup{}, err
 	}
@@ -417,7 +428,7 @@ func Register(r chi.Router, deps *app.Deps) {
 			}
 			target = pr.ID
 		}
-		counts, err := Restore(ctx, tx, exp, target, p.UserID)
+		counts, err := Restore(ctx, tx, deps.Config, exp, target, p.UserID)
 		if err != nil {
 			return err
 		}
@@ -437,7 +448,7 @@ func Register(r chi.Router, deps *app.Deps) {
 		if err != nil {
 			return err
 		}
-		exp, err := BuildExport(r.Context(), db, profileID)
+		exp, err := s.Export(r.Context(), profileID)
 		if err != nil {
 			return err
 		}

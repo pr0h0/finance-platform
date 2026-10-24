@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"mime/multipart"
 	"os"
 	"path/filepath"
@@ -40,10 +41,17 @@ func TestBackupExportRestore(t *testing.T) {
 	push(phone, pid, phoneID, op(ids[0], nil, itemData(ids[0], "Rent", "", "750.00", "750.00")),
 		op(ids[1], nil, itemData(ids[1], "Food", "x", "100.00", "60.00", "40.00")))
 	a.must(200, "PUT", "/api/v1/profiles/"+pid+"/settings", map[string]any{"theme": "dark"})
+	receipt := append([]byte("\x89PNG\r\n\x1a\n"), bytes.Repeat([]byte{1, 2, 3}, 1000)...)
+	var mb bytes.Buffer
+	mw := multipart.NewWriter(&mb)
+	fw, _ := mw.CreateFormFile("file", "receipt.png")
+	fw.Write(receipt)
+	mw.Close()
+	att := a.must(201, "POST", "/api/v1/attachments", &mb, "Content-Type", mw.FormDataContentType(), "X-Profile-ID", pid).str("id")
 
 	exp := a.must(200, "GET", "/api/v1/export", nil, "X-Profile-ID", pid)
 	if exp.str("format") != "finplat-export" || len(exp.Body["tables"].(map[string]any)["sync_test_items"].([]any)) != 2 ||
-		len(exp.Body["snapshots"].([]any)) != 2 {
+		len(exp.Body["snapshots"].([]any)) != 3 || exp.Body["formatVersion"] != float64(2) {
 		t.Fatalf("export: %s", exp.Raw)
 	}
 
@@ -60,8 +68,9 @@ func TestBackupExportRestore(t *testing.T) {
 		t.Fatalf("download: %s", dl.Header)
 	}
 	parsed, err := backups.ParseExport(dl.Raw)
-	if err != nil || len(parsed.Tables["sync_test_items"]) != 2 {
-		t.Fatalf("downloaded backup unreadable: %v", err)
+	if err != nil || len(parsed.Tables["sync_test_items"]) != 2 || len(parsed.Files) != 1 ||
+		parsed.Files[0].AttachmentID != att || !bytes.Equal(parsed.Files[0].Data, receipt) {
+		t.Fatalf("downloaded backup unreadable or without attachment content: %v", err)
 	}
 
 	// restore as a new profile: new ids, same data, sync log rebuilt for devices
@@ -88,8 +97,17 @@ func TestBackupExportRestore(t *testing.T) {
 	if reused != 0 {
 		t.Fatal("restore reused original ids")
 	}
+	// the attachment opens in the restored profile (new id, own copy of the content)
+	restored := a.must(200, "GET", "/api/v1/attachments", nil, "X-Profile-ID", np).items()
+	if len(restored) != 1 || restored[0].(map[string]any)["id"] == att {
+		t.Fatalf("restored attachments: %v", restored)
+	}
+	newAtt := restored[0].(map[string]any)["id"].(string)
+	if c := a.must(200, "GET", "/api/v1/attachments/"+newAtt+"/content", nil, "X-Profile-ID", np); !bytes.Equal(c.Raw, receipt) {
+		t.Fatal("restored attachment content differs")
+	}
 	pulled := phone.must(200, "GET", "/api/v1/sync/pull?since=0", nil, "X-Profile-ID", np).Body["changes"].([]any)
-	if len(pulled) != 2 {
+	if len(pulled) != 3 {
 		t.Fatalf("restored profile has no sync log: %d", len(pulled))
 	}
 	if d := pulled[0].(map[string]any)["data"].(map[string]any); d["id"] == ids[0].String() || d["id"] == ids[1].String() {
@@ -105,6 +123,42 @@ func TestBackupExportRestore(t *testing.T) {
 	empty := a.must(201, "POST", "/api/v1/profiles", map[string]any{"name": "Empty"}).str("id")
 	if r := upload(a, dl.Raw, empty); r.Status != 200 || r.str("profileId") != empty {
 		t.Fatalf("restore into empty: %d %s", r.Status, r.Raw)
+	}
+	// a version 1 document (no files) copies the content of the original when the restoring user can read
+	// it; another user gets metadata only. A tampered file content is refused.
+	var doc map[string]any
+	_ = json.Unmarshal(exp.Raw, &doc)
+	doc["formatVersion"] = 1
+	delete(doc, "files")
+	v1, _ := json.Marshal(doc)
+	v1Content := func(c *client) resp {
+		t.Helper()
+		r := upload(c, v1, "")
+		if r.Status != 200 {
+			t.Fatalf("restore v1: %d %s", r.Status, r.Raw)
+		}
+		l := c.must(200, "GET", "/api/v1/attachments", nil, "X-Profile-ID", r.str("profileId")).items()
+		if len(l) != 1 {
+			t.Fatalf("v1 restored attachments: %v", l)
+		}
+		return c.do("GET", "/api/v1/attachments/"+l[0].(map[string]any)["id"].(string)+"/content", nil, "X-Profile-ID", r.str("profileId"))
+	}
+	if c := v1Content(a); c.Status != 200 || !bytes.Equal(c.Raw, receipt) {
+		t.Fatalf("v1 restore on the same server: %d", c.Status)
+	}
+	if c := v1Content(e.signup("b@example.com")); c.Status != 404 {
+		t.Fatalf("v1 restore by a non-member copied the content: %d", c.Status)
+	}
+	// restored copies are independent of the original
+	a.must(204, "DELETE", "/api/v1/attachments/"+att, nil, "X-Profile-ID", pid)
+	if c := a.must(200, "GET", "/api/v1/attachments/"+newAtt+"/content", nil, "X-Profile-ID", np); !bytes.Equal(c.Raw, receipt) {
+		t.Fatal("restored attachment shares the original's file")
+	}
+	doc["formatVersion"] = 2
+	doc["files"] = []map[string]any{{"attachmentId": att, "mimeType": "image/png", "sha256": parsed.Files[0].SHA256, "data": []byte("\x89PNG\r\n\x1a\nother")}}
+	bad, _ := json.Marshal(doc)
+	if r := upload(a, bad, ""); r.Status != 422 {
+		t.Fatalf("tampered attachment content: %d %s", r.Status, r.Raw)
 	}
 	if r := upload(a, []byte(`{"format":"something-else"}`), ""); r.Status != 422 {
 		t.Fatalf("foreign file: %d", r.Status)

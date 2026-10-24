@@ -99,6 +99,15 @@ export async function serveLocalMcp(
     void invoke('mcp_attach', { on: false });
   };
 }
+/** Shows, unminimizes and focuses the main window; resolves whether it already had focus. */
+export async function bringToFront(): Promise<boolean> {
+  const w = (await import('@tauri-apps/api/window')).getCurrentWindow();
+  const had = await w.isFocused();
+  await w.unminimize();
+  await w.show();
+  await w.setFocus();
+  return had;
+}
 
 // ------------------------------------------------------------ automatic backups (desktop)
 

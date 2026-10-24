@@ -2992,7 +2992,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Full data export (open JSON format, Feature 94) */
+        /**
+         * Full data export (open JSON format, Feature 94)
+         * @description Format in docs/api/export-format.md (formatVersion 2): every profile table, sync snapshots and `files` with the base64 content of each live attachment (none for e2ee profiles).
+         */
         get: operations["get_export"];
         put?: never;
         post?: never;
@@ -3154,6 +3157,7 @@ export interface components {
                 code: string;
                 message: string;
                 requestId?: string;
+                /** @description validation_failed: `fields` {field: English message}; `fieldCodes` {field: {code, params?}} for messages of the common validators, so clients can translate them (codes: required, required_max_length {max}, max_length {max}, length {min, max}, too_long, too_large, invalid_id, invalid_date, unknown_currency, positive, not_zero, invalid_decimal, invalid_email, unknown_reference, not_before {other}, future, max_days {max}, invalid_timezone, invalid_locale, one_of {options}). Fields without a code keep only the message. */
                 details?: {
                     [key: string]: unknown;
                 };
@@ -4409,8 +4413,15 @@ export interface components {
             kind?: string;
             /** @enum {string} */
             severity?: "info" | "warning" | "critical";
+            /** @description Fallback text in the user's locale (users.locale) when it was created. */
             title?: string;
             body?: string;
+            /** @description Stable text code (null on notifications from before codes existed). Clients render `notification.<code>.title` / `.body` with `params`: bill_due, bill_due_today, bill_due_tomorrow, bill_overdue (name, amount, date), budget_threshold (budget, actual, limit, utilization, threshold: whole percent), low_balance (amount, date), trial_ending (name, date), unusual_expense.large_for_category and unusual_expense.new_merchant_large (name, amount, baseline, count), sync_conflict (count). */
+            code?: string | null;
+            /** @description Values for the text: strings (dates YYYY-MM-DD), numbers, or Money objects. */
+            params?: {
+                [key: string]: string | number | components["schemas"]["Money"];
+            };
             data?: Record<string, never>;
             readAt?: components["schemas"]["Instant"] | null;
             createdAt?: components["schemas"]["Instant"];

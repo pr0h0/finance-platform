@@ -1,7 +1,13 @@
 // Features 89, 90, 94 (+ storage quota): encrypted local backups (export, scheduled reminder,
 // restore), open JSON export, server backups in connected mode, browser storage usage.
 import type { Schemas } from '@finplat/api-client';
-import { requestPersistence, SYNCED_TABLES, storageEstimate } from '@finplat/storage';
+import {
+  fromStored,
+  requestPersistence,
+  type StoredBlob,
+  SYNCED_TABLES,
+  storageEstimate,
+} from '@finplat/storage';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { type FormEvent, useState } from 'react';
 import { useData, useProfile } from '../app/data.tsx';
@@ -274,17 +280,43 @@ function DataExport() {
   const local = useMutation({
     mutationFn: async () => {
       const tables: Record<string, unknown[]> = {};
-      await store.run('readonly', [...SYNCED_TABLES, ...EXTRA_TABLES], async (tx) => {
+      const blobs = new Map<string, Blob | StoredBlob>();
+      await store.run('readonly', [...SYNCED_TABLES, ...EXTRA_TABLES, 'blobs'], async (tx) => {
         for (const name of [...SYNCED_TABLES, ...EXTRA_TABLES])
           tables[name] = await tx.query(name, { profileId: profile.id, includeDeleted: true });
+        for (const b of await tx.query<{ id: string; blob: Blob | StoredBlob }>('blobs', {
+          profileId: profile.id,
+        }))
+          blobs.set(b.id, b.blob);
       });
+      // Attachment contents present on this device, as in GET /export (docs/api/export-format.md).
+      const { ready, toBase64 } = await import('@finplat/sync-client');
+      await ready();
+      const files = [];
+      for (const a of (tables.attachments ?? []) as {
+        id: string;
+        contentType: string;
+        sha256: string;
+        deletedAt?: string | null;
+      }[]) {
+        const b = blobs.get(a.id);
+        if (!b || a.deletedAt) continue;
+        const bytes = new Uint8Array(await fromStored(b).arrayBuffer());
+        files.push({
+          attachmentId: a.id,
+          mimeType: a.contentType,
+          sha256: a.sha256,
+          data: toBase64(bytes),
+        });
+      }
       const doc = {
         format: 'finplat-export',
-        formatVersion: 1,
+        formatVersion: 2,
         source: 'device',
         exportedAt: new Date().toISOString(),
         profile,
         tables,
+        files,
       };
       downloadBlob(
         JSON.stringify(doc, null, 2),
@@ -310,7 +342,7 @@ function DataExport() {
       <p className="mb-3 text-sm text-muted">
         {t(
           'export.text',
-          'Unencrypted JSON with every record of “{{name}}” for use in other tools or migration (format: docs/api/export-format.md). Keep the file private. Attachment contents are not included; use an encrypted backup for a complete copy.',
+          'Unencrypted JSON with every record of “{{name}}” for use in other tools or migration (format: docs/api/export-format.md). Keep the file private. Attachment contents are included (base64).',
           { name: profile.name },
         )}
       </p>

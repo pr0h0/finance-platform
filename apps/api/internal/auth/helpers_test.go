@@ -17,6 +17,7 @@ import (
 
 	"github.com/pr0h0/finance-platform/apps/api/internal/admin"
 	"github.com/pr0h0/finance-platform/apps/api/internal/app"
+	"github.com/pr0h0/finance-platform/apps/api/internal/attachments"
 	"github.com/pr0h0/finance-platform/apps/api/internal/audit"
 	"github.com/pr0h0/finance-platform/apps/api/internal/auth"
 	"github.com/pr0h0/finance-platform/apps/api/internal/authz"
@@ -57,7 +58,7 @@ func newEnv(t *testing.T, mut func(*config.Config)) *env {
 	r.Use(middleware.RequestID, httpx.RealIP, httpx.MaxBody(cfg.MaxBodyBytes), auth.Middleware(deps))
 	r.Route("/api/v1", func(v chi.Router) {
 		for _, reg := range []func(chi.Router, *app.Deps){auth.Register, users.Register, profiles.Register, households.Register,
-			sync.Register, backups.Register, admin.Register, audit.Register} {
+			sync.Register, backups.Register, admin.Register, audit.Register, attachments.Register} {
 			reg(v, deps)
 		}
 	})

@@ -134,6 +134,38 @@ try {
   check((byId(2)?.tools?.length ?? 0) >= 19, 'MCP tools/list over the relay (read-only tools)');
   const wallet = byId(3)?.structuredContent?.accounts.find((a) => a.name === 'Wallet');
   check(wallet?.balances[0]?.amount === '123.45', 'MCP list_accounts answered from local data');
+
+  // Write tools: on with the second checkbox; a change waits for Approve in the app.
+  await second.click(`//label[contains(normalize-space(.), 'Also let AI apps propose changes')]`);
+  const writer = Bun.spawn([APP, '--mcp'], { stdin: 'pipe', stdout: 'pipe', stderr: 'inherit' });
+  const goal = {
+    jsonrpc: '2.0',
+    id: 9,
+    method: 'tools/call',
+    params: {
+      name: 'create_savings_goal',
+      arguments: { name: 'Smoke goal', targetAmount: { amount: '500.00', currency: 'BAM' } },
+    },
+  };
+  writer.stdin.write(`${JSON.stringify(goal)}\n`);
+  await writer.stdin.flush();
+  await second.click(button('Approve and apply'));
+  let out = '';
+  const wr = writer.stdout.pipeThrough(new TextDecoderStream()).getReader();
+  while (!out.includes('\n')) {
+    const { value, done } = await wr.read();
+    if (done) break;
+    out += value;
+  }
+  writer.stdin.end();
+  writer.kill();
+  check(
+    JSON.parse(out).result?.structuredContent?.status === 'applied',
+    'MCP write approved in the app and applied',
+  );
+  await second.click(`//a[normalize-space(.)='Goals' or normalize-space(.)='Savings goals']`);
+  await second.find(`//main//*[contains(normalize-space(.), 'Smoke goal')]`);
+  check(true, 'approved savings goal shows in the app');
 } finally {
   await second.quit().catch(() => undefined);
 }

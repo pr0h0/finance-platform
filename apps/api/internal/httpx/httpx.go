@@ -12,6 +12,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"regexp"
 	"strings"
 
 	"github.com/go-chi/chi/v5/middleware"
@@ -46,9 +47,79 @@ func Unprocessable(msg string) *Error {
 	return NewError(http.StatusUnprocessableEntity, "invariant_violation", msg)
 }
 
-// Validation returns 422 with per-field messages: {"fields":{"amount":"must be positive"}}.
+// Validation returns 422 with per-field messages: {"fields":{"amount":"must be positive"}}, plus
+// {"fieldCodes":{"amount":{"code":"positive"}}} for the messages of the common validators, so clients
+// can show them in the UI language (web: error.field.<code>). Bespoke messages have no code.
 func Validation(fields map[string]string) *Error {
-	return &Error{Status: http.StatusUnprocessableEntity, Code: "validation_failed", Message: "request validation failed", Details: map[string]any{"fields": fields}}
+	details := map[string]any{"fields": fields}
+	codes := map[string]FieldCode{}
+	for f, msg := range fields {
+		if c, ok := fieldCode(msg); ok {
+			codes[f] = c
+		}
+	}
+	if len(codes) > 0 {
+		details["fieldCodes"] = codes
+	}
+	return &Error{Status: http.StatusUnprocessableEntity, Code: "validation_failed", Message: "request validation failed", Details: details}
+}
+
+// FieldCode is the translatable form of a field message.
+type FieldCode struct {
+	Code   string            `json:"code"`
+	Params map[string]string `json:"params,omitempty"`
+}
+
+// fieldRules map the validators' English messages to codes; submatches become params (names in order).
+var fieldRules = []struct {
+	re     *regexp.Regexp
+	code   string
+	params []string
+}{
+	{regexp.MustCompile(`^required(?: on update)?$`), "required", nil},
+	{regexp.MustCompile(`^required, at most (\d+) characters$`), "required_max_length", []string{"max"}},
+	{regexp.MustCompile(`^at most (\d+) characters$`), "max_length", []string{"max"}},
+	{regexp.MustCompile(`^(\d+)-(\d+) characters$`), "length", []string{"min", "max"}},
+	{regexp.MustCompile(`^too long$`), "too_long", nil},
+	{regexp.MustCompile(`^too large$`), "too_large", nil},
+	{regexp.MustCompile(`^(?:invalid uuid|uuid)$`), "invalid_id", nil},
+	{regexp.MustCompile(`^(?:required |expected |must be )?YYYY-MM-DD$`), "invalid_date", nil},
+	{regexp.MustCompile(`^unknown (?:ISO 4217 )?currency$`), "unknown_currency", nil},
+	{regexp.MustCompile(`^(?:must be positive|required and positive)$`), "positive", nil},
+	{regexp.MustCompile(`^must not be zero$`), "not_zero", nil},
+	{regexp.MustCompile(`^expected a decimal string$`), "invalid_decimal", nil},
+	{regexp.MustCompile(`^invalid email address$`), "invalid_email", nil},
+	{regexp.MustCompile(`^unknown (?:account|category|transaction|tag|merchant|budget|plan|rule|importer|recurrence|goal|subscription)$`), "unknown_reference", nil},
+	{regexp.MustCompile(`^must not be before (\w+)$`), "not_before", []string{"other"}},
+	{regexp.MustCompile(`^must be in the future$`), "future", nil},
+	{regexp.MustCompile(`^range is limited to (\d+) days$`), "max_days", []string{"max"}},
+	{regexp.MustCompile(`^unknown IANA time zone$`), "invalid_timezone", nil},
+	{regexp.MustCompile(`^invalid locale$`), "invalid_locale", nil},
+	// "a, b or c" / "one of a, b, c": options are API values (not translated).
+	{regexp.MustCompile(`^(?:one of )?((?:[a-z0-9_]+, )*[a-z0-9_]+) or ([a-z0-9_]+)$`), "one_of", []string{"options", "last"}},
+	{regexp.MustCompile(`^one of ((?:[a-z0-9_]+, )+[a-z0-9_]+)$`), "one_of", []string{"options"}},
+}
+
+func fieldCode(msg string) (FieldCode, bool) {
+	for _, r := range fieldRules {
+		m := r.re.FindStringSubmatch(msg)
+		if m == nil || (r.code == "one_of" && strings.HasPrefix(msg, "required")) {
+			continue
+		}
+		c := FieldCode{Code: r.code}
+		for i, name := range r.params {
+			if c.Params == nil {
+				c.Params = map[string]string{}
+			}
+			c.Params[name] = m[i+1]
+		}
+		if last, ok := c.Params["last"]; ok { // one_of: a single comma-separated list
+			c.Params["options"] += ", " + last
+			delete(c.Params, "last")
+		}
+		return c, true
+	}
+	return FieldCode{}, false
 }
 
 // WriteJSON writes v with status.

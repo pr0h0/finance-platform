@@ -285,9 +285,14 @@
   importer limitations); the dashboard, filters, forecast assumptions, insights and the hits it found are
   translated. The scans are heuristics: still English are lowercase-start fragments outside JSX, label maps whose
   keys are enum values (e.g. the rules page summary `field op "value"`, notification kinds, import batch status,
-  sync entity names on activation), notification titles/bodies generated in `.ts`, server-generated text
-  (insights, error details, and MCP forecast texts — REST forecasts honour `?lang=`/`users.locale`), and sentences translated in pieces around inline
+  sync entity names on activation), server-generated text (insights, bespoke validation messages without a
+  `fieldCodes` entry and the field names themselves, and MCP forecast texts — REST forecasts honour
+  `?lang=`/`users.locale`), and sentences translated in pieces around inline
   values (`{n} {t('…records,')}`). Merchant names of importers ("Generic CSV") stay as-is.
+- Notification text: server notifications carry `code` + `params` and the web renders them in the UI language;
+  email/Web Push use `users.locale` when the job runs (the web keeps it on the UI language). Local (device)
+  notifications are translated when generated (`tNow`) and have no code, so switching language later leaves
+  existing ones in the old language. Notifications created before the codes migration have `code: null`.
 - (fixed) Chromium has no Bosnian ICU data (bs-BA formatted as `-BAM 1,234.50`, `2026 M03 31`); `intlLocale()` in
   `@finplat/localization` substitutes `sr-Latn-BA` (same BiH conventions: `1.234,56 KM`). Firefox/WebKit use bs.
 - (fixed) Accessibility: `tests/e2e/specs/a11y.spec.ts` runs axe-core (WCAG 2.1 A/AA) on every main page in
